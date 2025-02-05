@@ -201,10 +201,11 @@ if [[ "$(uname)" == "Darwin" ]]; then
   init_podman
 elif [[ -f /etc/os-release ]]; then
   source /etc/os-release
-  if [[ "$ID" == "rhel" && "$VERSION_ID" == "9" ]]; then
-      :
+  if [[ "$ID" == "rhel" && "$VERSION_ID" =~ ^9\. ]]; then
+    :
   else
     echo "Unsupported Operating System. Please run this script on RHEL 9 or macOS."
+    exit 1
   fi
 else
   echo "Unsupported Operating System. Please run this script on RHEL 9 or macOS."
