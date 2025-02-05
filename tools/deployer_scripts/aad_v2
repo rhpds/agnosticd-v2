@@ -191,8 +191,10 @@ if [ "${ACTION}" == "setup" ]; then
   exit 0
 fi
 
-# Set action to default - to be overwritten later
-PLAYBOOK=destroy
+# Set variables from parameters
+GUID="${2}"
+CONFIG_YAML="${3}"
+SECRETS_YAML="${4}"
 
 if [[ "$(uname)" == "Darwin" ]]; then
   # Initialize Podman Machine for macOS
@@ -200,7 +202,7 @@ if [[ "$(uname)" == "Darwin" ]]; then
 elif [[ -f /etc/os-release ]]; then
   source /etc/os-release
   if [[ "$ID" == "rhel" && "$VERSION_ID" == "9" ]]; then
-      # echo "Running on RHEL 9"
+      :
   else
     echo "Unsupported Operating System. Please run this script on RHEL 9 or macOS."
   fi
@@ -219,27 +221,15 @@ fi
 
 # Create a config using Ansible Navigator
 if [ "${ACTION}" == "create" ]; then
-  GUID="${2}"
-  CONFIG_YAML="${3}"
-  SECRETS_YAML="${4}"
-  OUTPUT_DIR=${GUID}
-  # AWS Sandbox credentials
-  SECRETS=secrets-sandbox${SANDBOX}
-  SECRETS_FILE=${SECRETS_DIR}/${SECRETS}.yml
-  # Config to deploy
-  VARS_FILE=${VARS_DIR}/${VARS}.yml
-
-	mkdir -p ${OUTPUT_DIR_ROOT}/${OUTPUT_DIR}
-	export ANSIBLE_LOG_PATH=/output_dir_root/${OUTPUT_DIR}/${GUID}.log; \
-	export ANSIBLE_PODMAN_CONNECTION=agnosticd; \
-  
+	mkdir -p ${OUTPUT_DIR_ROOT}/${GUID}
+	export ANSIBLE_LOG_PATH=/output_dir_root/${GUID}/${GUID}.log; \
   ansible-navigator run ansible/main.yml \
 		--extra-vars ACTION=provision \
-		--extra-vars @/vars/${VARS}.yml \
-		--extra-vars @/secrets/${SECRETS}.yml \
+		--extra-vars @/vars/${CONFIG_YAML}.yml \
 		--extra-vars @/secrets/secrets.yml \
+		--extra-vars @/secrets/secrets-${SECRETS_YAML}.yml \
 		--extra-vars guid=${GUID} \
-		--extra-vars output_dir=/output_dir_root/${OUTPUT_DIR} \
+		--extra-vars output_dir=/output_dir_root/${GUID} \
 		--mode stdout
 
 	# export ANSIBLE_DEBUG=1; \
@@ -248,25 +238,14 @@ fi
 
 # Destroy a config using Ansible Navigator
 if [ "${ACTION}" == "destroy" ]; then
-  GUID="${2}"
-  CONFIG_YAML="${3}"
-  SECRETS_YAML="${4}"
-  OUTPUT_DIR=${GUID}
-  # AWS Sandbox credentials
-  SECRETS=secrets-sandbox${SANDBOX}
-  SECRETS_FILE=${SECRETS_DIR}/${SECRETS}.yml
-  # Config to deploy
-  VARS_FILE=${VARS_DIR}/${VARS}.yml
-
 	mkdir -p ${OUTPUT_DIR_ROOT}/${OUTPUT_DIR}
-	export ANSIBLE_LOG_PATH=/output_dir_root/${OUTPUT_DIR}/${GUID}.log; \
-	export ANSIBLE_PODMAN_CONNECTION=agnosticd; \
+	export ANSIBLE_LOG_PATH=/output_dir_root/${GUID}/${GUID}.log; \
 	ansible-navigator run ansible/destroy.yml \
 		--extra-vars ACTION=destroy \
-		--extra-vars @/vars/${VARS}.yml \
-		--extra-vars @/secrets/${SECRETS}.yml \
+		--extra-vars @/vars/${CONFIG_YAML}.yml \
 		--extra-vars @/secrets/secrets.yml \
+		--extra-vars @/secrets/${SECRETS_YAML}.yml \
 		--extra-vars guid=${GUID} \
-		--extra-vars output_dir=/output_dir_root/${OUTPUT_DIR} \
+		--extra-vars output_dir=/output_dir_root/${GUID} \
 		--mode stdout
 fi
