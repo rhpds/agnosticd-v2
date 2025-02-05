@@ -1,0 +1,29 @@
+---
+- name: If fallback_regions is defined, detect the region
+  when: fallback_regions is defined and aws_region is defined
+  block:
+  - name: Fallback_regions is defined, detect region for AWS
+    environment:
+      AWS_ACCESS_KEY_ID: "{{ aws_access_key_id }}"
+      AWS_SECRET_ACCESS_KEY: "{{ aws_secret_access_key }}"
+    ansible.builtin.command: >-
+      aws cloudformation describe-stacks
+      --stack-name {{ project_tag }} --region {{ item }}
+    register: r_cloudformation_detect
+    loop: "{{ [aws_region] + fallback_regions | default([]) }}"
+    changed_when: false
+    failed_when: false
+
+  - name: Set aws_region_final
+    when: item.rc == 0
+    ansible.builtin.set_fact:
+      aws_region_final: "{{ item._ansible_item_label }}"
+    loop: "{{ r_cloudformation_detect.results }}"
+    loop_control:
+      label: "{{ item._ansible_item_label | default('unknown') }}"
+
+# Else just set as the provided aws_region
+- name: Set aws_region_final as provided with aws_region
+  when: fallback_regions is not defined and aws_region is defined
+  ansible.builtin.set_fact:
+    aws_region_final: "{{ aws_region }}"

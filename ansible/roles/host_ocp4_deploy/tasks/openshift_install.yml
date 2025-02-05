@@ -1,0 +1,11 @@
+---
+######################### Prep hosts to run OpenShift Installer
+- name: Call Role to provision OCP4 install host
+  ansible.builtin.include_role:
+    name: host_ocp4_provisioner
+
+######################### Run OpenShift Installer
+- name: Call Role to install OpenShift
+  when: install_ocp4 | default(true) | bool
+  ansible.builtin.include_role:
+    name: host_ocp4_installer

@@ -1,0 +1,30 @@
+---
+# Entry point for update ACTION.
+- name: Step 0000 Set Action
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+  - name: Set ACTION to update
+    when: ACTION is undefined
+    ansible.builtin.set_fact:
+      ACTION: update
+
+- name: Setup runtime
+  ansible.builtin.import_playbook: setup_runtime.yml
+
+- name: Update
+  vars:
+    __find_update_params:
+      files:
+        - configs/{{ config }}/update.yml
+        - update_placeholder.yml
+  ansible.builtin.import_playbook: >-
+    {{ lookup('first_found', __find_update_params) }}
+
+- name: Save output dir
+  ansible.builtin.import_playbook: save_output_dir.yml
+
+- name: Completion callback
+  ansible.builtin.import_playbook: completion_callback.yml

@@ -1,0 +1,10 @@
+---
+# defaults file for bastion
+
+bastion_ssh_key_type: rsa
+bastion_ssh_key_name: bastion_{{ guid }}
+bastion_ssh_key_path: >-
+  ~/.ssh/{{ bastion_ssh_key_name }}
+bastion_ssh_pubkey_path: >-
+  ~/.ssh/{{ bastion_ssh_key_name
+  | regex_replace('\.pem$', '') }}.pub

@@ -1,0 +1,30 @@
+---
+- name: Loop images
+  when: _instance.image is defined
+  vars:
+    _images: >-
+      {{ _instance.image | agnosticd_get_all_images(infra_images_predefined) }}
+  ansible.builtin.include_tasks: aws_loop_images.yaml
+  loop: "{{ infra_images_instances | default([]) }}"
+  loop_control:
+    loop_var: _instance
+
+- name: Debug images
+  when: agnosticd_images is defined
+  block:
+  - name: debug agnosticd_image
+    ansible.builtin.debug:
+      var: agnosticd_images
+      verbosity: 3
+
+  - name: Print images found for each instance
+    ansible.builtin.debug:
+      msg: >-
+        {{ item.key }} -
+        {{ item.value.name }} -
+        {{ item.value.image_id }} -
+        {{ item.value.platform_details }} -
+        {{ aws_region_final | default(aws_region) | default('us-east-1') }}
+    loop: "{{ agnosticd_images | dict2items }}"
+    loop_control:
+      label: "{{ item.key }}"

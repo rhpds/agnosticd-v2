@@ -1,0 +1,8 @@
+---
+- name: Include create tasks
+  when: ACTION != 'destroy'
+  ansible.builtin.include_tasks: create.yml
+
+- name: Include destroy tasks
+  when: ACTION == 'destroy'
+  ansible.builtin.include_tasks: destroy.yml

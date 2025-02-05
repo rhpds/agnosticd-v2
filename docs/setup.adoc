@@ -1,0 +1,47 @@
+= Set up AgnosticD V2 for Development
+
+== Overview
+
+The following documentation will set up a directory structure on your disk to allow you to develop locally.
+
+Pick a root directory (e.g. ~/Development or ~/aad). Under this directory you will end up with the following directories:
+
+* agnosticd-v2: The AgnosticD Code
+* agnosticd-v2-output: Output of any Ansible run
+* agnosticd-v2-vars: Configuration files for AgnosticD. This directory will be seeded with a vars file for an OpenShift Cluster with Let's Encrypt certificates.
+* agnosticd-v2-secrets: Secrets. This directory will be seeded with a file `secrets.yml` to hold general secrets (like the OpenShift Pull Secret or Red Hat Satellite subscription information) and `secrets-sandboxXXX.yml` to hold connection information for an AWS Open Environment from https://demo.redhat.com.
+* agnosticd-v2-virtualenv: Python 3.11 Virtualenv to hold ansible-navigator
+
+Your working directory for all scripts should be the agnosticd-v2 directory.
+
+== macOS
+
+
+
+== RHEL 9.5
+
+Install prerequisites:
+
+subscription-manager repos --enable codeready-builder-for-rhel-9-$(arch)-rpms
+
+sudo dnf -y install git python3.11 python3.11-devel gcc oniguruma-devel
+
+Set up your top level directory:
+
+mkdir -p ~/Development
+cd ~/Development
+
+Clone the repository
+git clone https://github.com/rhpds/agnosticd-v2
+cd agnosticd-v2
+
+Set up the AgnosticD development environment by running the setup script:
+
+./tools/deployer_scripts/aad_v2 setup
+
+This script will:
+
+* Check if you have ansible-navigator installed. If not it will set up a Virtualenv using Python3.11 and install ansible-navigator.
+* Check that the other agnosticd-v2-* directories exist and create them (including seed files) if necessary.
+* Seed the secrets and vars directories if the directories were created
+

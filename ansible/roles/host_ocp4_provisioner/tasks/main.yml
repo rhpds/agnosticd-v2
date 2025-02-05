@@ -1,0 +1,24 @@
+---
+- name: Ensure directory /etc/ansible exists
+  ansible.builtin.file:
+    path: /etc/ansible
+    state: directory
+    mode: "0775"
+
+- name: Set up cloud provider specific prerequisites
+  when:
+  - cloud_provider == "aws" or
+    cloud_provider == "azure" or
+    cloud_provider == "gcp"
+  ansible.builtin.import_tasks: "{{ cloud_provider }}_prereqs.yml"
+
+- name: Install slirp4netns
+  ansible.builtin.package:
+    name: slirp4netns
+
+- name: Update max_user_namespaces in sysctl
+  ansible.posix.sysctl:
+    name: user.max_user_namespaces
+    value: "28633"
+    sysctl_file: /etc/sysctl.d/userns.conf
+    reload: true

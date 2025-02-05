@@ -1,0 +1,29 @@
+---
+- name: Unvault value
+  block:
+  - name: Create tempfile to store vault password
+    ansible.builtin.tempfile:
+      state: file
+    register: r_vaultfile
+
+  - name: Write vault password to file
+    ansible.builtin.copy:
+      content: "{{ pool_manager_vault_password }}"
+      dest: "{{ r_vaultfile.path }}"
+      mode: "0600"
+
+  - name: Decrypt secret key from sandbox entry
+    ansible.builtin.command: ansible-vault decrypt --vault-password-file {{ r_vaultfile.path }}
+    args:
+      stdin: "{{ vaulted_text }}"
+    register: r_secret
+
+  - name: Save decrypted key
+    ansible.builtin.set_fact:
+      sandbox_aws_secret_access_key: "{{ r_secret.stdout }}"
+
+  always:
+  - name: Cleanup tempfile
+    ansible.builtin.file:
+      path: "{{ r_vaultfile.path }}"
+      state: absent

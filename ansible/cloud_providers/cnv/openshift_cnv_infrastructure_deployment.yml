@@ -1,0 +1,80 @@
+---
+- name: Step 001.1 Deploy Infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  module_defaults:
+    group/k8s:
+      host: "{{ sandbox_openshift_api_url }}"
+      validate_certs: false
+  tasks:
+  - name: Create ssh provision key
+    when:
+    - instances | default([]) | length
+    - ssh_provision_key_name is undefined
+    ansible.builtin.include_role:
+      name: create_ssh_provision_key
+
+  - name: Run infra_openshift_cnv_resources role
+    vars:
+      ACTION: provision
+    ansible.builtin.include_role:
+      name: infra_openshift_cnv_resources
+
+- name: Step 001.2 Create Inventory and SSH config setup
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+  - name: Run infra-dns Role
+    when: cluster_dns_server is defined or route53_aws_zone_id is defined
+    vars:
+      _dns_state: present
+    ansible.builtin.include_role:
+      name: infra_dns
+
+  - name: Run infra_openshift_cnv_create_inventory Role
+    ansible.builtin.import_role:
+      name: infra_openshift_cnv_create_inventory
+
+  - name: Run Common SSH Config Generator Role
+    when: "instances | default(false) and 'bastions' in groups"
+    ansible.builtin.import_role:
+      name: infra_common_ssh_config_generate
+
+- name: Include global vars again, this time for all hosts now that the inventory is built
+  import_playbook: ../include_vars.yml
+
+- name: Step 001.3 Configure Linux Hosts and Wait for Connection
+  hosts:
+  - all:!windows:!network
+  gather_facts: false
+  any_errors_fatal: true
+  ignore_errors: false
+  become: true
+  tasks:
+  - name: set facts for remote access
+    ansible.builtin.set_fact:
+      ansible_ssh_extra_args: >-
+        {{ ansible_ssh_extra_args | default() }}
+        -F {{ output_dir }}/{{ config }}_{{ guid }}_ssh_conf
+
+  - name: Run infra_generic_wait_for_linux_hosts Role
+    vars:
+      infra_generic_wait_for_linux_hosts_delay: 30
+      infra_generic_wait_for_linux_hosts_sleep: 10
+      infra_generic_wait_for_linux_hosts_connect_timeout: 20
+      infra_generic_wait_for_linux_hosts_timeout: 1200
+      infra_generic_wait_for_linux_hosts_retries: 10
+    ansible.builtin.include_role:
+      name: infra_generic_wait_for_linux_hosts
+
+  - name: Add authorized_keys
+    when: >-
+      ssh_authorized_keys | default([]) | length > 0
+      or
+      all_ssh_authorized_keys | default([]) | length > 0
+    ansible.builtin.include_role:
+      name: ssh_authorized_keys

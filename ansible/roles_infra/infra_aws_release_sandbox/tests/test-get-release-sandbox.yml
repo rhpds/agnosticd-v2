@@ -1,0 +1,32 @@
+---
+- name: Test get and release sandbox
+  hosts: localhost
+  gather_facts: false
+  tasks:
+  - name: Start test without aws-nuke and IPA
+    ansible.builtin.debug:
+      msg: Test to get and release a sandbox without aws-nuke and IPA
+
+  - name: Include aws get sandbox
+    ansible.builtin.include_role:
+      name: infra-aws-get-sandbox
+
+  - name: Include release sandbox
+    vars:
+      nuke_sandbox: false
+    ansible.builtin.include_role:
+      name: infra-aws-release-sandbox
+
+  - name: Start test with aws-nuke and IPA
+    ansible.builtin.debug:
+      msg: Test to get and release a sandbox with aws-nuke and IPA
+
+  - name: Include get sandbox
+    ansible.builtin.include_role:
+      name: infra-aws-get-sandbox
+
+  - name: Include release sandbox
+    vars:
+      nuke_sandbox: true
+    ansible.builtin.include_role:
+      name: infra-aws-release-sandbox

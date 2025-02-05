@@ -1,0 +1,10 @@
+---
+- name: Save output directory
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+  - name: Save output_dir archive
+    when: agnosticd_save_output_dir_archive is defined
+    ansible.builtin.include_role:
+      name: agnosticd_save_output_dir

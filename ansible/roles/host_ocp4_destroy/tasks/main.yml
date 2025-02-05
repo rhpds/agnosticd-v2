@@ -1,0 +1,32 @@
+---
+- name: Set up cloud provider specific prerequisites
+  when:
+  - cloud_provider == "azure" or
+    cloud_provider == "gcp"
+  ansible.builtin.include_tasks: "{{ cloud_provider }}_prereqs.yml"
+
+- name: Wait for openshift-install to complete
+  ansible.builtin.command: pidof openshift-install
+  register: r_check_openshift_install_running
+  until: r_check_openshift_install_running.rc != 0
+  retries: 360
+  delay: 10
+  failed_when: r_check_openshift_install_running.rc == 0
+  changed_when: false
+
+- name: Showing cluster_name to be removed
+  ansible.builtin.debug:
+    var: cluster_name
+    verbosity: 2
+
+- name: Stat if there is a cluster installed
+  ansible.builtin.stat:
+    path: "/home/{{ ansible_user }}/{{ cluster_name }}/metadata.json"
+  register: r_stat_metadata_json
+
+- name: Run openshift-installer destroy cluster
+  when: r_stat_metadata_json.stat.exists
+  become: false
+  ansible.builtin.command: openshift-install destroy cluster --dir=/home/{{ ansible_user }}/{{ cluster_name }}
+  async: "{{ 2 * 60 * 60 }}"
+  poll: 60

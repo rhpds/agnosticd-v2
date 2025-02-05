@@ -1,0 +1,26 @@
+---
+- name: Set hostname based on tag_internaldns
+  when: internaldns is defined
+  ansible.builtin.hostname:
+    name: "{{ internaldns }}"
+
+- name: Check for cloud.cfg file
+  ansible.builtin.stat:
+    path: /etc/cloud/cloud.cfg
+  register: r_cloud_cfg_file
+
+- name: Disable updating hostname in /etc/cloud/cloud.cfg
+  when: r_cloud_cfg_file.stat.exists
+  ansible.builtin.lineinfile:
+    dest: /etc/cloud/cloud.cfg
+    regexp: 'update_hostname$'
+    line: '# - update_hostname'
+    backup: true
+
+- name: Add preserve_hostname to /etc/cloud/cloud.cfg
+  when: r_cloud_cfg_file.stat.exists
+  ansible.builtin.lineinfile:
+    dest: /etc/cloud/cloud.cfg
+    regexp: '^preserve_hostname'
+    line: 'preserve_hostname: true'
+    backup: true

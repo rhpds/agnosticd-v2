@@ -1,0 +1,7 @@
+---
+######################### Deploy OpenShift using HCP on CNV
+- name: Call Role to install OpenShift using HCP on CNV
+  when: install_ocp4 | default(true) | bool
+  become: false
+  ansible.builtin.include_role:
+    name: host-ocp4-hcp-cnv-install

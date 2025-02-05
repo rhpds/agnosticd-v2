@@ -1,0 +1,148 @@
+---
+- name: Install client and OpenShift Installer binaries
+  ansible.builtin.import_tasks: install_installer.yml
+
+- name: Run the installation
+  when: host_ocp4_installer_install_openshift | bool
+  block:
+  - name: Enable FIPS mode on host
+    when:
+    - host_ocp4_installer_fips_enable | default(false) | bool
+    - host_ocp4_installer_version is version_compare('4.16', '>=')
+    become: true
+    ansible.builtin.import_tasks: setup_fips_host.yml
+
+  - name: Generate install_config.yaml
+    ansible.builtin.import_tasks: generate_install_config.yml
+
+  - name: Installation and getting the logs
+    block:
+    - name: Create openshift-install manifests
+      ansible.builtin.include_tasks: create_manifests.yml
+
+    - name: Run the installer
+      become: false
+      ansible.builtin.command: openshift-install create cluster --dir=/home/{{ ansible_user }}/{{ cluster_name }}
+      async: "{{ 2 * 60 * 60 }}"
+      poll: 15
+      register: r_openshift_install
+
+    rescue:
+    - name: Run destroy to reset before retry
+      become: false
+      ansible.builtin.command: openshift-install destroy cluster --dir=/home/{{ ansible_user }}/{{ cluster_name }}
+
+    - name: Pause briefly for cloud provider cleanup to finish
+      ansible.builtin.pause:
+        minutes: 2
+
+    - name: Restore install config from backup copy
+      ansible.builtin.copy:
+        remote_src: true
+        src: /home/{{ ansible_user }}/{{ cluster_name }}/install-config.yaml.bak
+        dest: /home/{{ ansible_user }}/{{ cluster_name }}/install-config.yaml
+        owner: "{{ ansible_user }}"
+        mode: ug=rw,o=
+
+    - name: Recreate openshift-install manifests
+      ansible.builtin.include_tasks: create_manifests.yml
+
+    - name: Retry the installer
+      become: false
+      ansible.builtin.command: openshift-install create cluster --dir=/home/{{ ansible_user }}/{{ cluster_name }}
+      async: "{{ 2 * 60 * 60 }}"
+      poll: "{{ 0 if ocp4_ansible_managed_osp_external_network | bool else 15 }}"
+      register: r_openshift_install
+
+    always:
+    - name: Gzip Install log
+      ansible.builtin.archive:
+        path: /home/{{ ansible_user }}/{{ cluster_name }}/.openshift_install.log
+        dest: /home/{{ ansible_user }}/{{ cluster_name }}/.openshift_install.log.gz
+        format: gz
+        mode: "0664"
+
+    - name: Get Install log
+      ansible.builtin.fetch:
+        src: /home/{{ ansible_user }}/{{ cluster_name }}/.openshift_install.log.gz
+        dest: "{{ output_dir }}/{{ config }}_{{ guid }}_log/"
+        flat: true
+
+    - name: Save output_dir archive
+      when: agnosticd_save_output_dir_archive is defined
+      ansible.builtin.include_role:
+        name: agnosticd_save_output_dir
+
+- name: Fetch kube config
+  ansible.builtin.fetch:
+    flat: true
+    src: /home/{{ ansible_user }}/{{ cluster_name }}/auth/{{ item }}
+    dest: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_{{ item }}"
+  loop:
+  - kubeconfig
+  - kubeadmin-password
+
+- name: Make sure .kube directory exists for {{ ansible_user }}
+  ansible.builtin.file:
+    state: directory
+    path: /home/{{ ansible_user }}/.kube
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0700"
+
+- name: Make sure .kube directory exists for root
+  become: true
+  ansible.builtin.file:
+    state: directory
+    path: /root/.kube
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Copy cluster kubeconfig to /home/{{ ansible_user }}/.kube/config
+  ansible.builtin.copy:
+    remote_src: true
+    src: "/home/{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig"
+    dest: "/home/{{ ansible_user }}/.kube/config"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+
+- name: Copy cluster kubeconfig to /root/.kube/config
+  become: true
+  ansible.builtin.copy:
+    remote_src: true
+    src: /home/{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig
+    dest: /root/.kube/config
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Set up Student User
+  when: install_student_user | bool
+  block:
+  - name: Make sure .kube directory exists in /home/{{ student_name }}
+    become: true
+    ansible.builtin.file:
+      state: directory
+      path: "/home/{{ student_name }}/.kube"
+      owner: "{{ student_name }}"
+      group: users
+      mode: "0700"
+
+  - name: Copy /home/{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig to /home/{{ student_name }}/.kube
+    become: true
+    ansible.builtin.copy:
+      src: /home/{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig
+      dest: /home/{{ student_name }}/.kube/config
+      remote_src: true
+      owner: "{{ student_name }}"
+      group: users
+      mode: "0600"
+
+- name: Create OpenShift Bash completion file
+  become: true
+  ansible.builtin.shell: oc completion bash >/etc/bash_completion.d/openshift
+
+- name: Gather and Print cluster info
+  ansible.builtin.import_tasks: print_cluster_info.yml

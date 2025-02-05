@@ -1,0 +1,31 @@
+---
+- name: Include role infra_cloud_tags
+  when: cloud_tags_final is not defined
+  ansible.builtin.include_role:
+    name: infra_cloud_tags
+
+- name: Save generated password
+  ansible.builtin.set_fact:
+    admin_console_password: "{{ admin_console_password_gen }}"
+
+- name: Launch CloudFormation template to create Open Environment
+  amazon.aws,cloudformation:
+    aws_access_key: "{{ aws_access_key_id }}"
+    aws_secret_key: "{{ aws_secret_access_key }}"
+    stack_name: "{{ project_tag }}-open-environment"
+    state: present
+    region: "{{ aws_region_loop | default(aws_region) | default(region) | default('us-east-1') }}"
+    tags: "{{ cloud_tags_final }}"
+    template_body: "{{ lookup('template', 'open-environment.yaml.j2') }}"
+  register: r_cloudformation_open_env
+
+- name: Get AWS credentials from stack outputs
+  ansible.builtin.set_fact:
+    admin_access_key_id: >-
+      {{ r_cloudformation_open_env.stack_outputs.AdminUserAccessKey }}
+    admin_secret_access_key: >-
+      {{ r_cloudformation_open_env.stack_outputs.AdminUserSecretAccessKey }}
+    admin_console_user_name: >-
+      {{
+      r_cloudformation_open_env.stack_outputs.AdminUser
+      }}

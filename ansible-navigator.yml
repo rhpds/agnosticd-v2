@@ -1,0 +1,20 @@
+---
+ansible-navigator:
+
+  execution-environment:
+    container-engine: podman
+    # container-options:
+    # - "--connection=agnosticd"
+    image: quay.io/agnosticd/ee-multicloud:2025-01-03
+    pull:
+      policy: missing
+
+    volume-mounts:
+    - src: ../agnosticd-v2-secrets
+      dest: /secrets
+    - src: ../agnosticd-v2-vars
+      dest: /vars
+    - src: ../agnosticd-v2-output
+      dest: /output_dir_root
+
+  format: json

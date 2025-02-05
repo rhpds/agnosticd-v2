@@ -1,0 +1,30 @@
+---
+- name: Create vols for registry NFS
+  ansible.builtin.file:
+    path: /srv/nfs/ocp-registry
+    state: directory
+    mode: "0777"
+
+- name: Create user vols for NFS
+  ansible.builtin.shell: "mkdir -p /srv/nfs/user_vols/vol{1..{{ nfs_user_vols_count }}}"
+
+- name: Chmod the user vols
+  ansible.builtin.shell: "chmod -R 777 /srv/nfs"
+
+- name: Create exports file
+  ansible.builtin.file:
+    path: /etc/exports.d/{{ guid }}.exports
+    state: touch
+    mode: "0755"
+
+- name: Create exports file
+  ansible.builtin.lineinfile:
+    dest: /etc/exports.d/{{ guid }}.exports
+    line: '/srv/nfs {{ nfs_exports_config }}'
+    state: present
+
+- name: Enable and start NFS server
+  ansible.builtin.service:
+    name: nfs-server
+    state: restarted
+    enabled: true

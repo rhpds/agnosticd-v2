@@ -1,0 +1,10 @@
+---
+default_cloud_tags:
+  Stack: "project {{ project_tag | default(config+'-'+guid) }}"
+  owner: "{{ email | default(user) | default('unknown') }}"
+  config: "{{ config }}"
+  guid: "{{ guid }}"
+  uuid: "{{ uuid | default('none') }}"
+
+# custom additional tags :
+cloud_tags: {}

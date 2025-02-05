@@ -1,0 +1,87 @@
+---
+# -------------------------------------------------------------------
+# Mandatory Variables
+# -------------------------------------------------------------------
+cloud_provider: aws
+config: openshift-cluster
+# -------------------------------------------------------------------
+# End Mandatory Variables
+# -------------------------------------------------------------------
+
+platform: labs
+purpose: development
+
+# -------------------------------------------------------------------
+# AWS Specific settings
+# -------------------------------------------------------------------
+aws_region: eu-central-1
+agnosticd_aws_capacity_reservation_enable: false
+
+master_instance_type: m7a.xlarge
+master_instance_count: 3
+master_storage_type: io1
+master_storage_size: 250
+worker_instance_type: m7a.2xlarge
+worker_instance_count: 2
+worker_storage_type: gp3
+worker_storage_size: 250
+bastion_instance_type: t3a.medium
+bastion_instance_image: RHEL95GOLD-latest
+
+# Replace owner with your e-mail address
+cloud_tags:
+- owner: wkulhane@redhat.com
+- Purpose: development
+- env_type: "{{ env_type }}"
+- guid: "{{ guid }}"
+
+# -------------------------------------------------------------------
+# Bastion VM settings
+# -------------------------------------------------------------------
+# Replace with your SSH key on Github
+ssh_authorized_keys:
+- key: https://github.com/wkulhanek.keys
+
+# Install FTL on the bastion
+install_ftl: false
+
+# Create a student user
+install_student_user: true
+student_name: student
+
+repo_method: satellite
+update_packages: true
+
+# -------------------------------------------------------------------
+# OpenShift settings
+# -------------------------------------------------------------------
+cluster_name: ocp
+
+host_ocp4_installer_root_url: http://mirror.openshift.com/pub/openshift-v4/clients
+host_ocp4_installer_use_dev_preview: true
+host_ocp4_installer_url: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/candidate-4.18/openshift-install-linux.tar.gz
+host_ocp4_client_url: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/candidate-4.18/openshift-client-linux.tar.gz
+#host_ocp4_installer_version: "4.18"
+
+host_ocp4_installer_set_user_data_kubeadmin_password: true
+
+# -------------------------------------------------------------------
+# List of workloads to be deployed
+# -------------------------------------------------------------------
+workloads:
+- ocp4_workload_cert_manager
+
+# -------------------------------------------------------------------
+# Variables for specific workloads
+# -------------------------------------------------------------------
+
+# -------------------------------------------------------------------
+# Workload: ocp4_workload_cert_manager
+# -------------------------------------------------------------------
+ocp4_workload_cert_manager_aws_region: "{{ aws_region }}"
+ocp4_workload_cert_manager_aws_access_key_id: "{{ hostvars.localhost.route53user_access_key }}"
+ocp4_workload_cert_manager_aws_secret_access_key: "{{ hostvars.localhost.route53user_secret_access_key }}"
+ocp4_workload_cert_manager_channel: stable-v1.15
+ocp4_workload_cert_manager_use_catalog_snapshot: false
+ocp4_workload_cert_manager_install_ingress_certificates: true
+ocp4_workload_cert_manager_install_api_certificates: false

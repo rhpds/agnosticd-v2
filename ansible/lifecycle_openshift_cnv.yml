@@ -1,0 +1,8 @@
+---
+- name: Include infra-openshift-cnv-resources
+  when: >-
+    ACTION == 'stop'
+    or ACTION == 'start'
+    or ACTION == 'status'
+  ansible.builtin.include_role:
+    name: infra_openshift_cnv_resources

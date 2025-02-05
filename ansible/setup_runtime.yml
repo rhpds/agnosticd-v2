@@ -1,0 +1,38 @@
+---
+- name: Step 0000 Setup runtime
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+  - name: Ensure cloud provider is supported
+    vars:
+      # agnosticd_cloud_providers:
+      # - aws
+      # - azure
+      # - osp
+      # - gcp
+      # - ibm
+      # - vmc
+      # - openshift_cnv
+      # - none
+      # - test
+      # - vmware_ibm
+      # - multi
+      # - shared_openshift
+      agnosticd_cloud_providers:
+      - aws
+      - openshift_cnv
+    ansible.builtin.assert:
+      that: cloud_provider in agnosticd_cloud_providers
+      msg: "Cloud provider {{ cloud_provider }} is not supported."
+      quiet: true
+
+- name: Setup output directory
+  ansible.builtin.import_playbook: setup_output_dir.yml
+
+- name: Include global variables from the config
+  ansible.builtin.import_playbook: include_vars.yml
+
+- name: Install Galaxy roles for the config
+  ansible.builtin.import_playbook: install_galaxy_roles.yml

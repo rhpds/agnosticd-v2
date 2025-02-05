@@ -1,0 +1,9 @@
+---
+- name: Import pre-check tasks
+  ansible.builtin.import_tasks: pre_checks.yml
+
+- name: Setup aws profiles that will be use by aws-infra-sandbox
+  ansible.builtin.import_tasks: profile.yml
+
+- name: Release sandbox
+  ansible.builtin.import_tasks: release.yml

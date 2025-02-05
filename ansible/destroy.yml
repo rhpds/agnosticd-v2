@@ -1,0 +1,50 @@
+---
+################################################################################
+################################################################################
+############ Step 001 Destroy environment
+################################################################################
+################################################################################
+- name: Step 0001 Set ACTION
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+  - name: Set ACTION to destroy
+    when: ACTION is undefined
+    ansible.builtin.set_fact:
+      ACTION: destroy
+
+- name: Setup runtime
+  ansible.builtin.import_playbook: setup_runtime.yml
+
+- name: Step 0002 Detect in what region the stack is
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+  - name: Detect region for AWS
+    when:
+    - cloud_provider == 'aws'
+    - target_regions is not defined
+    ansible.builtin.include_tasks: cloud_providers/aws/aws_detect_region_tasks.yml
+
+- name: Call cloud provider destroy logic
+  ansible.builtin.import_playbook: >-
+    {{ lookup('first_found', {
+         'files': [ 'destroy_env.yml',
+                    cloud_provider + '_destroy_env.yml'
+                  ],
+         'paths': [ 'configs/' + config,
+                    'cloud_providers/aws',
+                    'cloud_providers/cnv'
+                  ]
+       })
+    }}
+
+- name: Save output dir
+  ansible.builtin.import_playbook: save_output_dir.yml
+
+- name: Completion callback
+  ansible.builtin.import_playbook: completion_callback.yml

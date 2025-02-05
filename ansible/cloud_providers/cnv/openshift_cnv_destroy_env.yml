@@ -1,0 +1,15 @@
+---
+- name: Include Variables
+  import_playbook: ../include_vars.yml
+
+- name: Delete Infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+  - name: Run infra-openshift-cnv-resources
+    vars:
+      ACTION: destroy
+    ansible.builtin.include_role:
+      name: infra_openshift_cnv_resources

@@ -1,0 +1,39 @@
+---
+- name: Ensure key_name is not defined
+  when: key_name is defined
+  ansible.builtin.fail:
+    msg: 'ERROR: key_name is DEPRECATED and should not be defined when using new create_ssh_provision_key role.'
+
+- name: Generate SSH keys
+  community.crypto.openssh_keypair:
+    comment: AWS Provision Key
+    mode: u=rw
+    path: "{{ ssh_provision_key_path }}"
+    regenerate: full_idempotence
+    size: 2048
+    type: "{{ ssh_provision_key_type }}"
+  register: r_ssh_key_gen
+
+- name: Slurp public key
+  ansible.builtin.slurp:
+    path: "{{ ssh_provision_key_path }}.pub"
+  register: r_ssh_provision_public_key
+
+- name: Save all facts for SSH
+  ansible.builtin.set_fact:
+    ssh_provision_pubkey_content: "{{ r_ssh_provision_public_key.content | b64decode }}"
+    ssh_provision_pubkey_path: "{{ ssh_provision_pubkey_path }}"
+    ssh_provision_key_path: "{{ ssh_provision_key_path }}"
+    ssh_provision_key_name: "{{ ssh_provision_key_name }}"
+
+- name: Report user info for SSH provision key as user data
+  when: create_ssh_provision_key_enable_user_info_data | bool
+  agnosticd_user_info:
+    data:
+      ssh_provision_key: "{{ lookup('file', ssh_provision_key_path) }}"
+      ssh_provision_pubkey: "{{ ssh_provision_pubkey_content }}"
+
+- name: Include save output dir role
+  when: r_ssh_key_gen is changed
+  ansible.builtin.include_role:
+    name: agnosticd_save_output_dir

@@ -1,0 +1,10 @@
+---
+default_key_name: ~/.ssh/{{ key_name | default('') }}.pem
+remote_user_map:
+  aws: ec2-user
+  openshift_cnv: cloud-user
+  # azure: azure
+  # gcp: gcpuser
+  # equinix_metal: root
+  # vmc: cloud-user
+  # vmware_ibm: cloud-user

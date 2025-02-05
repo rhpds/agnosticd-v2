@@ -1,0 +1,16 @@
+---
+- name: Execute capacity reservations
+  when:
+  - agnosticd_aws_capacity_reservations is defined
+  - agnosticd_aws_capacity_reservation_enable | bool
+  block:
+  - name: Include pre-checks
+    ansible.builtin.include_tasks: pre_checks.yml
+
+  - name: Create reservation
+    when: ACTION == 'provision'
+    ansible.builtin.include_tasks: create.yml
+
+  - name: Delete reservation
+    when: ACTION == 'destroy'
+    ansible.builtin.include_tasks: destroy.yml

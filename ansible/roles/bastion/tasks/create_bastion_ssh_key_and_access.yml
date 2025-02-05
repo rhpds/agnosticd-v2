@@ -1,0 +1,80 @@
+---
+- name: Generate SSH keys
+  community.crypto.openssh_keypair:
+    comment: Bastion
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+    path: "{{ bastion_ssh_key_path }}"
+    regenerate: partial_idempotence
+    size: 2048
+    type: "{{ bastion_ssh_key_type }}"
+
+- name: Read SSH public key
+  ansible.builtin.slurp:
+    src: "{{ bastion_ssh_key_path }}.pub"
+  register: r_bastion_ssh_pubkey
+#   ansible.builtin.command: >-
+#     ssh-keygen
+#     -t {{ bastion_ssh_key_type | quote }}
+#     -f {{ bastion_ssh_key_path | quote }}
+#     -q -N ""
+#   args:
+#     creates: "{{ bastion_ssh_key_path }}"
+#   register: r_ssh_key_gen
+
+# - name: Fix permission of ssh key
+#   ansible.builtin.file:
+#     path: "{{ bastion_ssh_key_path }}"
+#     mode: "0400"
+
+# - name: Generate SSH pub key content
+#   ansible.builtin.command: >-
+#     ssh-keygen -y -f {{ bastion_ssh_key_path | quote }}
+#   changed_when: false
+#   register: r_bastion_ssh_pubkey
+
+- name: Save all facts for SSH
+  ansible.builtin.set_fact:
+    bastion_ssh_pubkey_content: "{{ r_bastion_ssh_pubkey.content | b64decode }}"
+    bastion_ssh_pubkey_path: "{{ bastion_ssh_key_path }}.pub"
+    bastion_ssh_key_path: "{{ bastion_ssh_key_path }}"
+    bastion_ssh_key_name: "{{ bastion_ssh_key_name }}"
+
+- name: Debug ssh pub key
+  ansible.builtin.debug:
+    msg: "{{ bastion_ssh_pubkey_content }}"
+# - name: Write SSH pub key
+#   ansible.builtin.copy:
+#     content: "{{ bastion_ssh_pubkey_content }}"
+#     dest: "{{ bastion_ssh_pubkey_path }}"
+#     mode: "0600"
+
+- name: Add bastion access to all hosts
+  when:
+  - l_inventory_name not in groups.windows | default([])
+  - l_inventory_name not in groups.network | default([])
+  ansible.posix.authorized_key:
+    user: "{{ hostvars[l_inventory_name].remote_user | default(remote_user) | default(ansible_user) }}"
+    state: present
+    key: "{{ hostvars[groups.bastions | first].bastion_ssh_pubkey_content }}"
+    comment: "bastion"
+  loop: "{{ groups.all }}"
+  loop_control:
+    loop_var: l_inventory_name
+  delegate_to: "{{ l_inventory_name }}"
+
+- name: Add bastion access to all hosts
+  when:
+  - l_inventory_name not in groups.windows | default([])
+  - l_inventory_name not in groups.network | default([])
+  ansible.posix.authorized_key:
+    user: root
+    state: present
+    key: "{{ hostvars[groups.bastions | first].bastion_ssh_pubkey_content }}"
+    comment: "bastion"
+  loop: "{{ groups.all }}"
+  loop_control:
+    loop_var: l_inventory_name
+  delegate_to: "{{ l_inventory_name }}"
+  become: true

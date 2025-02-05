@@ -1,0 +1,39 @@
+---
+- name: Generate SSH keys for installer
+  community.crypto.openssh_keypair:
+    comment: OpenShift installer
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: u=rw
+    path: "/home/{{ ansible_user }}/.ssh/id_rsa"
+    regenerate: partial_idempotence
+    size: 2048
+    type: rsa
+
+- name: Slurp public key
+  ansible.builtin.slurp:
+    path: /home/{{ ansible_user }}/.ssh/id_rsa.pub
+  register: idrsapub
+
+- name: Create cluster directory
+  ansible.builtin.file:
+    path: /home/{{ ansible_user }}/{{ cluster_name }}
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: ug=rwx,o=rx
+
+- name: Generate config install-config.yaml
+  ansible.builtin.template:
+    src: "{{ 'templates/install-config.yaml.j2' }}"
+    dest: /home/{{ ansible_user }}/{{ cluster_name }}/install-config.yaml
+    owner: "{{ ansible_user }}"
+    mode: ug=rw,o=r
+
+- name: Make a copy of the cluster install config
+  ansible.builtin.copy:
+    remote_src: true
+    src: /home/{{ ansible_user }}/{{ cluster_name }}/install-config.yaml
+    dest: /home/{{ ansible_user }}/{{ cluster_name }}/install-config.yaml.bak
+    owner: "{{ ansible_user }}"
+    mode: ug=rw,o=r

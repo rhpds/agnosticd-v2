@@ -1,0 +1,272 @@
+#!/bin/bash
+# Args:
+#   aad_v2 action <guid config_name <secret_name> >
+# Example:
+#   aad_v2 setup
+#   aad_v2 create wkaws openshift-cluster sandbox1275
+#   aad_v2 destroy wkaws openshift-cluster sandbox1275
+# Note:
+#   config_name uses a file `../agnosticd-v2-vars/<config_name>.yml`
+#   secret_name uses a file `../agnosticd-v2-secrets/secret-<secret_name>.yml`
+
+EE_IMAGE=quay.io/agnosticd/ee-multicloud:2025-01-03
+
+OUTPUT_DIR_ROOT=../agnosticd-v2-output
+SECRETS_DIR=../agnosticd-v2-secrets
+VARS_DIR=../agnosticd-v2-vars
+
+# -------------------------------------------------------------------
+# print_usage()
+#
+# Function to print correct usage of the command
+# -------------------------------------------------------------------
+print_usage() {
+  echo ""
+  echo "Usage:"
+  echo ""
+  echo "$0 action <guid config_name <secret_name> ."
+  echo ""
+  echo "Examples:"
+  echo "  $0 setup"
+  echo "  $0 create wkaws openshift-cluster aws"
+  echo "  $0 destroy wkaws openshift sandbox1275"
+  echo ""
+}
+
+# -------------------------------------------------------------------
+# command_exists()
+#
+# Function to check if a command exists
+# -------------------------------------------------------------------
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# -------------------------------------------------------------------
+# agd_v2_setup()
+#
+# Function to setup AgnosticD V2
+# -------------------------------------------------------------------
+agd_v2_setup() {
+  echo
+  echo "********************************************************"
+  echo "AgnosticD V2 Setup"
+  echo "********************************************************"
+  echo
+
+  echo "Check if the setup is run from the correct directory..."
+  # Check if we are inside the agnosticd-v2 directory
+  if [ "$(basename "$PWD")" != "agnosticd-v2" ]; then
+      echo "  Error: This script must be run from within the agnosticd-v2 directory."
+      exit 1
+  fi
+
+  echo
+  echo "********************************************************"
+  echo "Check if podman is installed..."
+  # Check if Podman is installed
+  if ! command_exists podman; then
+      echo "  Error: Podman must be installed"
+      exit 1
+  fi
+
+  # Directories to check and create if they don't exist
+  directories=("../agnosticd-v2-output" "../agnosticd-v2-secrets" "../agnosticd-v2-vars")
+
+  echo
+  echo "*****************************************************************"
+  echo "Check if directories exist. Create and seed them if they don't..."
+  # Check if directories exist, create if they don't
+  for dir in "${directories[@]}"; do
+      if [ ! -d "$dir" ]; then
+          echo "  Directory $dir does not exist. Creating it..."
+          mkdir -p "$dir"
+          
+          # Copy template files if necessary
+          if [ "$dir" == "../agnosticd-v2-secrets" ]; then
+              cp tools/deployer_scripts/templates/secrets.yml "$dir" 2>&1 >/dev/null
+              cp tools/deployer_scripts/templates/secrets-sandboxXXX.yml "$dir" 2>&1 >/dev/null
+              echo "  Copied template files to $dir"
+          elif [ "$dir" == "../agnosticd-v2-vars" ]; then
+              cp tools/deployer_scripts/templates/openshift-cluster.yml "$dir" 2>&1 >/dev/null
+              echo "  Copied template file to $dir"
+          fi
+      fi
+  done
+
+  echo
+  echo "*****************************************************************"
+  echo "Check if VirtualEnv is set up correctly. Set it up if not..."
+  # Check if running in a Python virtual environment
+  VENV_DIR="../agnosticd-v2-virtualenv"
+  if [ -z "$VIRTUAL_ENV" ]; then
+      echo "  Not running in a virtual environment. Checking for Python 3.11..."
+      
+      if command_exists python3.11; then
+          if [ -d "$VENV_DIR" ]; then
+              echo "  Virtual environment already exists. Activating it..."
+          else
+              echo "  Creating new virtual environment..."
+              python3.11 -m venv "$VENV_DIR" 2>&1 >/dev/null
+          fi
+          source "$VENV_DIR/bin/activate"
+      else
+          echo "  Error: Python 3.11 must be installed"
+          exit 1
+      fi
+  else
+      echo "  Running in a virtual environment."
+  fi
+
+  echo
+  echo "*****************************************************************"
+  echo "Check if software is installed in the virtual env..."
+  # Update pip and install ansible-navigator
+  echo "  Updating pip and installing ansible-navigator..."
+  pip install --upgrade pip 2>&1 >/dev/null
+  pip install ansible-navigator 2>&1 >/dev/null
+
+  echo
+  echo "*****************************************************************"
+  echo "Setup complete."
+  echo "*****************************************************************"
+  echo
+}
+
+# -------------------------------------------------------------------
+# init_podman()
+#
+# Function to make sure a podman machine suitable to run AgnosticD
+# exists for macOS
+# The name of the Podman Machine is `agnosticd`.
+# -------------------------------------------------------------------
+init_podman() {
+  # Check if AgnosticD Podman Machine already exists
+  PODMAN_MACHINE=$(podman machine list --format json | jq -r '.[] | select(.Name | contains("agnosticd")) .Name')
+  if [ "${PODMAN_MACHINE}" == "agnosticd" ]
+  then
+    # AgnosticD Podman Machine exists. Check if it's running already
+    VM_RUNNING=$(podman machine list --format json | jq -r '.[] | select(.Name | contains("agnosticd")) .Running')
+    if [ "${VM_RUNNING}" != "true" ]; then
+      # AgnosticD Podman Machine exists - but is not running. Start it.
+      podman machine start agnosticd
+    fi
+  else
+    # AgnosticD Podman Machine does not yet exists. Create and start it.
+    podman machine init \
+      --cpus 4 \
+      --memory 8192 \
+      agnosticd \
+      --now
+
+    # Set the agnosticd machine to be the default machine
+    podman system connection default agnosticd
+  fi
+}
+
+# -------------------------------------------------------------------
+# Main logic
+# -------------------------------------------------------------------
+if [[ $# -eq 1 && "${1}" == "setup" ]]; then
+    # Valid case: 'setup' must have 1 parameter
+    :
+elif [[ $# -eq 4 && ("${1}" == "create" || "${1}" == "destroy") ]]; then
+    # Valid case: 'create' or 'destroy' must have 4 parameters
+    :
+else
+    print_usage
+    exit 1
+fi
+
+ACTION="${1}"
+
+if [ "${ACTION}" != "create" ] && [ "${ACTION}" != "destroy" ] && [ "${ACTION}" != "setup" ]; then
+  echo "Action must be 'create', 'destroy' or 'setup'"
+  print_usage
+  exit 1
+fi
+
+if [ "${ACTION}" == "setup" ]; then
+  agd_v2_setup
+  exit 0
+fi
+
+# Set action to default - to be overwritten later
+PLAYBOOK=destroy
+
+if [[ "$(uname)" == "Darwin" ]]; then
+  # Initialize Podman Machine for macOS
+  init_podman
+elif [[ -f /etc/os-release ]]; then
+  source /etc/os-release
+  if [[ "$ID" == "rhel" && "$VERSION_ID" == "9" ]]; then
+      # echo "Running on RHEL 9"
+  else
+    echo "Unsupported Operating System. Please run this script on RHEL 9 or macOS."
+  fi
+else
+  echo "Unsupported Operating System. Please run this script on RHEL 9 or macOS."
+  exit 1
+fi
+
+# Check for and initialize Virtual Environment
+VENV_DIR="../agnosticd-v2-virtualenv"
+if [ -d "$VENV_DIR" ]; then
+  source "$VENV_DIR/bin/activate"
+else
+  echo "  Error: Virtual Environment does not exist. Run '${0} setup'..."
+fi
+
+# Create a config using Ansible Navigator
+if [ "${ACTION}" == "create" ]; then
+  GUID="${2}"
+  CONFIG_YAML="${3}"
+  SECRETS_YAML="${4}"
+  OUTPUT_DIR=${GUID}
+  # AWS Sandbox credentials
+  SECRETS=secrets-sandbox${SANDBOX}
+  SECRETS_FILE=${SECRETS_DIR}/${SECRETS}.yml
+  # Config to deploy
+  VARS_FILE=${VARS_DIR}/${VARS}.yml
+
+	mkdir -p ${OUTPUT_DIR_ROOT}/${OUTPUT_DIR}
+	export ANSIBLE_LOG_PATH=/output_dir_root/${OUTPUT_DIR}/${GUID}.log; \
+	export ANSIBLE_PODMAN_CONNECTION=agnosticd; \
+  
+  ansible-navigator run ansible/main.yml \
+		--extra-vars ACTION=provision \
+		--extra-vars @/vars/${VARS}.yml \
+		--extra-vars @/secrets/${SECRETS}.yml \
+		--extra-vars @/secrets/secrets.yml \
+		--extra-vars guid=${GUID} \
+		--extra-vars output_dir=/output_dir_root/${OUTPUT_DIR} \
+		--mode stdout
+
+	# export ANSIBLE_DEBUG=1; \
+		# --extra-vars host_ocp4_installer_install_openshift=false \
+fi
+
+# Destroy a config using Ansible Navigator
+if [ "${ACTION}" == "destroy" ]; then
+  GUID="${2}"
+  CONFIG_YAML="${3}"
+  SECRETS_YAML="${4}"
+  OUTPUT_DIR=${GUID}
+  # AWS Sandbox credentials
+  SECRETS=secrets-sandbox${SANDBOX}
+  SECRETS_FILE=${SECRETS_DIR}/${SECRETS}.yml
+  # Config to deploy
+  VARS_FILE=${VARS_DIR}/${VARS}.yml
+
+	mkdir -p ${OUTPUT_DIR_ROOT}/${OUTPUT_DIR}
+	export ANSIBLE_LOG_PATH=/output_dir_root/${OUTPUT_DIR}/${GUID}.log; \
+	export ANSIBLE_PODMAN_CONNECTION=agnosticd; \
+	ansible-navigator run ansible/destroy.yml \
+		--extra-vars ACTION=destroy \
+		--extra-vars @/vars/${VARS}.yml \
+		--extra-vars @/secrets/${SECRETS}.yml \
+		--extra-vars @/secrets/secrets.yml \
+		--extra-vars guid=${GUID} \
+		--extra-vars output_dir=/output_dir_root/${OUTPUT_DIR} \
+		--mode stdout
+fi

@@ -1,0 +1,10 @@
+---
+- name: Export inventory
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  tasks:
+  - name: Export in-memory inventory to inventory file
+    when: agnosticd_inventory_exporter_enable | default(false) | bool
+    ansible.builtin.include_role:
+      name: agnosticd_inventory_exporter

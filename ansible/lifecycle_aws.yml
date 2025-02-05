@@ -1,0 +1,73 @@
+---
+- name: Retrieve the region from user-data.yaml
+  when: aws_region | default('') == ''
+  ansible.builtin.set_fact:
+    aws_region: "{{ lookup('agnosticd_user_data', 'aws_region') }}"
+
+- name: Run EC2 lifecycle action
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ aws_access_key_id }}"
+    AWS_SECRET_ACCESS_KEY: "{{ aws_secret_access_key }}"
+    AWS_DEFAULT_REGION: "{{ aws_region_final | default(aws_region) }}"
+  block:
+  - name: Get EC2 instances filtering by guid
+    amazon.aws.ec2_instance_info:
+      filters:
+        "tag:guid": "{{ guid }}"
+    register: r_instances
+
+  - name: Stop instances
+    when:
+    - ACTION == 'stop'
+    - _instance_ids_running | length > 0
+    vars:
+      _instance_ids_running: >-
+        {{ r_instances.instances
+        | default([])
+        | selectattr("state.name", "equalto", "running")
+        | map(attribute="instance_id")
+        | list
+        }}
+    amazon.aws.ec2_instance:
+      state: stopped
+      wait: false
+      instance_ids: "{{ _instance_ids_running }}"
+
+  - name: Start instances
+    when:
+    - ACTION == 'start'
+    - _instance_ids_stopped | length > 0
+    vars:
+      _instance_ids_stopped: >-
+        {{ r_instances.instances
+        | default([])
+        | selectattr("state.name", "equalto", "stopped")
+        | map(attribute="instance_id")
+        | list
+        }}
+    amazon.aws.ec2_instance:
+      state: running
+      wait: false
+      instance_ids: "{{ _instance_ids_stopped }}"
+
+  - name: Report status
+    when: ACTION == 'status'
+    block:
+    - name: Report status in user info
+      agnosticd_user_info:
+        msg: |-
+          {{ "%-60s %-10s %s" | format("Instance", "State", "Type") }}
+          ----------------------------------------------------------------
+          {% for instance in r_instances.instances %}
+          {{ "%-60s %-10s %s" | format(instance.tags.Name, instance.state.name, instance.instance_type) }}
+          {% endfor %}
+
+    - name: Print status information to a file
+      ansible.builtin.copy:
+        dest: "{{ output_dir }}/status.txt"
+        content: |-
+          {{ "%-60s %-10s %s" | format("Instance", "State", "Type") }}
+          ----------------------------------------------------------------
+          {% for instance in r_instances.instances %}
+          {{ "%-60s %-10s %s" | format(instance.tags.Name, instance.state.name, instance.instance_type) }}
+          {% endfor %}

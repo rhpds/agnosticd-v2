@@ -1,0 +1,85 @@
+---
+# Quickly setup output dir and include vars.
+# Do not run the full setup_runtime.yml playbook because
+# it installs galaxy dependencies and that is too slow for
+# lifecycle actions.
+#
+# Output dir:
+- name: Setup output dir
+  ansible.builtin.import_playbook: setup_output_dir.yml
+
+# include global vars from the config
+- name: Include global variables
+  ansible.builtin.import_playbook: include_vars.yml
+
+
+# This file is the default playbook for common actions.
+# You should implement those actions in your config if you
+# need a specific process.
+- name: Run stop/start/status/... actions
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+  - name: Assert guid and config
+    when: >-
+      guid is not defined or guid == ''
+      or config is not defined or config == ''
+    ansible.builtin.fail:
+      msg: "guid and config must be defined"
+
+  - name: Set default project tag
+    when: project_tag is not defined
+    ansible.builtin.set_fact:
+      project_tag: "{{ config }}-{{ guid }}"
+
+  - name: Fail if ACTION is not defined
+    when: ACTION is not defined
+    ansible.builtin.fail:
+      msg: "ACTION is not defined"
+
+  - name: Print debug statement
+    ansible.builtin.debug:
+      msg: "Lifecycle called with ACTION: '{{ ACTION }}'"
+
+  - name: Fail when guid is not defined
+    when: >-
+      guid is not defined
+      or guid == ''
+      or guid == '*'
+    ansible.builtin.fail:
+      msg: variable 'guid' must be defined and not empty
+
+  - name: Include tasks for AWS
+    when: cloud_provider == 'aws'
+    ansible.builtin.include_tasks: lifecycle_aws.yml
+
+  # - name: Include tasks for OSP
+  #   when: cloud_provider == 'osp'
+  #   ansible.builtin.include_role:
+  #     name: infra_osp_lifecycle
+
+  # - name: Include tasks for Equinix
+  #   when: cloud_provider == 'equinix_metal'
+  #   ansible.builtin.include_tasks: lifecycle_equinix_metal.yml
+
+  # - name: Include tasks for VMC
+  #   when: cloud_provider == 'vmc'
+  #   ansible.builtin.include_tasks: lifecycle_vmc.yml
+
+  # - name: Include tasks for VMware IBM
+  #   when: cloud_provider == 'vmware_ibm'
+  #   ansible.builtin.include_tasks: lifecycle_vmc.yml
+
+  - name: Include tasks for CNV
+    when: cloud_provider == 'openshift_cnv'
+    ansible.builtin.include_tasks: lifecycle_openshift_cnv.yml
+
+  # - name: Include tasks for Azure
+  #   when: cloud_provider == 'azure'
+  #   ansible.builtin.include_tasks: lifecycle_azure.yml
+
+  # - name: Include tasks for GCP
+  #   when: cloud_provider == 'gcp'
+  #   ansible.builtin.include_tasks: lifecycle_gcp.yml

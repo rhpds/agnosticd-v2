@@ -1,0 +1,37 @@
+---
+# - name: Include variables
+#   ansible.builtin.import_playbook: ../../include_vars.yml
+
+- name: Delete Infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+  - name: Run infra_aws_capacity_reservation
+    vars:
+      ACTION: destroy
+    ansible.builtin.include_role:
+      name: infra_aws_capacity_reservation
+
+  - name: Set facts for ssh provision SSH key
+    when: ssh_provision_key_name is undefined
+    ansible.builtin.include_role:
+      name: create_ssh_provision_key
+
+  - name: Destroy infra AWS keypair
+    vars:
+      ACTION: destroy
+    ansible.builtin.include_role:
+      name: infra_aws_ssh_key
+
+  - name: Run infra-aws-open-environment Role
+    when: agnosticd_open_environment | default(false) | bool
+    vars:
+      ACTION: destroy
+    ansible.builtin.include_role:
+      name: infra_aws_open_environment
+
+  - name: Run infra_aws_template_destroy
+    ansible.builtin.include_role:
+      name: infra_aws_template_destroy

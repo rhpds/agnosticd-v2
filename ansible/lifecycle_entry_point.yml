@@ -1,0 +1,30 @@
+---
+# This file is the entry point to run stop/start/status actions.
+# It looks in the config directory first, then fallback to lifecycle.yml.
+
+- name: Setup runtime
+  ansible.builtin.import_playbook: setup_runtime.yml
+
+- name: Import lifecycle playbook
+  ansible.builtin.import_playbook: >-
+    {{ lookup('first_found', {
+         'files': [ ACTION + '.yml', 'lifecycle.yml' ],
+         'paths': ['configs/' + config, playbook_dir]
+       })
+    }}
+
+- name: Call Lifecycle Post Hook
+  vars:
+    _params:
+      files:
+        - configs/{{ config }}/lifecycle_hook_post_{{ ACTION }}.yml
+        - configs/{{ config }}/lifecycle_hook.yml
+        - lifecycle_hook.yml
+  ansible.builtin.import_playbook: >-
+    {{ lookup('first_found', _params) }}
+
+- name: Save output dir
+  ansible.builtin.import_playbook: save_output_dir.yml
+
+- name: Completion callback
+  ansible.builtin.import_playbook: completion_callback.yml

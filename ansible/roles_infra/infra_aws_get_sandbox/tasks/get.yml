@@ -1,0 +1,165 @@
+---
+- name: Get sandbox
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ pool_manager_aws_access_key_id }}"
+    AWS_SECRET_ACCESS_KEY: "{{ pool_manager_aws_secret_access_key }}"
+  block:
+  - name: Check if sandbox is already associated
+    vars:
+      _expression: >-
+        available = :a
+        and guid = :g
+        and envtype = :e
+        and attribute_exists(aws_access_key_id)
+        and attribute_exists(aws_secret_access_key)
+        and attribute_exists(hosted_zone_id)
+        and attribute_exists(#Z)
+        and attribute_exists(account_id)
+      _data:
+        ":a":
+          BOOL: false
+        ":g":
+          S: "{{ guid }}"
+        ":e":
+          S: "{{ config }}"
+    ansible.builtin.command: >-
+      aws
+      --region "{{ pool_region }}"
+      dynamodb scan
+      --table-name {{ pool_table }}
+      --filter-expression '{{ _expression }}'
+      --expression-attribute-values '{{ _data | to_json }}'
+      --expression-attribute-names '{"#Z": "zone"}'
+      --max-item 1
+    register: r_associated
+
+  - name: Set query fact
+    ansible.builtin.set_fact:
+      query1: "{{ r_associated.stdout | from_json }}"
+
+  - name: Sandbox found
+    when: query1.Count == 1
+    block:
+    - name: Debug message
+      ansible.builtin.debug:
+        msg: "{{ guid }} - {{ config }} and {{ query1.Items[0].name.S }} already associated"
+
+    - name: Save sandbox variables
+      ansible.builtin.set_fact:
+        sandbox_name: "{{ query1.Items[0].name.S }}"
+        sandbox_zone: "{{ query1.Items[0].zone.S }}"
+        sandbox_hosted_zone_id: "{{ query1.Items[0].hosted_zone_id.S }}"
+        sandbox_account: "{{ query1.Items[0].name.S }}"
+        sandbox_aws_access_key_id: "{{ query1.Items[0].aws_access_key_id.S }}"
+
+    - name: Include unvault tasks
+      vars:
+        vaulted_text: "{{ query1.Items[0].aws_secret_access_key.S }}"
+      ansible.builtin.include_tasks: unvault.yml
+
+  - name: Sandbox not found
+    when: query1.Count == 0
+    block:
+    - name: Get first free sandboxes
+      ansible.builtin.command: >-
+        aws
+        --region {{ pool_region }}
+        dynamodb scan
+        --table-name {{ pool_table }}
+        --filter-expression 'available = :a and attribute_exists(aws_access_key_id)
+        and attribute_exists(aws_secret_access_key) and attribute_exists(hosted_zone_id)
+        and attribute_exists(#Z) and attribute_exists(account_id)'
+        --expression-attribute-values '{":a":{"BOOL":true}}'
+        --expression-attribute-names '{"#Z": "zone"}'
+        --max-item {{ buffer }}
+      register: r_shortlist
+
+    - name: Save the list of the first free sandboxes
+      ansible.builtin.set_fact:
+        sandbox_shortlist: "{{ r_shortlist.stdout | from_json | json_query('Items[*].name.S') }}"
+
+    - name: Book a sandbox among the list
+      vars:
+        _data:
+          ":av":
+            BOOL: false
+          ":currval":
+            BOOL: true
+          ":gu":
+            S: "{{ guid }}"
+          ":en":
+            S: "{{ config }}"
+          ":ow":
+            S: "{{ student_name | default('unknown') }}"
+          ":email":
+            S: "{{ email | default('unknown') }}"
+      ansible.builtin.shell: >-
+        for sandbox_name in {{ sandbox_shortlist | join(' ') }}; do
+        aws --region {{ pool_region }}
+        dynamodb update-item
+        --table-name {{ pool_table }}
+        --key "{\"name\": {\"S\": \"${sandbox_name}\"}}"
+        --condition-expression "available = :currval"
+        --update-expression
+        "SET available = :av,
+        guid = :gu, envtype = :en,
+        #o = :ow, owner_email = :email"
+        --expression-attribute-values '{{ _data | to_json }}'
+        --expression-attribute-names '{"#o":"owner"}';
+        if [ $? = 0 ]; then echo $sandbox_name; break; fi;
+        done;
+      register: r_putaccount
+
+    - name: Debug shortlist
+      ansible.builtin.debug:
+        var: r_shortlist
+        verbosity: 2
+
+    - name: Debug putaccount
+      ansible.builtin.debug:
+        var: r_putaccount
+        verbosity: 2
+
+    - name: Set picked fact
+      ansible.builtin.set_fact:
+        sandbox_picked: >-
+          {{ r_shortlist.stdout
+          | from_json
+          | json_query('Items[*]')
+          | selectattr('name.S', 'equalto', r_putaccount.stdout)
+          | list }}
+
+    - name: Fail when no sandbox available
+      when: sandbox_picked | length == 0
+      ansible.builtin.fail:
+        msg: Could not get a sandbox. Probably too many concurrent requests.
+
+    - name: Save sandbox facts
+      vars:
+        _item: "{{ sandbox_picked | first }}"
+      ansible.builtin.set_fact:
+        sandbox_name: "{{ _item.name.S }}"
+        sandbox_account: "{{ _item.account_id.S }}"
+        sandbox_zone: "{{ _item.zone.S }}"
+        sandbox_hosted_zone_id: "{{ _item.hosted_zone_id.S }}"
+        sandbox_aws_access_key_id: "{{ _item.aws_access_key_id.S }}"
+        sandbox_aws_secret_access_key: "{{ _item.aws_secret_access_key.S }}"
+
+    - name: Print name of picked sandbox
+      ansible.builtin.debug:
+        msg: "Sandbox {{ sandbox_name }} picked."
+
+    - name: Include unvault tasks
+      vars:
+        vaulted_text: "{{ sandbox_aws_secret_access_key }}"
+      ansible.builtin.include_tasks: unvault.yml
+
+- name: Print sandbox info
+  ansible.builtin.debug:
+    msg: |-
+      INFO: sandbox_name: {{ sandbox_name }}
+      INFO: sandbox_zone: {{ sandbox_zone }}
+      INFO: sandbox_hosted_zone_id: {{ sandbox_hosted_zone_id }}
+      INFO: sandbox_account: {{ sandbox_account }}
+      INFO: sandbox_aws_access_key_id: {{ sandbox_aws_access_key_id }}
+      INFO: sandbox_aws_secret_access_key: {{ sandbox_aws_secret_access_key }}

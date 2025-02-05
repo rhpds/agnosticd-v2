@@ -1,0 +1,25 @@
+---
+- name: Wait for windows host to be available
+  ansible.builtin.wait_for_connection:
+    timeout: 900
+    connect_timeout: 60
+    delay: 120
+  register: r_wait
+  ignore_errors: true
+
+- name: Restart instance if wait_for_connection failed
+  when: r_wait is failed
+  become: false
+  delegate_to: localhost
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ aws_access_key_id }}"
+    AWS_SECRET_ACCESS_KEY: "{{ aws_secret_access_key }}"
+    AWS_DEFAULT_REGION: "{{ aws_region_final | default(aws_region) }}"
+  ansible.builtin.command: "aws ec2 reboot-instances --instance-ids '{{ instance_id }}'"
+
+- name: Wait for windows host to be available (retry)
+  when: r_wait is failed
+  ansible.builtin.wait_for_connection:
+    timeout: 900
+    connect_timeout: 60
+    delay: 120

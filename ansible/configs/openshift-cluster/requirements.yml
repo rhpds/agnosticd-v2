@@ -1,0 +1,33 @@
+---
+roles:
+# External role to setup grader host virtualenv and FTL grading infra
+- name: ftl-injector
+  src: https://github.com/redhat-gpte-devopsautomation/ftl-injector
+  version: v0.20.0
+
+# Collections match what's in EE quay.io/agnosticd/ee-multicloud:2025-01-03
+collections:
+- name: community.general
+  version: 10.2.0
+- name: community.crypto
+  version: 2.23.0
+- name: ansible.posix
+  version: 2.0.0
+- name: kubernetes.core
+  version: 5.0.0
+- name: amazon.aws
+  version: 9.1.0
+- name: community.vmware
+  version: 5.2.0
+- name: vmware.vmware_rest
+  version: 4.4.0
+- name: google.cloud
+  version: 1.4.1
+- name: community.okd
+  version: 4.0.1
+- name: kubevirt.core
+  version: 2.1.0
+
+- name: https://github.com/rhpds/assisted_installer.git
+  type: git
+  version: v0.0.2

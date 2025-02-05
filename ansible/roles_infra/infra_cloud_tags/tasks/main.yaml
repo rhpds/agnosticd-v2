@@ -1,0 +1,11 @@
+---
+- name: Set cloud_tags_final (string)
+  when: cloud_tags is string
+  ansible.builtin.set_fact:
+    cloud_tags_final: >-
+      {{ default_cloud_tags | combine( cloud_tags | from_json ) }}
+
+- name: Set cloud_tags_final (dictionary)
+  when: cloud_tags is not string
+  ansible.builtin.set_fact:
+    cloud_tags_final: "{{ default_cloud_tags | combine( cloud_tags | d({}) ) }}"

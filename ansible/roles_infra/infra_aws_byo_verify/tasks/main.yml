@@ -1,0 +1,11 @@
+---
+- name: Import access tasks
+  ansible.builtin.import_tasks: access.yml
+
+- name: Search for instances in all regions
+  vars:
+    loop_region: "{{ _region }}"
+  ansible.builtin.include_tasks: instances.yml
+  loop_control:
+    loop_var: _region
+  loop: "{{ _all_regions }}"

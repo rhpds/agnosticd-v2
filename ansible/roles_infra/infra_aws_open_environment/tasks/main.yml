@@ -1,0 +1,13 @@
+---
+- name: Create open environment
+  when: ACTION == 'provision'
+  block:
+  - name: Create open environment resources
+    ansible.builtin.include_tasks: create_resources.yml
+
+  - name: Print information to user
+    ansible.builtin.include_tasks: print_user_info.yml
+
+- name: Destroy Open Environment resources
+  when: ACTION == 'destroy'
+  ansible.builtin.include_tasks: destroy_resources.yml

@@ -1,0 +1,47 @@
+---
+- name: Stat local infra key
+  ansible.builtin.stat:
+    path: "{{ ssh_provision_key_path }}"
+  register: r_stat_infra_ssh_key
+
+- name: Infra key exists
+  when: r_stat_infra_ssh_key.stat.exists
+  block:
+  - name: Pubkey is not defined
+    when: ssh_provision_pubkey_content is not defined
+    block:
+    - name: Generate SSH pub key content
+      community.crypto.openssl_publickey:
+        privatekey_path: "{{ ssh_provision_key_path }}"
+        path: "{{ ssh_provision_key_path }}.pub"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: u=rw
+      register: r_ssh_provision_pubkey
+
+    - name: Debug pub key
+      ansible.builtin.debug:
+        msg: "{{ r_ssh_provision_pubkey }}"
+    - name: Slurp public key
+      ansible.builtin.slurp:
+        path: "{{ ssh_provision_key_path }}.pub"
+      register: r_ssh_provision_pubkey_slrp
+
+    # - name: Generate SSH pub key content
+    #   ansible.builtin.command: >-
+    #     ssh-keygen -y -f {{ ssh_provision_key_path | quote }}
+    #   changed_when: false
+    #   register: r_ssh_provision_pubkey
+
+    - name: Save all facts for SSH
+      ansible.builtin.set_fact:
+        ssh_provision_pubkey_content: "{{ r_ssh_provision_pubkey_slrp.content | b64decode }}"
+
+  - name: Create infra key
+    environment:
+      AWS_ACCESS_KEY_ID: "{{ aws_access_key_id }}"
+      AWS_SECRET_ACCESS_KEY: "{{ aws_secret_access_key }}"
+      AWS_REGION: "{{ aws_region }}"
+    amazon.aws.ec2_key:
+      name: "{{ ssh_provision_key_name }}"
+      key_material: "{{ ssh_provision_pubkey_content }}"

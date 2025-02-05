@@ -1,0 +1,15 @@
+---
+######################### Set up Satellite subscription
+
+- name: Run setup if gather_facts hasn't been run
+  when: ansible_date_time is not defined
+  ansible.builtin.setup:
+    gather_subset: min
+
+- name: Configure Satellite repositories
+  when: ACTION == "create" or ACTION == "provision"
+  ansible.builtin.include_tasks: "satellite_register.yml"
+
+- name: Unregister from subscription manager
+  when: ACTION == "destroy" or ACTION == "remove"
+  ansible.builtin.include_tasks: unregister.yml

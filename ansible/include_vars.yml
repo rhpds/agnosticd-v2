@@ -1,0 +1,51 @@
+---
+- name: Step 0000 Include Vars
+  hosts:
+  - localhost
+  - all
+  gather_facts: false
+  tasks:
+  - name: Set output_dir for all hosts
+    when: hostvars.localhost.output_dir is defined
+    ansible.builtin.set_fact:
+      output_dir: "{{ hostvars.localhost.output_dir }}"
+
+  - name: Include variables files
+    when:
+    - __vars_file is file
+    vars:
+      __vars_file_base:
+      # Global default vars related to the cloud provider
+      - cloud_providers/{{ cloud_provider }}/{{ cloud_provider }}_default_vars
+      # Default vars of the config
+      - configs/{{ config }}/default_vars
+      # Default vars of the config, specific to a cloud provider
+      - configs/{{ config }}/default_vars_{{ cloud_provider }}
+      __vars_file_extension:
+      - yaml
+      - yml
+      __vars_file: "{{ playbook_dir }}/{{ __vars_file_parts[0] }}.{{ __vars_file_parts[1] }}"
+    ansible.builtin.include_vars:
+      file: "{{ __vars_file }}"
+    loop: "{{ __vars_file_base | product(__vars_file_extension) | list }}"
+    loop_control:
+      loop_var: __vars_file_parts
+      label: "{{ __vars_file }}"
+
+  - name: Debug secrets
+    ansible.builtin.debug:
+      msg: "Secrets file: {{ secrets_file | default('undefined') }}"
+      verbosity: 2
+
+  - name: Include secret_file if passed as extra-var
+    when: secret_file is defined
+    ansible.builtin.include_vars:
+      file: "{{ secret_file }}"
+
+  - name: Set passthrough user data
+    delegate_to: localhost
+    when:
+    - agnosticd_passthrough_user_data is defined
+    - agnosticd_passthrough_user_data | length > 0
+    agnosticd_user_info:
+      data: "{{ agnosticd_passthrough_user_data }}"

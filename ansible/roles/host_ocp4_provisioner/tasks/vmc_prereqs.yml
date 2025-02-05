@@ -1,0 +1,4 @@
+---
+- name: Print VMC Debug message
+  ansible.builtin.debug:
+    msg: "VMC pre-requisites"

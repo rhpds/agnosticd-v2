@@ -1,0 +1,46 @@
+= ocp4_workload_example - Example workload role
+
+== Role overview
+
+* This is a working no-op role that can be used as a template to develop new OpenShift 4 workload roles. It consists of the following tasks files:
+
+** Tasks: link:./tasks/workload.yml[workload.yml] - Used to deploy the actual workload, i.e, 3scale, some Demo or OpenShift customization
+*** This role only prints the current username for which this role is provisioning.
+
+** Tasks: link:./tasks/remove_workload.yml[remove_workload.yml] - Used to delete the workload
+*** This role doesn't do anything here
+
+The provisioning infrastructure will set a variable `ACTION` to be either `provision` or `destroy` depending on the operation.
+
+== The defaults variable file
+
+=== Variable Naming
+
+Since Ansible lacks robust variable scoping you *must* use long-name scope parameters for your workload to avoid variable clashing.
+
+For example, parameters named `ocp4_workload_example_*` would be recognized as unique to this workload.
+
+* This file link:./defaults/main.yml[./defaults/main.yml] contains all the variables you need to define to control the deployment of your workload.
+* The variable *ocp_username* is mandatory to assign the workload to the correct OpenShift user when deploying to a shared cluster. For most workloads the default of `system:admin` is the correct value unless this is a workload to be applied to a shared cluster.
+* You can modify any of these default values by adding `-e "variable_name=variable_value"` to the command line
+* Your deployer will override any of these variables based on configuration in AgnosticV
+* Add long-name scoped workload parameters. Example: `ocp4_workload_example_machineconfigpool_name: worker`
+
+== The internal variable file
+
+If the workload needs to set some internal variables define them in the file link:./vars/main.yml[./vars/main.yml].
+
+Variables should be named just like external variables with the exception that they should start with an underscore (`_`).
+
+Examples:
+
+* `_ocp4_workload_example_var_1`
+* `_ocp4_workload_example_var_2`
+
+== Predefined Variables
+
+The following variables are always available:
+
+* `openshift_console_url`: The URL of the OpenShift console. Example: `https://console-openshift-console.apps.cluster-8dl64.dynamic.redhatworkshops.io`
+* `openshift_api_url`: The OpenShift API endpoint URL. Example: `https://api.cluster-8dl64.dynamic.redhatworkshops.io:6443`
+* `openshift_cluster_ingress_domain`: The domain used for the ingress controllers. Example: `apps.cluster-8dl64.dynamic.redhatworkshops.io`
