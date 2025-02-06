@@ -35,6 +35,7 @@ On macOS follow these steps to set up the prerequisites for AgnosticD V2:
 brew install python@3.11 podman
 ----
 
+. *NOTE*: on macOS Podman uses a virtual machine - the script sets up a podman machine called `agnosticd`. Because of a limitation of `ansible-navigator` this machine *must* be the default machine - which the setup also configures. It is something to be aware of if you are using the default podman machine otherwise.
 . Continue with the common setup steps.
 
 === RHEL 9.5 Prerequisites
