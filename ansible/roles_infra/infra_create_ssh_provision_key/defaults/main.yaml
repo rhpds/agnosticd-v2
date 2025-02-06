@@ -10,4 +10,4 @@ ssh_provision_pubkey_path: >-
   | regex_replace('\.pem$', '') }}.pub
 
 # Option to have this role report the generated SSH private key as user info data
-create_ssh_provision_key_enable_user_info_data: false
+infra_create_ssh_provision_key_enable_user_info_data: false

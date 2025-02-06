@@ -29,20 +29,20 @@
     - name: Set availability zones for Cloudformation and install-config.yml
       when: agnosticd_aws_capacity_reservation_results.reservations | default({}) | length > 0
       block:
-      - name: Set availability zone for bastion, masters and workers
+      - name: Set availability zone for bastion, control_plane, and worker nodes
         vars:
           _r: "{{ agnosticd_aws_capacity_reservation_results.reservations }}"
         ansible.builtin.set_fact:
           # Cloudformation (bastion)
           aws_availability_zone: "{{ _r.az1.availability_zone }}"
           # Control Plane
-          # Support several logical mapping (masters, masters1-3)
+          # Support several logical mapping (control_planes, control_planes1-3)
           openshift_controlplane_aws_zones_odcr: >-
             {{ [
-              _r.masters.availability_zone | default(none),
-              _r.masters1.availability_zone | default(none),
-              _r.masters2.availability_zone | default(none),
-              _r.masters3.availability_zone | default(none),
+              _r.control_planes.availability_zone | default(none),
+              _r.control_planes1.availability_zone | default(none),
+              _r.control_planes2.availability_zone | default(none),
+              _r.control_planes3.availability_zone | default(none),
             ] | select() | list }}
           # workers
           # Support up to 4 zones

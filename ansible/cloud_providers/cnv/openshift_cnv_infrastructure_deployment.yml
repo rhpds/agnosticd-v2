@@ -14,7 +14,7 @@
     - instances | default([]) | length
     - ssh_provision_key_name is undefined
     ansible.builtin.include_role:
-      name: create_ssh_provision_key
+      name: infra_create_ssh_provision_key
 
   - name: Run infra_openshift_cnv_resources role
     vars:

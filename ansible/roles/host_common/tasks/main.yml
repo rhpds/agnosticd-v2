@@ -69,7 +69,7 @@
   ansible.builtin.import_tasks: packages_el9.yml
 
 - name: Install extra packages
-  when: common_extra_packages | default([]) | length > 0
+  when: host_common_extra_packages | default([]) | length > 0
   ansible.builtin.import_tasks: packages_extra.yml
 
 ######################## Update Specific Packages if defined

@@ -2,8 +2,8 @@
 - name: Install extra packages
   ansible.builtin.package:
     state: present
-    name: "{{ common_extra_packages }}"
+    name: "{{ host_common_extra_packages }}"
   register: r_package
   until: r_package is succeeded
-  retries: "{{ common_install_basic_packages_retries }}"
+  retries: "{{ host_common_install_basic_packages_retries }}"
   delay: 10

@@ -1,10 +1,12 @@
 ---
-update_packages: true
+# Run a full package update
+host_common_update_packages: true
 
-common_install_basic_packages_retries: 10
+# Number of retries installing packages before failing
+host_common_install_basic_packages_retries: 10
 
 # Common Packages to install for RHEL 9
-common_packages_el9:
+host_common_packages_el9:
 - python3
 - unzip
 - bash-completion
@@ -15,13 +17,8 @@ common_packages_el9:
 - git
 - vim-enhanced
 - httpd-tools
-- openldap-clients
-- podman
-- skopeo
-- buildah
 - tree
 - jq
-- libffi-devel
 
 # Extra packages to install in addition to common packages
-common_extra_packages: []
+host_common_extra_packages: []

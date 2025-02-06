@@ -17,7 +17,7 @@
   - name: Set facts for ssh provision SSH key
     when: ssh_provision_key_name is undefined
     ansible.builtin.include_role:
-      name: create_ssh_provision_key
+      name: infra_create_ssh_provision_key
 
   - name: Destroy infra AWS keypair
     vars:

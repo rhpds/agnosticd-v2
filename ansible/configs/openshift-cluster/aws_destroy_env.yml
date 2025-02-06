@@ -31,7 +31,7 @@
   - name: Create local ssh provision facts (key already exists)
     when: ssh_provision_key_name is undefined
     ansible.builtin.include_role:
-      name: create_ssh_provision_key
+      name: infra_create_ssh_provision_key
 
   - name: SSH config setup
     when:

@@ -17,19 +17,18 @@ cluster_name: "cluster-{{ guid }}"
 project_tag: "{{ config }}-{{ guid }}"
 
 # Why is this config being deployed? Override for specific environments
-# Some valid: development, ilt, production, event
+# Valid options are: development, test, production, event
 purpose: development
-
-# Enable this if you want to create a user on the bastion
-# Mutually exclusive with {{ install_ipa_client }}
-install_student_user: true
-
-# This should be overwritten based on the user ordering the catalog item
-# It will be used by the bastion-student-user role and created on the bastion
-student_name: lab-user
 
 # Run the bastion role
 install_bastion: true
+
+# Enable this if you want to create a user on the bastion
+install_student_user: true
+
+# This should be overwritten based on the user ordering the catalog item
+# It will be used by the bastion_student_user role
+student_name: lab-user
 
 # FTL is used for grading and solving. It will pull in the external ftl-injector role.
 # This might be enabled when we have solvers to run or graders for ILT
@@ -39,25 +38,26 @@ install_ftl: false
 # Only satellite is supported for RHEL 9 and newer
 repo_method: satellite
 
-# These vars are needed and nee to come from secrets:
-# satellite_url: # This should be stored in secrets
-# satellite_org: # This should be stored in secrets
-# satellite_activationkey: # This should be stored in secrets
+# These vars are needed and need to come from secrets:
+# satellite_url:
+# satellite_org:
+# satellite_activationkey:
 
 # -------------------------------------------------
-# Role: common
+# Role: host_common
 # -------------------------------------------------
 # Packages to install on all of the hosts deployed as part of the agnosticd config
-# This invokes the "common" role
+# This invokes the "host_common" role
 install_common: true
 
 # To install extra packages (beyond what's in the common list of packages)
-# common_extra_packages:
+# host_common_extra_packages:
 # - java-17-openjdk
 # - maven
+# - podman
 
 # As part of the "common" role, this cause it to do a yum update on the host
-update_packages: true
+host_common_update_packages: true
 
 # How to deploy OpenShift
 # Valid values are
@@ -66,22 +66,22 @@ update_packages: true
 # - openshift_hcp_cnv
 host_ocp4_deploy_installation_method: openshift_install
 
-# Types of Nodes (workers / masters) are set in the
+# Types of Nodes (workers / control_planes) are set in the
 # cloud specific vars file
 # Number of Nodes
-master_instance_count: 3
+control_plane_instance_count: 3
 worker_instance_count: 2
 
 # Types and Sizes of Disks for nodes
 # Only set if you know what you're doing...
-# master_storage_type: "__DEFAULT__"
-# master_storage_size: "30Gi"
+# control_plane_storage_type: "__DEFAULT__"
+# control_plane_storage_size: "30Gi"
 # worker_storage_type: "__DEFAULT__"
 # worker_storage_size: "100Gi"
 
-# Use 4.17 for latest available release in the `stable-4.17` directory.
-# Use 4.17.1 for exactly the specified release
-host_ocp4_installer_version: "4.17"
+# Use 4.18 for latest available release in the `stable-4.18` directory.
+# Use 4.18.1 for exactly the specified release
+host_ocp4_installer_version: "4.18"
 
 # See role host-ocp4-installer for additional OpenShift 4 Installer options
 # E.g. OpenShift Cluster processor architectore or OpenShift installer download location
@@ -105,18 +105,18 @@ host_ocp4_installer_network_type: OVNKubernetes
 openshift_cluster_admin_service_account_enable: false
 
 # Print user info
-ocp4_cluster_show_access_user_info: true
 openshift_cluster_show_access_user_info: true
 
-# YAML List of Infrastructure Workloads.
-# REQUIRES Ansible 2.7+ on the deployer host
+# YAML List of Workloads to be run for post install configuration
 # Empty by default - to be set by specific configurations
+# Workloads run on the controller (in the execution environment)
 workloads: []
 
-# Suggested workloads for a base workshop cluster:
+# Suggested workloads for a minimum cluster:
 #  - ocp4_workload_cert_manager
 #  - ocp4_workload_authentication
 
 # Some workloads create infrastructure that needs to be removed
-# when deleting the software or infrastructure. These workloads run on the controller
+# when deleting the software or infrastructure.
+# Workloads run on the controller (in the execution environment)
 remove_workloads: []

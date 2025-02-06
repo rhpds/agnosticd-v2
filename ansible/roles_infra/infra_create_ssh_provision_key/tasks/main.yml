@@ -2,7 +2,7 @@
 - name: Ensure key_name is not defined
   when: key_name is defined
   ansible.builtin.fail:
-    msg: 'ERROR: key_name is DEPRECATED and should not be defined when using new create_ssh_provision_key role.'
+    msg: 'ERROR: key_name is DEPRECATED and should not be defined when using new infra_create_ssh_provision_key role.'
 
 - name: Generate SSH keys
   community.crypto.openssh_keypair:
@@ -27,7 +27,7 @@
     ssh_provision_key_name: "{{ ssh_provision_key_name }}"
 
 - name: Report user info for SSH provision key as user data
-  when: create_ssh_provision_key_enable_user_info_data | bool
+  when: infra_create_ssh_provision_key_enable_user_info_data | bool
   agnosticd_user_info:
     data:
       ssh_provision_key: "{{ lookup('file', ssh_provision_key_path) }}"

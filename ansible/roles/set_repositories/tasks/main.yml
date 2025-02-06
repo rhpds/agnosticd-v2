@@ -1,6 +1,4 @@
 ---
-######################### Set up Satellite subscription
-
 - name: Run setup if gather_facts hasn't been run
   when: ansible_date_time is not defined
   ansible.builtin.setup:

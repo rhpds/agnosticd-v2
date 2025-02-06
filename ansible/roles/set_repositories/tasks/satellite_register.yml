@@ -32,7 +32,7 @@
   retries: 10
   delay: 10
 
-- name:  Update CA Trust Bundle 
+- name:  Update CA Trust Bundle
   ansible.builtin.command: update-ca-trust
 
 - name: Remove satellite Cert
@@ -74,7 +74,7 @@
   delay: 10
 
 # prutledg - package profile reporting is slamming the satellite server and not necessary
-- name: Disable Reporting Of Package Profile to Satellite
+- name: Disable reporting of package profile to Satellite
   community.general.ini_file:
     path: /etc/rhsm/rhsm.conf
     section: rhsm

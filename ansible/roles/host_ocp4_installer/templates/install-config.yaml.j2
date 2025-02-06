@@ -16,31 +16,31 @@ controlPlane:
     ImageId: {{ custom_image.image_id | to_json }}
 {%   endif %}
     aws:
-      type: {{ master_instance_type | to_json }}
+      type: {{ control_plane_instance_type | to_json }}
 {%   if hostvars.localhost.openshift_controlplane_aws_zones_odcr | default([]) | length > 0 %}
       zones: {{ hostvars.localhost.openshift_controlplane_aws_zones_odcr | unique | to_json }}
 {%   endif %}
       rootVolume:
-        type: {{ master_storage_type | to_json }}
-        size: {{ master_storage_size | int }}
-{%   if master_storage_type in ['io1', 'io2'] %}
-        iops: {{ master_storage_iops | default(host_ocp4_installer_master_storage_iops) | int | to_json }}
+        type: {{ control_plane_storage_type | to_json }}
+        size: {{ control_plane_storage_size | int }}
+{%   if control_plane_storage_type in ['io1', 'io2'] %}
+        iops: {{ control_plane_storage_iops | default(host_ocp4_installer_control_plane_storage_iops) | int | to_json }}
 {%   endif %}
 {% endif %}
 {% if cloud_provider == 'azure' %}
     azure:
-      type: {{ master_instance_type | to_json }}
+      type: {{ control_plane_instance_type | to_json }}
 {% endif %}
 {% if cloud_provider == 'gcp' %}
     gcp:
-      type: {{ master_instance_type | to_json }}
+      type: {{ control_plane_instance_type | to_json }}
 {% endif %}
-{% if cloud_provider == 'vmc' and master_instance_cpu is defined and worker_instance_memory_mb is defined %}
-    vsphere: 
-      cpus: {{ master_instance_cpu | to_json }}
-      memoryMB: {{ master_instance_memory_mb | to_json }} 
+{% if cloud_provider == 'vmc' and control_plane_instance_cpu is defined and worker_instance_memory_mb is defined %}
+    vsphere:
+      cpus: {{ control_plane_instance_cpu | to_json }}
+      memoryMB: {{ control_plane_instance_memory_mb | to_json }}
 {% endif %}
-  replicas: {{ master_instance_count | int }}
+  replicas: {{ control_plane_instance_count | int }}
 compute:
 - name: worker
   hyperthreading: Enabled
@@ -72,9 +72,9 @@ compute:
       type: {{ worker_instance_type | to_json }}
 {% endif %}
 {% if cloud_provider == 'vmc' and worker_instance_cpu is defined and worker_instance_memory_mb is defined %}
-    vsphere: 
+    vsphere:
       cpus: {{ worker_instance_cpu | to_json }}
-      memoryMB: {{ worker_instance_memory_mb | to_json }} 
+      memoryMB: {{ worker_instance_memory_mb | to_json }}
 {% endif %}
   replicas: {{ worker_instance_count | int }}
 networking:
@@ -108,7 +108,7 @@ platform:
 {% endif %}
 {% if cloud_provider == 'vmc' %}
   vsphere:
-    apiVIP: "{{ hostvars.localhost.project_segment_cidr | ansible.utils.nthhost(201) }}" 
+    apiVIP: "{{ hostvars.localhost.project_segment_cidr | ansible.utils.nthhost(201) }}"
     cluster: "{{ vcenter_cluster }}"
     datacenter: "{{ vcenter_datacenter }}"
     defaultDatastore: "{{ vcenter_datastore }}"

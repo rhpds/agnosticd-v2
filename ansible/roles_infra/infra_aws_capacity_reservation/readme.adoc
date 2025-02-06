@@ -63,9 +63,9 @@ agnosticd_aws_capacity_reservations:
       instance_platform: Linux/UNIX
       instance_type: "{{ worker_instance_type }}"
   az2:
-    - instance_count: "{{ master_instance_count }}"
+    - instance_count: "{{ control_plane_instance_count }}"
       instance_platform: Linux/UNIX
-      instance_type: "{{ master_instance_type }}"
+      instance_type: "{{ control_plane_instance_type }}"
 ----
 
 WARNING: Make sure not to pass `aws_region` as extra-vars if you set several regions in `agnosticd_aws_capacity_reservation_regions`. If it's set as extra-vars, it will take precedence regardless of what's set by the role and provision will fail.
@@ -181,7 +181,7 @@ agnosticd_aws_capacity_reservation_single_zone: true
 
 ocp4-cluster with:
 
-* 1 zone for the masters
+* 1 zone for the control_planes
 * 1 zone for the workers
 * 1 zone for the bastion
 
@@ -200,8 +200,8 @@ agnosticd_aws_capacity_reservations:
     instance_platform: "{{ bastion_instance_platform }}"
 
   # Workers: all in one
-  masters:
-  - instance_type: "{{ master_instance_type }}"
+  control_planes:
+  - instance_type: "{{ control_plane_instance_type }}"
     instance_count: 3
     instance_platform: Linux/UNIX
 
@@ -216,9 +216,9 @@ agnosticd_aws_capacity_reservations:
 
 HA ocp4-cluster on 3 different zones:
 
-* masters in 3 different zones (HA)
+* control_planes in 3 different zones (HA)
 * workers spread in 2 zones
-* bastion on the first zone with 1 master
+* bastion on the first zone with 1 control_plane
 
 [source,yaml]
 ----
@@ -229,14 +229,14 @@ agnosticd_aws_capacity_reservations:
     instance_count: 1
     instance_platform: "{{ bastion_instance_platform }}"
 
-  # 1/3 master
-  - instance_type: "{{ master_instance_type }}"
+  # 1/3 control_plane
+  - instance_type: "{{ control_plane_instance_type }}"
     instance_count: 1
     instance_platform: Linux/UNIX
 
   az2:
-  # 1/3 master
-  - instance_type: "{{ master_instance_type }}"
+  # 1/3 control_plane
+  - instance_type: "{{ control_plane_instance_type }}"
     instance_count: 1
     instance_platform: Linux/UNIX
 
@@ -248,8 +248,8 @@ agnosticd_aws_capacity_reservations:
     instance_platform: Linux/UNIX
 
   az3:
-  # 1/3 master
-  - instance_type: "{{ master_instance_type }}"
+  # 1/3 control_plane
+  - instance_type: "{{ control_plane_instance_type }}"
     instance_count: 1
     instance_platform: Linux/UNIX
 
@@ -264,7 +264,7 @@ agnosticd_aws_capacity_reservations:
 
 aws_availability_zone: "{{ agnosticd_aws_capacity_reservation_results.reservations.az1.availability_zone }}"
 
-# masters, how to use the results from the reservation layout
+# control_planes, how to use the results from the reservation layout
 openshift_controlplane_aws_zones_odcr:
 - "{{ agnosticd_aws_capacity_reservation_results.reservations.az1.availability_zone }}"
 - "{{ agnosticd_aws_capacity_reservation_results.reservations.az2.availability_zone }}"

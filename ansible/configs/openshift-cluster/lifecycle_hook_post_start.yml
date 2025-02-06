@@ -11,7 +11,7 @@
     - ssh_provision_key_name is undefined
     - cloud_provider == 'azure'
     ansible.builtin.include_role:
-      name: create_ssh_provision_key
+      name: infra_create_ssh_provision_key
 
   - name: Locate environment SSH key
     when: cloud_provider == 'azure'

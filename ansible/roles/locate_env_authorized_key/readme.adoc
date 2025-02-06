@@ -2,11 +2,11 @@
 
 This role is used to detect where the env_authorized_key key is located on the provisioning host (localhost).
 
-The main reason is to facilitate the transition of all configs and roles to a common `ssh_provision_key` created by the `create_ssh_provision_key` role that creates also the necessary facts on localhost.
+The main reason is to facilitate the transition of all configs and roles to a common `ssh_provision_key` created by the `infra_create_ssh_provision_key` role that creates also the necessary facts on localhost.
 
 This role, `locate_env_authorized_key`, will use the available keys if found, in order:
 
-* `ssh_provision_key` - created by `create_ssh_provision_key` or re-used existent one
+* `ssh_provision_key` - created by `infra_create_ssh_provision_key` or re-used existent one
 * `infra_ssh_key` - created by OSP heat template
 * defaults to `{{ output_dir }}/{{ env_authorized_key }}`
 ** generally the key is created directly in the config

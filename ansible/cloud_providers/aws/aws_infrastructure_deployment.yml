@@ -41,7 +41,7 @@
     - instances | default([]) | length
     - ssh_provision_key_name is undefined
     ansible.builtin.include_role:
-      name: create_ssh_provision_key
+      name: infra_create_ssh_provision_key
 
   - name: Locate environment SSH key
     when: instances | default([]) | length > 0
@@ -81,7 +81,7 @@
       cloudformation_already_deployed: false
 
   - name: Run infra_aws_template_create role
-    when: 
+    when:
     - cloudformation_enabled | default(true) | bool
     - not cloudformation_already_deployed | bool
     vars:

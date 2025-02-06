@@ -20,10 +20,7 @@
     role: set_repositories
   - name: Install common items
     when: install_common | bool
-    role: common
-  # - name: Set authorized key
-  #   when: set_env_authorized_key | bool
-  #   role: set_env_authorized_key
+    role: host_common
   tasks:
   - name: Add GUID to /etc/skel/.bashrc
     ansible.builtin.lineinfile:
