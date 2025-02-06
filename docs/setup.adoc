@@ -254,9 +254,9 @@ ocp4_workload_cert_manager_install_ingress_certificates: true
 ocp4_workload_cert_manager_install_api_certificates: false
 ----
 
-=== Running `agd_v2 create`
+=== Running `agd_v2 provision`
 
-Now that everything has been set up (secrets and variables file) you can run the create function of the `agd_v2` script. The script takes 3 parameters:
+Now that everything has been set up (secrets and variables file) you can run the provision function of the `agd_v2` script. The script takes 3 parameters:
 
 * GUID
 * Name of vars file
@@ -266,12 +266,12 @@ For example if you want to deploy a configuration where the vars file is called 
 
 [source,sh]
 ----
-./tools/deployer_scripts/aad_v2 create myocp openshift-cluster sandbox1234
+./tools/deployer_scripts/aad_v2 provision myocp openshift-cluster sandbox1234
 ----
 
 == Destroying a config
 
-To destroy a config you run the script the same way as during create - except you use the `destroy` function:
+To destroy a config you run the script the same way as during provision - except you use the `destroy` function:
 
 [source,sh]
 ----

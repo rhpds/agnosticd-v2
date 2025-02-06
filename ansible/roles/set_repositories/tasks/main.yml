@@ -5,9 +5,9 @@
     gather_subset: min
 
 - name: Configure Satellite repositories
-  when: ACTION == "create" or ACTION == "provision"
+  when: ACTION == "provision"
   ansible.builtin.include_tasks: "satellite_register.yml"
 
 - name: Unregister from subscription manager
-  when: ACTION == "destroy" or ACTION == "remove"
+  when: ACTION == "destroy"
   ansible.builtin.include_tasks: unregister.yml

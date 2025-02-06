@@ -12,17 +12,21 @@
 #   aad_v2 action <guid config_name <secret_name> >
 # Example:
 #   aad_v2 setup
-#   aad_v2 create wkaws openshift-cluster sandbox1275
+#   aad_v2 provision wkaws openshift-cluster sandbox1275
 #   aad_v2 destroy wkaws openshift-cluster sandbox1275
 # Note:
 #   config_name uses a file `../agnosticd-v2-vars/<config_name>.yml`
 #   secret_name uses a file `../agnosticd-v2-secrets/secret-<secret_name>.yml`
 # -------------------------------------------------------------------
 
-# Directory structure
-OUTPUT_DIR_ROOT=../agnosticd-v2-output
-SECRETS_DIR=../agnosticd-v2-secrets
-VARS_DIR=../agnosticd-v2-vars
+# Exit on error, treat unset variables as errors, fail on pipeline errors
+set -euo pipefail
+
+# Directories
+readonly OUTPUT_DIR_ROOT="../agnosticd-v2-output"
+readonly SECRETS_DIR="../agnosticd-v2-secrets"
+readonly VARS_DIR="../agnosticd-v2-vars"
+readonly VENV_DIR="../agnosticd-v2-virtualenv"
 
 # -------------------------------------------------------------------
 # print_usage()
@@ -37,7 +41,7 @@ print_usage() {
   echo ""
   echo "Examples:"
   echo "  $0 setup"
-  echo "  $0 create wkaws openshift-cluster aws"
+  echo "  $0 provision wkaws openshift-cluster aws"
   echo "  $0 destroy wkaws openshift sandbox1275"
   echo ""
 }
@@ -63,40 +67,32 @@ agd_v2_setup() {
   echo "********************************************************"
   echo
 
-  echo "Check if the setup is run from the correct directory..."
-  # Check if we are inside the agnosticd-v2 directory
-  if [ "$(basename "$PWD")" != "agnosticd-v2" ]; then
-      echo "  Error: This script must be run from within the agnosticd-v2 directory."
-      exit 1
-  fi
-
   echo
   echo "********************************************************"
   echo "Check if podman is installed..."
   # Check if Podman is installed
   if ! command_exists podman; then
-      echo "  Error: Podman must be installed"
+      echo "  ERROR: Podman must be installed"
       exit 1
   fi
 
   # Directories to check and create if they don't exist
-  directories=("../agnosticd-v2-output" "../agnosticd-v2-secrets" "../agnosticd-v2-vars")
+  directories=("$OUTPUT_DIR_ROOT" "$SECRETS_DIR" "$VARS_DIR")
 
   echo
   echo "*****************************************************************"
   echo "Check if directories exist. Create and seed them if they don't..."
-  # Check if directories exist, create if they don't
   for dir in "${directories[@]}"; do
       if [ ! -d "$dir" ]; then
           echo "  Directory $dir does not exist. Creating it..."
           mkdir -p "$dir"
 
           # Copy template files if necessary
-          if [ "$dir" == "../agnosticd-v2-secrets" ]; then
+          if [ "$dir" == "$SECRETS_DIR" ]; then
               cp tools/deployer_scripts/templates/secrets.yml "$dir" 2>&1 >/dev/null
               cp tools/deployer_scripts/templates/secrets-sandboxXXX.yml "$dir" 2>&1 >/dev/null
               echo "  Copied template files to $dir"
-          elif [ "$dir" == "../agnosticd-v2-vars" ]; then
+          elif [ "$dir" == "$VARS_DIR" ]; then
               cp tools/deployer_scripts/templates/openshift-cluster.yml "$dir" 2>&1 >/dev/null
               echo "  Copied template file to $dir"
           fi
@@ -105,35 +101,32 @@ agd_v2_setup() {
 
   echo
   echo "*****************************************************************"
-  echo "Check if VirtualEnv is set up correctly. Set it up if not..."
-  # Check if running in a Python virtual environment
-  VENV_DIR="../agnosticd-v2-virtualenv"
-  if [ -z "$VIRTUAL_ENV" ]; then
-      echo "  Not running in a virtual environment. Checking for Python 3.11..."
+  echo "Check if VirtualEnv is set up already. Set it up if not..."
 
-      if command_exists python3.11; then
-          if [ -d "$VENV_DIR" ]; then
-              echo "  Virtual environment already exists. Activating it..."
-          else
-              echo "  Creating new virtual environment..."
-              python3.11 -m venv "$VENV_DIR" 2>&1 >/dev/null
-          fi
+  if command_exists python3.11; then
+      if [ -d "$VENV_DIR" ]; then
+          echo "  Activating existing virtual environment."
           source "$VENV_DIR/bin/activate"
       else
-          echo "  Error: Python 3.11 must be installed"
-          exit 1
+          echo "  Creating new virtual environment..."
+          python3.11 -m venv "$VENV_DIR" 2>&1 >/dev/null
+
+          source "$VENV_DIR/bin/activate"
+          pip install --upgrade pip 2>&1 >/dev/null
       fi
   else
-      echo "  Running in a virtual environment."
+      echo "  ERROR: Python 3.11 must be installed."
+      exit 1
   fi
 
   echo
   echo "*****************************************************************"
   echo "Check if software is installed in the virtual env..."
-  # Update pip and install ansible-navigator
-  echo "  Updating pip and installing ansible-navigator..."
-  pip install --upgrade pip 2>&1 >/dev/null
-  pip install ansible-navigator 2>&1 >/dev/null
+
+  if ! command_exists ansible-navigator; then
+    echo "  Installing ansible-navigator..."
+    pip install ansible-navigator 2>&1 >/dev/null
+  fi
 
   echo
   echo "*****************************************************************"
@@ -187,22 +180,52 @@ unsupported_os() {
 }
 
 # -------------------------------------------------------------------
+# run_ansible_navigator()
+#
+# Run ansible-navigator
+# -------------------------------------------------------------------
+run_ansible_navigator() {
+  local action="$1"
+  local playbook="$2"
+  if [ ! -d "${OUTPUT_DIR_ROOT}/${GUID}" ]; then
+    mkdir -p "${OUTPUT_DIR_ROOT}/${GUID}"
+  fi
+  export ANSIBLE_LOG_PATH="${OUTPUT_DIR_ROOT}/${GUID}/${GUID}.log"
+
+  ansible-navigator run "ansible/${playbook}" \
+    --extra-vars "ACTION=${action}" \
+    --extra-vars "@/vars/${CONFIG_YAML}.yml" \
+    --extra-vars "@/secrets/secrets.yml" \
+    --extra-vars "@/secrets/secrets-${ACCOUNT_YAML}.yml" \
+    --extra-vars "guid=${GUID}" \
+    --extra-vars "output_dir=${OUTPUT_DIR_ROOT}/${GUID}" \
+    --mode stdout
+}
+
+# -------------------------------------------------------------------
 #
 # Main logic
 #
 # -------------------------------------------------------------------
+echo "Check if the setup is run from the correct directory..."
+# Check if we are inside the agnosticd-v2 directory
+if [ "$(basename "$PWD")" != "agnosticd-v2" ]; then
+    echo "  ERROR: This script must be run from within the agnosticd-v2 directory."
+    exit 1
+fi
+
 if [[ $# -eq 1 && "${1}" == "setup" ]]; then
   agd_v2_setup
   exit 0
-elif [[ $# -eq 4 && ("${1}" == "create" || "${1}" == "destroy") ]]; then
-  # Valid case: 'create' or 'destroy' must have 4 parameters
+elif [[ $# -eq 4 && ("${1}" == "provision" || "${1}" == "destroy") ]]; then
+  # Valid case: 'provision' or 'destroy' must have 4 parameters
   :
 else
   print_usage
   exit 1
 fi
 
-# Set Action from first parameter
+# Set variables from first parameters
 ACTION="${1}"
 GUID="${2}"
 CONFIG_YAML="${3}"
@@ -220,40 +243,14 @@ else
 fi
 
 # Check for and initialize Virtual Environment
-VENV_DIR="../agnosticd-v2-virtualenv"
 if [ -d "$VENV_DIR" ]; then
   source "$VENV_DIR/bin/activate"
 else
-  echo "  Error: Virtual Environment does not exist. Run '${0} setup'..."
+  echo "  ERROR: Virtual Environment does not exist. Run '${0} setup'..."
 fi
 
-# Create a config using Ansible Navigator
-if [ "${ACTION}" == "create" ]; then
-	mkdir -p ${OUTPUT_DIR_ROOT}/${GUID}
-	export ANSIBLE_LOG_PATH=/output_dir_root/${GUID}/${GUID}.log; \
-  ansible-navigator run ansible/main.yml \
-		--extra-vars ACTION=provision \
-		--extra-vars @/vars/${CONFIG_YAML}.yml \
-		--extra-vars @/secrets/secrets.yml \
-		--extra-vars @/secrets/secrets-${ACCOUNT_YAML}.yml \
-		--extra-vars guid=${GUID} \
-		--extra-vars output_dir=/output_dir_root/${GUID} \
-		--mode stdout
-
-	# export ANSIBLE_DEBUG=1; \
-		# --extra-vars host_ocp4_installer_install_openshift=false \
-fi
-
-# Destroy a config using Ansible Navigator
-if [ "${ACTION}" == "destroy" ]; then
-	mkdir -p ${OUTPUT_DIR_ROOT}/${GUID}
-	export ANSIBLE_LOG_PATH=/output_dir_root/${GUID}/${GUID}.log; \
-	ansible-navigator run ansible/destroy.yml \
-		--extra-vars ACTION=destroy \
-		--extra-vars @/vars/${CONFIG_YAML}.yml \
-		--extra-vars @/secrets/secrets.yml \
-		--extra-vars @/secrets/secrets-${ACCOUNT_YAML}.yml \
-		--extra-vars guid=${GUID} \
-		--extra-vars output_dir=/output_dir_root/${GUID} \
-		--mode stdout
+if [[ "$ACTION" == "provision" ]]; then
+  run_ansible_navigator "provision" "main.yml"
+elif [[ "$ACTION" == "destroy" ]]; then
+  run_ansible_navigator "destroy" "destroy.yml"
 fi
