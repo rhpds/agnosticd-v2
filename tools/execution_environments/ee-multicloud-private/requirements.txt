@@ -1,3 +1,0 @@
-# Equinix
-dnspython
-packet-python==1.44.2

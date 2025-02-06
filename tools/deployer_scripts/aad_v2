@@ -190,7 +190,8 @@ run_ansible_navigator() {
   if [ ! -d "${OUTPUT_DIR_ROOT}/${GUID}" ]; then
     mkdir -p "${OUTPUT_DIR_ROOT}/${GUID}"
   fi
-  export ANSIBLE_LOG_PATH="${OUTPUT_DIR_ROOT}/${GUID}/${GUID}.log"
+  export ANSIBLE_LOG_PATH="/output_dir_root/${GUID}/${GUID}.log"
+  export ANSIBLE_NAVIGATOR_PLAYBOOK_ARTIFACT_SAVE_AS=/output_dir_root/${GUID}
 
   ansible-navigator run "ansible/${playbook}" \
     --extra-vars "ACTION=${action}" \
@@ -198,7 +199,7 @@ run_ansible_navigator() {
     --extra-vars "@/secrets/secrets.yml" \
     --extra-vars "@/secrets/secrets-${ACCOUNT_YAML}.yml" \
     --extra-vars "guid=${GUID}" \
-    --extra-vars "output_dir=${OUTPUT_DIR_ROOT}/${GUID}" \
+    --extra-vars "output_dir=/output_dir_root/${GUID}" \
     --mode stdout
 }
 
