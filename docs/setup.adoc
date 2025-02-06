@@ -4,7 +4,7 @@
 
 AgnosticD V2 is an updated, streamlined evaluation of AgnosticD. It is supposed to be easy to adopt and make development simple.
 
-This documentation will explain how to set up AgnosticD V2 and how to deploy both configs and post-deploy customizations (previously known as workloads) to these configs.
+This documentat explains how to set up AgnosticD V2 and how to deploy both configs and post-deploy customizations (previously known as workloads) to these configs.
 
 Currently AgnosticD V2 is supported on RHEL 9.5 (and higher), Fedora 41 (and higher) and macOS Sequoia (and higher).
 
@@ -14,13 +14,13 @@ AgnosticD V2 requires a prescriptive directory structure on your disk. You can h
 
 Pick a root directory (e.g. ~/Development or ~/aad) on your disk. In this root directory you will end up with the following directories:
 
-* *agnosticd-v2*: The AgnosticD Code
-* *agnosticd-v2-output*: Output of any Ansible run
-* *agnosticd-v2-vars*: Configuration files for AgnosticD. This directory will be seeded with a vars file for an OpenShift Cluster with Let's Encrypt certificates.
+* *agnosticd-v2*: The AgnosticD code repository
+* *agnosticd-v2-vars*: Configuration files for AgnosticD. This directory will be seeded with an example vars file for an OpenShift Cluster with Let's Encrypt certificates.
 * *agnosticd-v2-secrets*: Secrets. This directory will be seeded with a file `secrets.yml` to hold general secrets (like the OpenShift Pull Secret or Red Hat Satellite subscription information) and `secrets-sandboxXXX.yml` to hold connection information for an AWS Open Environment from https://demo.redhat.com.
-* *agnosticd-v2-virtualenv*: Python 3.11 Virtualenv to hold ansible-navigator to run deployments using an Ansible execution environment. You will not need to do anything with this virtual environment - the deployment script will activate it where necessary.
+* *agnosticd-v2-output*: Output of any Ansible run
+* *agnosticd-v2-virtualenv*: Python 3.11 virtualenv to hold ansible-navigator to run deployments using an Ansible execution environment. You will not need to do anything with this virtual environment - the deployment script will activate it where necessary.
 
-Your working directory for all scripts should be the *agnosticd-v2* directory.
+Your working directory when running the `agd_v2` script should be the *agnosticd-v2* directory.
 
 === macOS Prerequisites
 
@@ -70,7 +70,7 @@ sudo dnf -y install podman git python3.11 python3.11-devel gcc oniguruma-devel
 
 One your prerequisites are in place you can now set up AgnosticD V2.
 
-. Set up your top level directory for example:
+. Set up your top level directory, for example:
 +
 [source,sh]
 ----
@@ -95,7 +95,7 @@ cd agnosticd-v2
 +
 This script will:
 
-* Check if you have `ansible-navigator` installed. If not it will set up a Virtualenv using Python3.11 and install ansible-navigator.
+* Check if you have `ansible-navigator` installed. If not it will set up a virtualenv using Python3.11 and install ansible-navigator.
 * Check that the other agnosticd-v2-* directories exist and create them (including seed files) if necessary.
 * Seed the secrets and vars directories if the directories were created
 
@@ -164,7 +164,7 @@ agnosticd_aws_capacity_reservation_enable: false
 
 Other platforms (IBM Cloud, CNV, ...) will have similar files. For example `secrets-ibmcloud.yml` or `secrets-cnv.yml`.
 
-=== The `config vars` file
+=== The config vars file
 
 In order to deploy a configuration you will need to set up the variables for the configuration. An example config to deploy an OpenShift Cluster is copied into the `agnosticd-v2-vars` directory when running `agd_v2 setup`. This file works out of the box - but you can of course modify it to suit your needs. At a minimum you should update your e-mail address under `cloud_tags` and replace the `ssh_authorized_keys` variable with your public key hosted on Github.
 
@@ -192,7 +192,7 @@ aws_region: eu-central-1
 cloud_tags:
 - owner: wkulhane@redhat.com
 - Purpose: development
-- env_type: "{{ env_type }}"
+- config: openshift-cluster
 - guid: "{{ guid }}"
 
 # ===================================================================

@@ -19,7 +19,7 @@ aws_region: eu-central-1
 cloud_tags:
 - owner: wkulhane@redhat.com
 - Purpose: development
-- env_type: "{{ env_type }}"
+- config: openshift-cluster
 - guid: "{{ guid }}"
 
 # ===================================================================
