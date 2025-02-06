@@ -19,9 +19,6 @@
 #   secret_name uses a file `../agnosticd-v2-secrets/secret-<secret_name>.yml`
 # -------------------------------------------------------------------
 
-# Execution Environment for Ansible Navigator
-EE_IMAGE=quay.io/agnosticd/ee-multicloud:2025-01-03
-
 # Directory structure
 OUTPUT_DIR_ROOT=../agnosticd-v2-output
 SECRETS_DIR=../agnosticd-v2-secrets

@@ -3,8 +3,6 @@ ansible-navigator:
 
   execution-environment:
     container-engine: podman
-    # container-options:
-    # - "--connection=agnosticd"
     image: quay.io/agnosticd/ee-multicloud:2025-01-03
     pull:
       policy: missing
