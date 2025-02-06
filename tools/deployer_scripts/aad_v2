@@ -184,7 +184,8 @@ init_podman() {
 # Print error message and exit if not running on a supported OS
 # -------------------------------------------------------------------
 unsupported_os() {
-  echo "Unsupported Operating System. Please run this script on RHEL 9.x or macOS."
+  echo "ERROR: Unsupported Operating System."
+  echo "       Please run this script on RHEL 9.x, Fedora 41+ or macOS."
   exit 1
 }
 
@@ -216,7 +217,7 @@ if [[ "$(uname)" == "Darwin" ]]; then
   init_podman
 elif [[ -f /etc/os-release ]]; then
   source /etc/os-release
-  [[ "$ID" == "rhel" && "$VERSION_ID" =~ ^9\. ]] || unsupported_os
+  [[ ("$ID" == "rhel" && "$VERSION_ID" =~ ^9\.) || ("$ID" == "fedora" && "$VERSION_ID" -ge 41) ]] || unsupported_os
 else
   unsupported_os
 fi

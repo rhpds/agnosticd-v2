@@ -1,50 +1,99 @@
-= Set up AgnosticD V2 for Development
+= Set up and use AgnosticD V2 for Development
 
 == Overview
 
-The following documentation will set up a directory structure on your disk to allow you to develop locally.
+AgnosticD V2 is an updated, streamlined evaluation of AgnosticD. It is supposed to be easy to adopt and make development simple.
 
-Pick a root directory (e.g. ~/Development or ~/aad). Under this directory you will end up with the following directories:
+This documentation will explain how to set up AgnosticD V2 and how to deploy both configs and post-deploy customizations (previously known as workloads) to these configs.
 
-* agnosticd-v2: The AgnosticD Code
-* agnosticd-v2-output: Output of any Ansible run
-* agnosticd-v2-vars: Configuration files for AgnosticD. This directory will be seeded with a vars file for an OpenShift Cluster with Let's Encrypt certificates.
-* agnosticd-v2-secrets: Secrets. This directory will be seeded with a file `secrets.yml` to hold general secrets (like the OpenShift Pull Secret or Red Hat Satellite subscription information) and `secrets-sandboxXXX.yml` to hold connection information for an AWS Open Environment from https://demo.redhat.com.
-* agnosticd-v2-virtualenv: Python 3.11 Virtualenv to hold ansible-navigator
+== Setup
 
-Your working directory for all scripts should be the agnosticd-v2 directory.
+AgnosticD V2 requires a prescriptive directory structure on your disk. You can host this directory tree anywhere you want - as long as all directories are there as required.
 
-== macOS
+Pick a root directory (e.g. ~/Development or ~/aad) on your disk. In this root directory you will end up with the following directories:
 
-* Install Brew. Go to https://brew.sh/ and follow the instructions there.
-* Install Python 3.11 and Podman
+* *agnosticd-v2*: The AgnosticD Code
+* *agnosticd-v2-output*: Output of any Ansible run
+* *agnosticd-v2-vars*: Configuration files for AgnosticD. This directory will be seeded with a vars file for an OpenShift Cluster with Let's Encrypt certificates.
+* *agnosticd-v2-secrets*: Secrets. This directory will be seeded with a file `secrets.yml` to hold general secrets (like the OpenShift Pull Secret or Red Hat Satellite subscription information) and `secrets-sandboxXXX.yml` to hold connection information for an AWS Open Environment from https://demo.redhat.com.
+* *agnosticd-v2-virtualenv*: Python 3.11 Virtualenv to hold ansible-navigator to run deployments using an Ansible execution environment. You will not need to do anything with this virtual environment - the deployment script will activate it where necessary.
 
+Your working directory for all scripts should be the *agnosticd-v2* directory.
+
+=== macOS Prerequisites
+
+On macOS follow these steps to set up the prerequisites for AgnosticD V2:
+
+. Install *Brew* if you don't already hae it installed. Go to https://brew.sh/ and follow the instructions.
+. Once Brew has been installed, install Python 3.11 and Podman
++
+[source,sh]
+----
 brew install python3.11 podman
+----
 
+. Continue with the common setup steps.
 
-== RHEL 9.5
+=== RHEL 9.5 Prerequisites
 
-Install prerequisites:
+These instructions have *only* been tested on RHEL 9.5. The scripts check for a minimum of RHEL 9.5 as well.
 
+. Enable the `codeready-builder` repository (necessary for the `oniguruma-devel` package):
++
+[source,sh]
+----
 sudo subscription-manager repos --enable codeready-builder-for-rhel-9-$(arch)-rpms
+----
+. Install prerequisites:
++
+[source,sh]
+----
 sudo dnf -y install git python3.11 python3.11-devel gcc oniguruma-devel
+----
 
-Set up your top level directory:
+. Continue with the common setup steps.
 
+=== Fedora Server 41 Prerequisites
+
+. Install prerequisites:
++
+[source,sh]
+----
+sudo dnf -y install podman git python3.11 python3.11-devel gcc oniguruma-devel
+----
+
+. Continue with the common setup steps.
+
+=== Common Setup
+
+One your prerequisites are in place you can now set up AgnosticD V2.
+
+. Set up your top level directory for example:
++
+[source,sh]
+----
 mkdir -p ~/Development
 cd ~/Development
+----
 
-Clone the repository
+. Clone the AgnosticD V2 repository:
++
+[source,sh]
+----
 git clone https://github.com/rhpds/agnosticd-v2
 cd agnosticd-v2
+----
 
-Set up the AgnosticD development environment by running the setup script:
-
+. Set up the AgnosticD development environment by running the setup script (you *must* run this script from the `agnosticd-v2` root directory):
++
+[source,sh]
+----
 ./tools/deployer_scripts/aad_v2 setup
-
+----
++
 This script will:
 
-* Check if you have ansible-navigator installed. If not it will set up a Virtualenv using Python3.11 and install ansible-navigator.
+* Check if you have `ansible-navigator` installed. If not it will set up a Virtualenv using Python3.11 and install ansible-navigator.
 * Check that the other agnosticd-v2-* directories exist and create them (including seed files) if necessary.
 * Seed the secrets and vars directories if the directories were created
 
