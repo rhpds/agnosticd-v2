@@ -256,17 +256,24 @@ ocp4_workload_cert_manager_install_api_certificates: false
 
 === Running `agd_v2 provision`
 
-Now that everything has been set up (secrets and variables file) you can run the provision function of the `agd_v2` script. The script takes 3 parameters:
+Now that everything has been set up (secrets and variables file) you can run the provision function of the `agd_v2` script. The script takes 3 parameters in any order:
 
-* GUID
-* Name of vars file
-* Name of account secrets file (not including the `secrets-` prefix)
+* `--guid | -g`: The GUID for your deployed environment
+* `--config | -c`: Name of the vars file
+* `--account | -a`: Name of account secrets file (not including the `secrets-` prefix)
 
 For example if you want to deploy a configuration where the vars file is called `openshift-cluster`, the GUID you want to set for your deployment is `myocp` and the accounts secret file is `secrets-sandbox1234.yml` you would run the script like this:
 
 [source,sh]
 ----
-./tools/deployer_scripts/aad_v2 provision myocp openshift-cluster sandbox1234
+./tools/deployer_scripts/aad_v2 provision --guid myocp --config openshift-cluster --account sandbox1234
+----
+
+or
+
+[source,sh]
+----
+./tools/deployer_scripts/aad_v2 provision -g myocp -c openshift-cluster -a sandbox1234
 ----
 
 == Destroying a config
@@ -275,7 +282,7 @@ To destroy a config you run the script the same way as during provision - except
 
 [source,sh]
 ----
-./tools/deployer_scripts/aad_v2 destroy myocp openshift-cluster sandbox1234
+./tools/deployer_scripts/aad_v2 destroy --guid myocp --config openshift-cluster --account sandbox1234
 ----
 
 == Running post-install configuration

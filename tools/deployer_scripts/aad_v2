@@ -9,24 +9,29 @@
 # See /docs/setup.adoc for instructions.
 # -------------------------------------------------------------------
 # Args:
-#   aad_v2 action <guid config_name <secret_name> >
+#   aad_v2 action [--guid ABCD --config config_name --account account_name]
 # Example:
 #   aad_v2 setup
-#   aad_v2 provision wkaws openshift-cluster sandbox1275
-#   aad_v2 destroy wkaws openshift-cluster sandbox1275
+#   aad_v2 provision --guid wkaws --config openshift-cluster --account sandbox1275
+#   aad_v2 destroy   --guid wkaws --config openshift-cluster --account sandbox1275
 # Note:
-#   config_name uses a file `../agnosticd-v2-vars/<config_name>.yml`
-#   secret_name uses a file `../agnosticd-v2-secrets/secret-<secret_name>.yml`
+#   config_name uses the file `../agnosticd-v2-vars/<config_name>.yml`
+#   account_name uses the file `../agnosticd-v2-secrets/secret-<secret_name>.yml`
 # -------------------------------------------------------------------
 
 # Exit on error, treat unset variables as errors, fail on pipeline errors
 set -euo pipefail
 
 # Directories
-readonly OUTPUT_DIR_ROOT="../agnosticd-v2-output"
-readonly SECRETS_DIR="../agnosticd-v2-secrets"
 readonly VARS_DIR="../agnosticd-v2-vars"
+readonly SECRETS_DIR="../agnosticd-v2-secrets"
 readonly VENV_DIR="../agnosticd-v2-virtualenv"
+readonly OUTPUT_DIR_ROOT="../agnosticd-v2-output"
+
+# Predefine variables for parameters
+GUID=""
+CONFIG_NAME=""
+ACCOUNT_NAME=""
 
 # -------------------------------------------------------------------
 # print_usage()
@@ -37,12 +42,13 @@ print_usage() {
   echo ""
   echo "Usage:"
   echo ""
-  echo "$0 action <guid config_name <secret_name> ."
+  echo "$0 action [--guid ABCD --config config_name --account account_name]"
+  echo "$0 action [-g ABCD -c config_name -a account_name]"
   echo ""
   echo "Examples:"
   echo "  $0 setup"
-  echo "  $0 provision wkaws openshift-cluster aws"
-  echo "  $0 destroy wkaws openshift sandbox1275"
+  echo "  $0 provision --guid wkaws --config openshift-cluster --account sandbox1275"
+  echo "  $0 destroy   --guid wkaws --config openshift-cluster --account sandbox1275"
   echo ""
 }
 
@@ -195,10 +201,10 @@ run_ansible_navigator() {
 
   ansible-navigator run "ansible/${playbook}" \
     --extra-vars "ACTION=${action}" \
-    --extra-vars "@/vars/${CONFIG_YAML}.yml" \
-    --extra-vars "@/secrets/secrets.yml" \
-    --extra-vars "@/secrets/secrets-${ACCOUNT_YAML}.yml" \
     --extra-vars "guid=${GUID}" \
+    --extra-vars "@/vars/${CONFIG_NAME}.yml" \
+    --extra-vars "@/secrets/secrets-${ACCOUNT_NAME}.yml" \
+    --extra-vars "@/secrets/secrets.yml" \
     --extra-vars "output_dir=/output_dir_root/${GUID}" \
     --mode stdout
 }
@@ -208,29 +214,56 @@ run_ansible_navigator() {
 # Main logic
 #
 # -------------------------------------------------------------------
-echo "Check if the setup is run from the correct directory..."
+
 # Check if we are inside the agnosticd-v2 directory
 if [ "$(basename "$PWD")" != "agnosticd-v2" ]; then
     echo "  ERROR: This script must be run from within the agnosticd-v2 directory."
     exit 1
 fi
 
+# Process command line parameters
 if [[ $# -eq 1 && "${1}" == "setup" ]]; then
   agd_v2_setup
   exit 0
-elif [[ $# -eq 4 && ("${1}" == "provision" || "${1}" == "destroy") ]]; then
-  # Valid case: 'provision' or 'destroy' must have 4 parameters
-  :
+elif [[ $# -eq 7 && ("${1}" == "provision" || "${1}" == "destroy") ]]; then
+  ACTION="${1}"
+  shift
+  VALID_ARGS=$(getopt -o g:c:a: --long guid:,config:,account: -- "$@")
+
+  # Parse GUID, CONFIG_NAME and ACCOUNT from command line arguments
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -g | --guid)
+        GUID="${2}"
+        shift 2
+        ;;
+      -c | --config)
+        CONFIG_NAME="${2}"
+        shift 2
+        ;;
+      -a | --account)
+        ACCOUNT_NAME="${2}"
+        shift 2
+        ;;
+      *)
+        echo "ERROR: Unknown parameter '${1}'."
+        print_usage
+        exit 1
+        ;;
+    esac
+  done
+
+  # Check if required parameters are provided
+  if [ -z "${GUID:-}" ] || [ -z "${CONFIG_NAME:-}" ] || [ -z "${ACCOUNT_NAME:-}" ]; then
+    echo "ERROR: Missing parameters."
+    print_usage
+    exit 1
+  fi
 else
+  # Neither setup, provision or destroy
   print_usage
   exit 1
 fi
-
-# Set variables from first parameters
-ACTION="${1}"
-GUID="${2}"
-CONFIG_YAML="${3}"
-ACCOUNT_YAML="${4}"
 
 # Check Operating System and set things up if necessary
 if [[ "$(uname)" == "Darwin" ]]; then
