@@ -92,7 +92,7 @@ cd agnosticd-v2
 +
 [source,sh]
 ----
-./tools/deployer_scripts/aad_v2 setup
+./bin/aad_v2 setup
 ----
 +
 This script will:
@@ -266,14 +266,14 @@ For example if you want to deploy a configuration where the vars file is called 
 
 [source,sh]
 ----
-./tools/deployer_scripts/aad_v2 provision --guid myocp --config openshift-cluster --account sandbox1234
+./bin/aad_v2 provision --guid myocp --config openshift-cluster --account sandbox1234
 ----
 
 or
 
 [source,sh]
 ----
-./tools/deployer_scripts/aad_v2 provision -g myocp -c openshift-cluster -a sandbox1234
+./bin/aad_v2 provision -g myocp -c openshift-cluster -a sandbox1234
 ----
 
 == Destroying a config
@@ -282,7 +282,7 @@ To destroy a config you run the script the same way as during provision - except
 
 [source,sh]
 ----
-./tools/deployer_scripts/aad_v2 destroy --guid myocp --config openshift-cluster --account sandbox1234
+./bin/aad_v2 destroy --guid myocp --config openshift-cluster --account sandbox1234
 ----
 
 == Running post-install configuration
