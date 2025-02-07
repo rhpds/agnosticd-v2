@@ -3,7 +3,7 @@
   ansible.builtin.import_tasks: ssh.yml
 
 - name: Update all packages and reboot VMs
-  when: update_packages | bool
+  when: host_common_update_packages | bool
   block:
   - name: Update all packages
     ansible.builtin.package:
