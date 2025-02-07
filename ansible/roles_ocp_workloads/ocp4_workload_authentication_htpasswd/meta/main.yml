@@ -5,7 +5,7 @@ galaxy_info:
   description: |
     Set up htpasswd Authentication for OpenShift Container Platform.
   license: MIT
-  min_ansible_version: 2.9
+  min_ansible_version: "2.9"
   platforms: []
   galaxy_tags:
   - ocp
