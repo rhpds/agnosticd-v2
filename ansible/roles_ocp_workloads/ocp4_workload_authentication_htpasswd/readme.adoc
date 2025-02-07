@@ -1,0 +1,3 @@
+= ocp4_workload_authentication_htpasswd - Set up htpasswd Authentication on OpenShift Container Platform
+
+See defaults/main.yml for variables to set.
