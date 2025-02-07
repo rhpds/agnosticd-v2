@@ -1,0 +1,10 @@
+---
+- name: Cleanup
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+  - name: Delete temporary ssh private key
+    ansible.builtin.file:
+      path: "{{ output_dir }}/ssh_key.pem"
+      state: absent

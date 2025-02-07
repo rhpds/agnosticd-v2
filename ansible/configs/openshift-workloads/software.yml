@@ -1,0 +1,12 @@
+---
+- name: Step 004 Software
+  hosts: ocp_bastions
+  become: false
+  gather_facts: false
+  tasks:
+  - name: Provision Workloads on cluster(s)
+    ansible.builtin.include_role:
+      name: openshift_workloads
+    vars:
+      ACTION: provision
+      openshift_workloads: "{{ cluster_workloads }}"
