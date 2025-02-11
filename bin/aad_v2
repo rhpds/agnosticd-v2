@@ -202,6 +202,7 @@ run_ansible_navigator() {
   ansible-navigator run "ansible/${playbook}" \
     --extra-vars "ACTION=${action}" \
     --extra-vars "guid=${GUID}" \
+    --extra-vars "uuid=${GUID}" \
     --extra-vars "@/vars/${CONFIG_NAME}.yml" \
     --extra-vars "@/secrets/secrets-${ACCOUNT_NAME}.yml" \
     --extra-vars "@/secrets/secrets.yml" \
