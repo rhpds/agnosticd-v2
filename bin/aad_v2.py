@@ -1,3 +1,4 @@
+#!/opt/homebrew/bin/python3
 import os
 import sys
 import argparse
