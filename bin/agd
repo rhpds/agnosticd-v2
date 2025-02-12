@@ -110,6 +110,12 @@ agd_setup() {
   echo "Check if VirtualEnv is set up already. Set it up if not..."
 
   if command_exists python; then
+
+      # ensure the version is 3.11 or higher
+      if [[ "$(python --version | cut -d' ' -f2 | cut -d'.' -f1)" -lt 3 || "$(python --version | cut -d' ' -f2 | cut -d'.' -f2)" -lt 11 ]]; then
+          echo "  ERROR: Python version 3.11 or higher is required."
+          exit 1
+      fi
       if [ -d "$VENV_DIR" ]; then
           echo "  Activating existing virtual environment."
           source "$VENV_DIR/bin/activate"
