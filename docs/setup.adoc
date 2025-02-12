@@ -20,7 +20,7 @@ Pick a root directory (e.g. ~/Development or ~/aad) on your disk. In this root d
 * *agnosticd-v2-output*: Output of any Ansible run
 * *agnosticd-v2-virtualenv*: Python 3.11 virtualenv to hold ansible-navigator to run deployments using an Ansible execution environment. You will not need to do anything with this virtual environment - the deployment script will activate it where necessary.
 
-Your working directory when running the `agd_v2` script should be the *agnosticd-v2* directory.
+Your working directory when running the `agd` script should be the *agnosticd-v2* directory.
 
 === macOS Prerequisites
 
@@ -92,7 +92,7 @@ cd agnosticd-v2
 +
 [source,sh]
 ----
-./bin/aad_v2 setup
+./bin/agd setup
 ----
 +
 This script will:
@@ -113,7 +113,7 @@ After the setup script has been executed you will find seed files in the `agnost
 
 === The `secrets.yml` file
 
-This is the example `secrets.yml` file that `agd_v2 setup` creates:
+This is the example `secrets.yml` file that `agd setup` creates:
 
 [source,yaml]
 ----
@@ -168,9 +168,9 @@ Other platforms (IBM Cloud, CNV, ...) will have similar files. For example `secr
 
 === The config vars file
 
-In order to deploy a configuration you will need to set up the variables for the configuration. An example config to deploy an OpenShift Cluster is copied into the `agnosticd-v2-vars` directory when running `agd_v2 setup`. This file works out of the box - but you can of course modify it to suit your needs. At a minimum you should update your e-mail address under `cloud_tags` and replace the `ssh_authorized_keys` variable with your public key hosted on Github.
+In order to deploy a configuration you will need to set up the variables for the configuration. An example config to deploy an OpenShift Cluster is copied into the `agnosticd-v2-vars` directory when running `agd setup`. This file works out of the box - but you can of course modify it to suit your needs. At a minimum you should update your e-mail address under `cloud_tags` and replace the `ssh_authorized_keys` variable with your public key hosted on Github.
 
-.Example file created by `agd_v2 setup`:
+.Example file created by `agd setup`:
 [source,yaml]
 ----
 ---
@@ -254,9 +254,9 @@ ocp4_workload_cert_manager_install_ingress_certificates: true
 ocp4_workload_cert_manager_install_api_certificates: false
 ----
 
-=== Running `agd_v2 provision`
+=== Running `agd provision`
 
-Now that everything has been set up (secrets and variables file) you can run the provision function of the `agd_v2` script. The script takes 3 parameters in any order:
+Now that everything has been set up (secrets and variables file) you can run the provision function of the `agd` script. The script takes 3 parameters in any order:
 
 * `--guid | -g`: The GUID for your deployed environment
 * `--config | -c`: Name of the vars file
@@ -266,14 +266,14 @@ For example if you want to deploy a configuration where the vars file is called 
 
 [source,sh]
 ----
-./bin/aad_v2 provision --guid myocp --config openshift-cluster --account sandbox1234
+./bin/agd provision --guid myocp --config openshift-cluster --account sandbox1234
 ----
 
 or
 
 [source,sh]
 ----
-./bin/aad_v2 provision -g myocp -c openshift-cluster -a sandbox1234
+./bin/agd provision -g myocp -c openshift-cluster -a sandbox1234
 ----
 
 == Destroying a config
@@ -282,7 +282,7 @@ To destroy a config you run the script the same way as during provision - except
 
 [source,sh]
 ----
-./bin/aad_v2 destroy --guid myocp --config openshift-cluster --account sandbox1234
+./bin/agd destroy --guid myocp --config openshift-cluster --account sandbox1234
 ----
 
 == Running post-install configuration

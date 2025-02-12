@@ -1,6 +1,6 @@
 #!/bin/bash
 # -------------------------------------------------------------------
-# aad_v2
+# agd
 #
 # AgnosticD V2 setup / provision /destroy script
 # This script can be used to setup a local development environment
@@ -9,11 +9,11 @@
 # See /docs/setup.adoc for instructions.
 # -------------------------------------------------------------------
 # Args:
-#   aad_v2 action [--guid ABCD --config config_name --account account_name]
+#   agd action [--guid ABCD --config config_name --account account_name]
 # Example:
-#   aad_v2 setup
-#   aad_v2 provision --guid wkaws --config openshift-cluster --account sandbox1275
-#   aad_v2 destroy   --guid wkaws --config openshift-cluster --account sandbox1275
+#   agd setup
+#   agd provision --guid wkaws --config openshift-cluster --account sandbox1275
+#   agd destroy   --guid wkaws --config openshift-cluster --account sandbox1275
 # Note:
 #   config_name uses the file `../agnosticd-v2-vars/<config_name>.yml`
 #   account_name uses the file `../agnosticd-v2-secrets/secret-<secret_name>.yml`
@@ -62,11 +62,11 @@ command_exists() {
 }
 
 # -------------------------------------------------------------------
-# agd_v2_setup()
+# agd_setup()
 #
 # Function to setup AgnosticD V2
 # -------------------------------------------------------------------
-agd_v2_setup() {
+agd_setup() {
   echo
   echo "********************************************************"
   echo "AgnosticD V2 Setup"
@@ -95,11 +95,11 @@ agd_v2_setup() {
 
           # Copy template files if necessary
           if [ "$dir" == "$SECRETS_DIR" ]; then
-              cp tools/deployer_scripts/templates/secrets.yml "$dir" 2>&1 >/dev/null
-              cp tools/deployer_scripts/templates/secrets-sandboxXXX.yml "$dir" 2>&1 >/dev/null
+              cp bin/templates/secrets.yml "$dir" 2>&1 >/dev/null
+              cp bin/templates/secrets-sandboxXXX.yml "$dir" 2>&1 >/dev/null
               echo "  Copied template files to $dir"
           elif [ "$dir" == "$VARS_DIR" ]; then
-              cp tools/deployer_scripts/templates/openshift-cluster.yml "$dir" 2>&1 >/dev/null
+              cp bin/templates/openshift-cluster.yml "$dir" 2>&1 >/dev/null
               echo "  Copied template file to $dir"
           fi
       fi
@@ -109,19 +109,19 @@ agd_v2_setup() {
   echo "*****************************************************************"
   echo "Check if VirtualEnv is set up already. Set it up if not..."
 
-  if command_exists python3.11; then
+  if command_exists python; then
       if [ -d "$VENV_DIR" ]; then
           echo "  Activating existing virtual environment."
           source "$VENV_DIR/bin/activate"
       else
           echo "  Creating new virtual environment..."
-          python3.11 -m venv "$VENV_DIR" 2>&1 >/dev/null
+          python -m venv "$VENV_DIR" 2>&1 >/dev/null
 
           source "$VENV_DIR/bin/activate"
           pip install --upgrade pip 2>&1 >/dev/null
       fi
   else
-      echo "  ERROR: Python 3.11 must be installed."
+      echo "  ERROR: Python must be installed."
       exit 1
   fi
 
@@ -223,8 +223,8 @@ if [ "$(basename "$PWD")" != "agnosticd-v2" ]; then
 fi
 
 # Process command line parameters
-if [[ $# -eq 1 && "${1}" == "setup" ]]; then
-  agd_v2_setup
+if [[ $# -eq 1 && (  "${1}" == "setup"  || "${1}" == "init" ) ]]; then
+  agd_setup
   exit 0
 elif [[ $# -eq 7 && ("${1}" == "provision" || "${1}" == "destroy") ]]; then
   ACTION="${1}"
