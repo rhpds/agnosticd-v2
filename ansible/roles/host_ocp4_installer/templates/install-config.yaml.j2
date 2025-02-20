@@ -2,7 +2,7 @@
 apiVersion: v1
 metadata:
   name: {{ cluster_name | to_json }}
-baseDomain: {{ ocp4_base_domain | to_json }}
+baseDomain: {{ config_domain | to_json }}
 fips: {{ host_ocp4_installer_fips_enable | bool | to_json }}
 controlPlane:
   name: master
@@ -84,11 +84,7 @@ networking:
   machineCIDR: {{ ocp4_machine_cidr | default('10.0.0.0/16') | to_json }}
   serviceNetwork:
   - {{ ocp_service_network | default('172.30.0.0/16') }}
-{% if host_ocp4_installer_network_type is match("Calico") %}
-  networkType: Calico
-{% else %}
   networkType: OVNKubernetes
-{% endif %}
 platform:
 {% if cloud_provider == 'aws' %}
   aws:

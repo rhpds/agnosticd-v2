@@ -5,30 +5,20 @@ cloudformation_retries: 1
 #################################################################
 # VPC
 #################################################################
-
 aws_vpc_cidr: 192.168.0.0/16
-aws_vpc_name: "{{ subdomain_base }}"
+aws_vpc_name: "{{ config_domain }}"
 
 #################################################################
 # Subnet
 #################################################################
-
 aws_public_subnet_cidr: 192.168.0.0/24
 
 #################################################################
 # Security Groups
 #################################################################
-
 default_security_groups:
 - name: BastionSG
   rules:
-  - name: MoshPublic
-    description: Public Mosh Access for bastions
-    from_port: 60000
-    to_port: 61000
-    protocol: udp
-    cidr: "0.0.0.0/0"
-    rule_type: Ingress
   - name: SSHPublic
     description: Public Access for bastions
     from_port: 22
@@ -36,7 +26,6 @@ default_security_groups:
     protocol: tcp
     cidr: "0.0.0.0/0"
     rule_type: Ingress
-
 - name: DefaultSG
   rules:
   - name: FromBastionTCP
@@ -62,7 +51,8 @@ security_groups: []
 #################################################################
 
 # The top level DNS zone you want to update
-aws_dns_zone_root: "{{ subdomain_base_suffix | regex_replace('^\\.', '') }}."
+# aws_dns_zone_root: "{{ subdomain_base_suffix | regex_replace('^\\.', '') }}."
+aws_dns_zone_root: "{{ base_domain }}."
 
 # Private DNS Zone dedicated to the environment
 aws_dns_zone_private: "{{ guid }}.internal."

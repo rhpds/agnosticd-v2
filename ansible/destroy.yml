@@ -28,17 +28,17 @@
     when:
     - cloud_provider == 'aws'
     - target_regions is not defined
-    ansible.builtin.include_tasks: cloud_providers/aws/aws_detect_region_tasks.yml
+    ansible.builtin.include_tasks: cloud_providers/aws/detect_region_tasks.yml
 
+# WKTBD: Add other cloud providers
 - name: Call cloud provider destroy logic
   ansible.builtin.import_playbook: >-
     {{ lookup('first_found', {
-         'files': [ 'destroy_env.yml',
-                    cloud_provider + '_destroy_env.yml'
+         'files': [ 'destroy_env.yml'
                   ],
          'paths': [ 'configs/' + config,
                     'cloud_providers/aws',
-                    'cloud_providers/cnv'
+                    'cloud_providers/openshift_cnv'
                   ]
        })
     }}

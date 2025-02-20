@@ -17,11 +17,6 @@ use_dynamic_dns: true
 # Whether to wait for an ack from the DNS servers before continuing
 wait_for_dns: true
 
-# The base domain
-# osp_cluster_dns_zone needs to come from secrets
-# subdomain_base_suffix: "{{ osp_cluster_dns_zone }}"
-ocp4_base_domain: "{{ osp_cluster_dns_zone }}"
-
 # Container image to use in Ceph cleanup job
 ceph_cleanup_job_image: registry.redhat.io/odf4/rook-ceph-rhel9-operator:v4.15
 

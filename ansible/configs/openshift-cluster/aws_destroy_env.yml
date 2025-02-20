@@ -132,5 +132,5 @@
     ansible.builtin.include_role:
       name: host_ocp4_destroy
 
-- name: Import default cloud provider destroy playbook
-  ansible.builtin.import_playbook: "../../cloud_providers/{{ cloud_provider }}/{{ cloud_provider }}_destroy_env.yml"
+- name: Import default aws destroy playbook
+  ansible.builtin.import_playbook: "../../cloud_providers/aws/destroy_env.yml"

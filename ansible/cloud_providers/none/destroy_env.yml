@@ -1,0 +1,10 @@
+---
+- name: Step 001.1 Destroy Infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+  - name: Destroy none cloud_provider debug task
+    ansible.builtin.debug:
+      msg: Destroy none cloud_provider debug task

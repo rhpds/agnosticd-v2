@@ -26,7 +26,7 @@
         var: cloudformation_out_existing
         verbosity: 2
 
-    # See logic in cloud_providers/aws/aws_infrastructure_deployment.yml for how these variables are set
+    # See logic in cloud_providers/aws/infrastructure_deployment.yml for how these variables are set
     - name: Save Route53User credentials from stack outputs (CloudFormation just created)
       when:
       - not cloudformation_already_deployed | bool

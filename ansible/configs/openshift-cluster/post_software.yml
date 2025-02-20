@@ -60,17 +60,17 @@
     - name: Set Bastion Hostname (AWS)
       when: cloud_provider == 'aws'
       ansible.builtin.set_fact:
-        _bastion_public_hostname: "{{ hostvars[_bastion_inventory_name].shortname }}.{{ guid }}{{ subdomain_base_suffix }}"
+        _bastion_public_hostname: "{{ hostvars[_bastion_inventory_name].shortname }}.{{ config_domain }}"
 
     - name: Set Bastion Hostname (GCP)
       when: cloud_provider == "azure" or cloud_provider == "gcp"
       ansible.builtin.set_fact:
-        _bastion_public_hostname: "bastion.{{ guid }}.{{ ocp4_base_domain }}."
+        _bastion_public_hostname: "bastion.{{ config_domain }}."
 
     - name: Set Bastion Hostname (Other)
       when: _bastion_public_hostname is not defined
       ansible.builtin.set_fact:
-        _bastion_public_hostname: "{{ hostvars[_bastion_inventory_name].shortname }}.{{ guid }}.{{ ocp4_base_domain }}"
+        _bastion_public_hostname: "{{ hostvars[_bastion_inventory_name].shortname }}.{{ config_domain }}"
 
     - name: Print GCP access user info
       when:

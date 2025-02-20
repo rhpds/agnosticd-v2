@@ -26,4 +26,4 @@
         loop_var: workload_loop_var
 
 - name: Import default cloud provider destroy playbook
-  ansible.builtin.import_playbook: "../../cloud_providers/{{ cloud_provider }}_destroy_env.yml"
+  ansible.builtin.import_playbook: "../../cloud_providers/openshift_cnv/destroy_env.yml"

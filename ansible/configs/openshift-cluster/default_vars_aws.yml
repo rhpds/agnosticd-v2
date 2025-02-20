@@ -44,23 +44,8 @@ project_tag: "{{ config }}-{{ guid }}"
 ### Route 53 Zone ID (AWS)
 # This is the Route53 HostedZoneId where you will create your Public DNS entries
 # This only needs to be defined if your CF template uses route53
-# It needs to match the subdomain_base_suffix below
+# It needs to match the domain specified in the base_domain variable in default_vars.yml
 # HostedZoneId: XXXXXXXXXXXXX
-
-## Networking (AWS)
-subdomain_base_suffix: ".example.opentlc.com"
-subdomain_base_short: "{{ guid }}"
-subdomain_base: "{{ guid }}{{ subdomain_base_suffix }}"
-
-zone_internal_dns: "{{ guid }}.internal."
-chomped_zone_internal_dns: "{{ guid }}.internal"
-
-bastion_public_dns: "bastion.{{ subdomain_base }}."
-bastion_public_dns_chomped: "bastion.{{ subdomain_base }}"
-vpcid_name_tag: "{{ subdomain_base }}"
-
-# The OpenShift 4 base domain (must match the HostedZoneId)
-ocp4_base_domain: "{{ subdomain_base }}"
 
 # -------------------------------------------------------------------
 # AWS EC2 Instances

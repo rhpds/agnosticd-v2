@@ -11,7 +11,7 @@ guid: notset
 
 # The name of the OpenShift cluster that will be deployed.
 # This is primarily used if you want to automate the OpenShift deployment.
-cluster_name: "cluster-{{ guid }}"
+cluster_name: ocp
 
 # Used to add metadata (tags) to OpenStack objects created
 project_tag: "{{ config }}-{{ guid }}"
@@ -90,16 +90,11 @@ host_ocp4_installer_version: "4.18"
 # Get from https://try.openshift.com
 # ocp4_pull_secret: ''
 
-# Should be set from secrets or cloud config
-ocp4_base_domain: example.opentlc.com
+# Base Domain to be used
+base_domain: redhatworkshops.io
 
-# Red Hat Network Plugins for OpenShift:
-# - OVNKubernetes
-#
-# Third Party Network Plugins for OpenShift
-# - Calico (tested on OCP 4.7)
-#
-host_ocp4_installer_network_type: OVNKubernetes
+# Top level domain for this cluster (will be prepended with {{ cluster_name }})
+config_domain: "{{ guid }}.{{ base_domain }}"
 
 # Set to true to enable creating a cluster-admin service account during installation
 openshift_cluster_admin_service_account_enable: false

@@ -1,6 +1,6 @@
 ---
 - name: Import AWS Pre checks
-  ansible.builtin.import_playbook: aws_pre_checks.yml
+  ansible.builtin.import_playbook: pre_checks.yml
 
 - name: Step 001.1 Deploy Infrastructure
   hosts: localhost
@@ -122,7 +122,7 @@
     # when step001.1 is skipped, aws_region_final is not defined.
     - name: Include detect region tasks
       when: aws_region_final is not defined
-      ansible.builtin.include_tasks: aws_detect_region_tasks.yml
+      ansible.builtin.include_tasks: detect_region_tasks.yml
 
     - name: Run infra_aws_create_inventory role
       ansible.builtin.include_role:

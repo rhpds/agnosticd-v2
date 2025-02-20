@@ -2,7 +2,3 @@
 - name: Run openshift-install create manifests
   become: false
   ansible.builtin.command: openshift-install create manifests --dir=/home/{{ ansible_user }}/{{ cluster_name }}
-
-- name: Set up with Calico
-  when: host_ocp4_installer_network_type | default("OVNKubernetes") == "Calico"
-  ansible.builtin.include_tasks: setup_calico_networking.yml

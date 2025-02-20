@@ -22,7 +22,7 @@
   block:
   - name: Create or Delete DNS entries (multiple instances)
     vars:
-      _index: "{{ infra_dns_num_format | format(myindex|int) }}"
+      _index: "{{ infra_dns_num_format | format(myindex | int) }}"
       _instance_name: "{{ _instance.name }}{{ _index }}"
       _alt_names: "{{ _instance.dns_records | default([]) }}"
     ansible.builtin.include_tasks: nested_loop.yml

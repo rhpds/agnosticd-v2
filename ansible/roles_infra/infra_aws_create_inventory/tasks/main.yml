@@ -4,7 +4,7 @@
     var: aws_region_final | default(aws_region)
     verbosity: 2
 
-- name: Gather EC2 info
+- name: Gather EC2 instance info
   amazon.aws.ec2_instance_info:
     aws_access_key: "{{ aws_access_key_id }}"
     aws_secret_key: "{{ aws_secret_access_key }}"
@@ -13,7 +13,7 @@
       "tag:Project": "{{ project_tag }}"
   register: r_ec2_info
 
-- name: debug r_ec2_info
+- name: Debug r_ec2_info
   ansible.builtin.debug:
     var: r_ec2_info
     verbosity: 2

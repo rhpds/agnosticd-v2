@@ -21,7 +21,7 @@ ocp4_workload_cert_manager_wait_after_api_cert_setup: 12
 ocp4_workload_cert_manager_wait_for_rollout: false
 
 # Set to the cloud provider to be used:
-# Valid values are: aws, azure, gcp, vmc
+# Valid values are: aws, azure, gcp
 ocp4_workload_cert_manager_cloud_provider: "{{ cloud_provider if cloud_provider in ['gcp', 'azure'] else 'aws' }}"
 
 # Set to either 'letsencrypt' or 'zerossl'
@@ -51,7 +51,7 @@ ocp4_workload_cert_manager_zerossl_hmac_key: ""
 # ocp4_workload_cert_manager_aws_access_key_id: "{{ hostvars.localhost.route53user_access_key }}"
 # ocp4_workload_cert_manager_aws_secret_access_key: "{{ hostvars.localhost.route53user_secret_access_key }}"
 
-# If a HostedZoneID is provided use that one, otherwise determine dynamically
+# If a HostedZoneID is provided, use that one, otherwise determine dynamically
 # Use dynamic for aws and specify the hostedzone for other platforms like CNV
 # ocp4_workload_cert_manager_aws_hostedzoneid: "{{ hostvars.localhost.route53_aws_zone_id | default('') }}"
 
@@ -81,12 +81,12 @@ ocp4_workload_cert_manager_azure_tenant_id: "{{ azure_tenant }}"
 # ---------------------------------------------------------------
 # Operator settings
 # ---------------------------------------------------------------
-ocp4_workload_cert_manager_channel: stable-v1.14
+ocp4_workload_cert_manager_channel: stable-v1.15
 ocp4_workload_cert_manager_starting_csv: ""
 
 ocp4_workload_cert_manager_use_catalog_snapshot: false
 ocp4_workload_cert_manager_catalogsource_name: ""
 ocp4_workload_cert_manager_catalog_snapshot_image: ""
 ocp4_workload_cert_manager_catalog_snapshot_image_tag: ""
-# ocp4_workload_cert_manager_starting_csv: cert-manager-operator.v1.14.0
+# ocp4_workload_cert_manager_starting_csv: cert-manager-operator.v1.15.0
 ocp4_workload_cert_manager_automatic_install_plan_approval: true

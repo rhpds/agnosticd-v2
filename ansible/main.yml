@@ -41,8 +41,8 @@
     findme:
     - configs/{{ config }}/infra_{{ cloud_provider }}.yml
     - configs/{{ config }}/infra.yml
-    - cloud_providers/{{ cloud_provider }}/{{ cloud_provider }}_infrastructure_deployment.yml
-    - cloud_providers/none_infrastructure_deployment.yml
+    - cloud_providers/{{ cloud_provider }}/infrastructure_deployment.yml
+    - cloud_providers/none/infrastructure_deployment.yml
   ansible.builtin.import_playbook: "{{ lookup('first_found', findme) }}"
 
 # ###############################################################################
