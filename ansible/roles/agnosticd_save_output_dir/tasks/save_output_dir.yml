@@ -21,7 +21,7 @@
         {{ agnosticd_save_output_dir_archive }}
         {{- '.gpg' if agnosticd_save_output_dir_archive_password is defined else '' -}}
       overwrite: always
-      tags: "{{ cloud_tags_final }}"
+      tags: "{{ cloud_tags_final | default({}) | to_json }}"
 
   always:
   - name: Remove output_dir archive tempfile
