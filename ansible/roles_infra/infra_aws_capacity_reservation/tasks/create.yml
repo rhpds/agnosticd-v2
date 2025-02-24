@@ -7,10 +7,6 @@
       | default(false, true)
       | bool }}
 
-- name: Debug aws_region
-  ansible.builtin.debug:
-    msg: "AWS Region: {{ aws_region }}"
-
 - name: Retrieve the region from user-data.yml
   when: aws_region | default('', true) == ''
   ansible.builtin.set_fact:

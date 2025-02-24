@@ -7,7 +7,7 @@ import pprint
 import sys
 import six
 from ansible.errors import AnsibleError
-from ansible.plugins.ACTION import ActionBase
+from ansible.plugins.action import ActionBase
 from ansible.utils.display import Display
 from copy import deepcopy
 
@@ -22,7 +22,7 @@ __metaclass__ = type
 #pylint: enable=invalid-name
 
 DOCUMENTATION = """
-        ACTION: agnosticd_odcr
+        action: agnosticd_odcr
         author: Guillaume Core <gucore@redhat.com>
         version_added: "2.9"
         short_description: Create AWS on-demand Capacity Reservations
