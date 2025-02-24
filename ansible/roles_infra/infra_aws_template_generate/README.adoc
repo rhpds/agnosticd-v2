@@ -16,7 +16,7 @@ Resources created by the default template:
 ** [x] Storage
 * DNS
 ** Mandatory Variables:
-*** `config_domain`: the AWS top-level Zone to update, for example `guid.redhatworkshops.io`
+*** `cluster_dns_zone`: the AWS top-level Zone to update, for example `guid.redhatworkshops.io`
 ** [ ] TODO: Public DNS Zone
 *** [ ] TODO: Allow route53User to access only the delegated zone
 ** [x] Internal DNS Zone

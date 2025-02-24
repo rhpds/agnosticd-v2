@@ -94,7 +94,7 @@ host_ocp4_installer_version: "4.18"
 base_domain: redhatworkshops.io
 
 # Top level domain for this cluster (will be prepended with {{ cluster_name }})
-config_domain: "{{ guid }}.{{ base_domain }}"
+cluster_dns_zone: "{{ guid }}.{{ base_domain }}"
 
 # Set to true to enable creating a cluster-admin service account during installation
 openshift_cluster_admin_service_account_enable: false

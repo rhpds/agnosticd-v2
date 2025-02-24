@@ -6,7 +6,7 @@ cloudformation_retries: 1
 # VPC
 #################################################################
 aws_vpc_cidr: 192.168.0.0/16
-aws_vpc_name: "{{ config_domain }}"
+aws_vpc_name: "{{ cluster_dns_zone }}"
 
 #################################################################
 # Subnet
