@@ -20,11 +20,12 @@
     when: cloud_provider == "aws"
     block:
     # Find and set the AWS Availability Zones using on-demand capacity reservations
-    - name: Run infra-aws-capacity-reservation
-      vars:
-        ACTION: "provision"
-      ansible.builtin.include_role:
-        name: infra_aws_capacity_reservation
+    # WK: This seems duplicate - this is also run in cloud provider (AWS) infrastructure_deployment.yml
+    # - name: Run infra-aws-capacity-reservation
+    #   vars:
+    #     ACTION: "provision"
+    #   ansible.builtin.include_role:
+    #     name: infra_aws_capacity_reservation
 
     - name: Set availability zones for Cloudformation and install-config.yml
       when: agnosticd_aws_capacity_reservation_results.reservations | default({}) | length > 0
