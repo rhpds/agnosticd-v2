@@ -54,4 +54,4 @@
     - amifacts is succeeded
     - "'images' in amifacts"
     - amifacts.images | default([]) | length > 0
-  ansible.builtin.include_tasks: select_custom_image.yml
+    ansible.builtin.include_tasks: select_custom_image.yml
