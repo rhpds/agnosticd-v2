@@ -1,5 +1,0 @@
----
-- name: Import pre check tasks
-  ansible.builtin.import_tasks: pre_checks.yml
-- name: Import get tasks
-  ansible.builtin.import_tasks: get.yml

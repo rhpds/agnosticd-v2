@@ -8,12 +8,11 @@
       Your AWS credentials are:
 
       `AWS_ACCESS_KEY_ID: {{ hostvars.localhost.admin_access_key_id }}`
-
       `AWS_SECRET_ACCESS_KEY: {{ hostvars.localhost.admin_secret_access_key }}`
 
       *Please DO NOT expose these AWS credentials in GIT repos or anywhere else that could be public! If detected, your environment will be deleted without warning.*
 
-      Top level route53 domain: {{ subdomain_base_suffix }}
+      Top level route53 domain: {{ base_domain }}
 
       {% if sandbox_enable_ui | bool %}
       Web Console Access: https://{{ sandbox_account_id }}.signin.aws.amazon.com/console
@@ -24,9 +23,7 @@
       Refer to the following pages regarding the AWS CLI and APIs:
 
       ** AWS CLI Installation: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html
-
       ** AWS Config Basics: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html
-
       ** AWS API Getting Started: https://aws.amazon.com/developers/getting-started/
 
       *WARNING*
@@ -44,7 +41,7 @@
       aws_access_key_id: "{{ hostvars.localhost.admin_access_key_id }}"
       aws_secret_access_key: "{{ hostvars.localhost.admin_secret_access_key }}"
       aws_default_region: "{{ aws_region }}"
-      aws_route53_domain: "{{ subdomain_base_suffix }}"
+      aws_route53_domain: "{{ base_domain }}"
       aws_sandbox_account_id: "{{ sandbox_account_id }}"
 
 - name: Record sandbox web console access as user data

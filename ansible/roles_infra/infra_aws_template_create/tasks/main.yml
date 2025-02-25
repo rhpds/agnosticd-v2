@@ -30,20 +30,20 @@
     ansible.builtin.pause:
       minutes: "{{ cloudformation_pause | default(0) }}"
 
-  - name: Detect custom images
-    when: allow_custom_images | default(true) | bool
-    block:
-    - name: Include detect_custom_images
-      ansible.builtin.include_tasks: detect_custom_images.yml
+  # - name: Detect custom images
+  #   when: allow_custom_images | default(true) | bool
+  #   block:
+  #   - name: Include detect_custom_images
+  #     ansible.builtin.include_tasks: detect_custom_images.yml
 
-    - name: Regenerate the CloudFormation template because of custom images
-      when:
-      - amifacts is defined
-      - amifacts is not skipped
-      - "'images' in amifacts"
-      - amifacts.images | default([]) | length > 0
-      ansible.builtin.include_role:
-        name: "infra_aws_template_generate"
+  #   - name: Regenerate the CloudFormation template because of custom images
+  #     when:
+  #     - amifacts is defined
+  #     - amifacts is not skipped
+  #     - "'images' in amifacts"
+  #     - amifacts.images | default([]) | length > 0
+  #     ansible.builtin.include_role:
+  #       name: "infra_aws_template_generate"
 
   - name: Launch CloudFormation from local template
     when: stat_template.stat.size <= 51200
