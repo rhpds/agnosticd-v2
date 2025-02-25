@@ -46,10 +46,7 @@ cluster_name: ocp
 
 host_ocp4_installer_root_url: http://mirror.openshift.com/pub/openshift-v4/clients
 
-#host_ocp4_installer_version: "4.18"
-host_ocp4_installer_use_dev_preview: true
-host_ocp4_installer_url: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/candidate-4.18/openshift-install-linux.tar.gz
-host_ocp4_client_url: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/candidate-4.18/openshift-client-linux.tar.gz
+host_ocp4_installer_version: "4.18"
 
 # Save kubeadmin password in user data - only necessary if no authentication is set up for the cluster
 host_ocp4_installer_set_user_data_kubeadmin_password: true

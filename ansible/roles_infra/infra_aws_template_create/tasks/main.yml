@@ -31,9 +31,7 @@
       minutes: "{{ cloudformation_pause | default(0) }}"
 
   - name: Detect custom images
-    when:
-    - allow_custom_images | d(true) | bool
-    - osrelease is defined or repo_version is defined
+    when: allow_custom_images | default(true) | bool
     block:
     - name: Include detect_custom_images
       ansible.builtin.include_tasks: detect_custom_images.yml
@@ -177,9 +175,17 @@
       ansible.builtin.fail:
         msg: "FAIL {{ project_tag }} Destroy Cloudformation"
 
+  - name: Debug cloudformation_out
+    ansible.builtin.debug:
+      var: cloudformation_out
+
+  - name: Debug fallback_regions
+    ansible.builtin.debug:
+      var: fallback_regions | default([])
+
   - name: Report Cloudformation error
     when:
-    - cloudformation_out is failed
+    - not cloudformation_out is succeeded
     - fallback_regions is not defined
     ansible.builtin.fail:
       msg: "FAIL {{ project_tag }} Create Cloudformation"
