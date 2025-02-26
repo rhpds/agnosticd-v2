@@ -1,37 +1,38 @@
 ---
-# Post Start actions for OCP 4 Cluster configs
 - name: Build inventory
   hosts: localhost
   connection: local
   gather_facts: false
   become: false
   tasks:
-  - name: Set facts for ssh provision SSH key
-    when:
-    - ssh_provision_key_name is undefined
-    - cloud_provider == 'azure'
-    ansible.builtin.include_role:
-      name: infra_create_ssh_provision_key
-
-  - name: Locate environment SSH key
-    when: cloud_provider == 'azure'
-    ansible.builtin.include_role:
-      name: locate_env_authorized_key
-
-  - name: Run infra_aws_create_inventory role
+  # AWS
+  - name: Run aws_create_inventory role
     when: cloud_provider == 'aws'
     ansible.builtin.include_role:
-      name: infra_aws_create_inventory
+      name: aws_create_inventory
 
-  - name: Azure post start actions
-    when: cloud_provider == 'azure'
-    ansible.builtin.include_role:
-      name: infra_azure_create_inventory
-
+  # OpenShift CNV
   - name: Run infra_openshift_cnv_create_inventory role
     when: cloud_provider == 'openshift_cnv'
     ansible.builtin.include_role:
       name: infra_openshift_cnv_create_inventory
+
+  # Azure
+  - name: Azure
+    when: cloud_provider == 'azure'
+    block:
+    - name: Set facts for ssh provision SSH key
+      when: ssh_provision_key_name is undefined
+      ansible.builtin.include_role:
+        name: infra_create_ssh_provision_key
+
+    - name: Locate environment SSH key
+      ansible.builtin.include_role:
+        name: locate_env_authorized_key
+
+    - name: Azure post start actions
+      ansible.builtin.include_role:
+        name: infra_azure_create_inventory
 
 - name: Set ansible_ssh_extra_args
   hosts:
@@ -52,10 +53,6 @@
   become: false
   gather_facts: false
   tasks:
-  - name: Set Ansible Python interpreter to k8s virtualenv
-    ansible.builtin.set_fact:
-      ansible_python_interpreter: /opt/virtualenvs/k8s/bin/python
-
   - name: Perform actions on start
     when: ACTION == 'start'
     block:

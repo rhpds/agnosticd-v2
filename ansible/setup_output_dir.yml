@@ -14,7 +14,7 @@
     ansible.builtin.file:
       path: "{{ output_dir }}"
       state: directory
-      mode: "0775"
+      mode: ug=rwx,o=rx
 
   - name: Attempt to restore output_dir contents
     when: agnosticd_save_output_dir_archive is defined
@@ -25,7 +25,7 @@
     ansible.builtin.file:
       state: touch
       path: "{{ [ output_dir, 'provision-' ~ item ] | path_join }}"
-      mode: "0664"
+      mode: ug=rw,o=r
     loop:
     - user-info.yaml
     - user-data.yaml
@@ -36,7 +36,7 @@
       content: |
         ---
       dest: "{{ [ output_dir, ACTION ~ '-' ~ item ] | path_join }}"
-      mode: "0664"
+      mode: ug=rw,o=r
     loop:
     - user-info.yaml
     - user-data.yaml

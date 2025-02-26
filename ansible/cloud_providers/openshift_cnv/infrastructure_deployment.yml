@@ -72,9 +72,6 @@
       name: infra_generic_wait_for_linux_hosts
 
   - name: Add authorized_keys
-    when: >-
-      ssh_authorized_keys | default([]) | length > 0
-      or
-      all_ssh_authorized_keys | default([]) | length > 0
+    when: host_ssh_authorized_keys | default([]) | length > 0
     ansible.builtin.include_role:
-      name: ssh_authorized_keys
+      name: host_ssh_authorized_keys

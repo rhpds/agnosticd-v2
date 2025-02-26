@@ -13,7 +13,7 @@
        })
     }}
 
-- name: Call Lifecycle Post Hook
+- name: Call Lifecycle hooks
   vars:
     _params:
       files:

@@ -22,6 +22,13 @@ cloud_tags:
 - env_type: "{{ env_type }}"
 - guid: "{{ guid }}"
 
+# -------------------------------------------------------------------
+# Set authorized keys on all created instances
+# -------------------------------------------------------------------
+# Replace with your SSH key on Github
+host_ssh_authorized_keys:
+- key: https://github.com/wkulhanek.keys
+
 # ===================================================================
 # OpenShift cluster specific settings
 #     See ansible/configs/openshift-cluster/default_vars.yml for
@@ -31,25 +38,17 @@ cloud_tags:
 # -------------------------------------------------------------------
 # Bastion VM settings
 # -------------------------------------------------------------------
-# Replace with your SSH key on Github
-ssh_authorized_keys:
-- key: https://github.com/wkulhanek.keys
-
 # Create a student user
-install_student_user: true
-student_name: student
+bastion_setup_student_user: true
+bastion_student_user_name: student
 
 # -------------------------------------------------------------------
 # OpenShift settings
 # -------------------------------------------------------------------
 cluster_name: ocp
 
+host_ocp4_installer_version: "4.18"
 host_ocp4_installer_root_url: http://mirror.openshift.com/pub/openshift-v4/clients
-
-# host_ocp4_installer_version: "4.18"
-host_ocp4_installer_use_dev_preview: true
-host_ocp4_installer_url: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/candidate-4.18/openshift-install-linux.tar.gz
-host_ocp4_client_url: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/candidate-4.18/openshift-client-linux.tar.gz
 
 # Save kubeadmin password in user data - only necessary if no authentication is set up for the cluster
 host_ocp4_installer_set_user_data_kubeadmin_password: true

@@ -1,4 +1,12 @@
 ---
+# -------------------------------------------------
+# General variables
+# -------------------------------------------------
+
+# Why is this config being deployed? Override for specific environments
+# Valid options are: development, test, production, event
+purpose: development
+
 # The output_dir holds all of the files generated during the deployment
 # This includes generated Heat templates, SSH config, SSH keys
 # This must be an absolute path and no vars (like $HOME or ~)
@@ -9,55 +17,64 @@ output_dir: /tmp/output_dir
 # it can be any reasonable length.
 guid: notset
 
-# The name of the OpenShift cluster that will be deployed.
-# This is primarily used if you want to automate the OpenShift deployment.
-cluster_name: ocp
-
-# Used to add metadata (tags) to OpenStack objects created
+# Used to add metadata (tags) to cloud objects created
 project_tag: "{{ config }}-{{ guid }}"
 
-# Why is this config being deployed? Override for specific environments
-# Valid options are: development, test, production, event
-purpose: development
+# Base Domain to be used for the environment
+# Should ideally be set by a Sandbox and passed to the config
+base_domain: redhatworkshops.io
 
-# Run the bastion role
+# -------------------------------------------------
+# Set up Bastion
+# -------------------------------------------------
 install_bastion: true
 
-# Enable this if you want to create a user on the bastion
-install_student_user: true
+# Set up a student user on the bastion
+bastion_setup_student_user: true
 
-# This should be overwritten based on the user ordering the catalog item
-# It will be used by the bastion_student_user role
-student_name: lab-user
+# Student User user name
+bastion_student_user_name: lab-user
 
 # FTL is used for grading and solving. It will pull in the external ftl-injector role.
-# This might be enabled when we have solvers to run or graders for ILT
 # When enabled a requirements.yml must exist in the config to specify the ftl-injector role and tag.
-install_ftl: false
+bastion_install_ftl: false
 
-# Only satellite is supported for RHEL 9 and newer
-repo_method: satellite
+# -------------------------------------------------
+# Call role host_satellite_repositories
+# -------------------------------------------------
+install_satellite_repositories: true
 
 # These vars are needed and need to come from secrets:
-# satellite_url:
-# satellite_org:
-# satellite_activationkey:
+# host_satellite_repositories_hostname:
+# host_satellite_repositories_ha:
+# host_satellite_repositories_org:
+# host_satellite_repositories_activationkey:
 
 # -------------------------------------------------
-# Role: host_common
+# Call role host_common_packages
 # -------------------------------------------------
 # Packages to install on all of the hosts deployed as part of the agnosticd config
-# This invokes the "host_common" role
-install_common: true
+# This invokes the host_common_packages role
+install_common_packages: true
 
 # To install extra packages (beyond what's in the common list of packages)
-# host_common_extra_packages:
+# host_common_packages_extramon_extra_packages:
 # - java-17-openjdk
 # - maven
 # - podman
 
-# As part of the "common" role, this cause it to do a yum update on the host
-host_common_update_packages: true
+# Run a full dnf update on the hosts
+host_common_packages_update_all: true
+
+# -------------------------------------------------
+# OpenShift
+# -------------------------------------------------
+
+# The name of the OpenShift cluster that will be deployed.
+cluster_name: ocp
+
+# Top level domain for this cluster (will be prepended with {{ cluster_name }})
+cluster_dns_zone: "{{ guid }}.{{ base_domain }}"
 
 # How to deploy OpenShift
 # Valid values are
@@ -89,12 +106,6 @@ host_ocp4_installer_version: "4.18"
 # Pull secret needs to be defined in secrets
 # Get from https://try.openshift.com
 # ocp4_pull_secret: ''
-
-# Base Domain to be used
-base_domain: redhatworkshops.io
-
-# Top level domain for this cluster (will be prepended with {{ cluster_name }})
-cluster_dns_zone: "{{ guid }}.{{ base_domain }}"
 
 # Set to true to enable creating a cluster-admin service account during installation
 openshift_cluster_admin_service_account_enable: false

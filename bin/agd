@@ -14,6 +14,8 @@
 #   agd setup
 #   agd provision --guid wkaws --config openshift-cluster --account sandbox1275
 #   agd destroy   --guid wkaws --config openshift-cluster --account sandbox1275
+#   agd stop      --guid wkaws --config openshift-cluster --account sandbox1275
+#   agd start     --guid wkaws --config openshift-cluster --account sandbox1275
 # Note:
 #   config_name uses the file `../agnosticd-v2-vars/<config_name>.yml`
 #   account_name uses the file `../agnosticd-v2-secrets/secret-<secret_name>.yml`
@@ -49,6 +51,8 @@ print_usage() {
   echo "  $0 setup"
   echo "  $0 provision --guid wkaws --config openshift-cluster --account sandbox1275"
   echo "  $0 destroy   --guid wkaws --config openshift-cluster --account sandbox1275"
+  echo "  $0 stop      --guid wkaws --config openshift-cluster --account sandbox1275"
+  echo "  $0 start     --guid wkaws --config openshift-cluster --account sandbox1275"
   echo ""
 }
 
@@ -232,7 +236,7 @@ fi
 if [[ $# -eq 1 && (  "${1}" == "setup"  || "${1}" == "init" ) ]]; then
   agd_setup
   exit 0
-elif [[ $# -eq 7 && ("${1}" == "provision" || "${1}" == "destroy") ]]; then
+elif [[ $# -eq 7 && ("${1}" == "provision" || "${1}" == "destroy" || "${1}" == "stop" || "${1}" == "start") ]]; then
   ACTION="${1}"
   shift
   VALID_ARGS=$(getopt -o g:c:a: --long guid:,config:,account: -- "$@")
@@ -267,7 +271,7 @@ elif [[ $# -eq 7 && ("${1}" == "provision" || "${1}" == "destroy") ]]; then
     exit 1
   fi
 else
-  # Neither setup, provision or destroy
+  # Neither setup, provision, destroy, stop or start
   print_usage
   exit 1
 fi
@@ -294,4 +298,8 @@ if [[ "$ACTION" == "provision" ]]; then
   run_ansible_navigator "provision" "main.yml"
 elif [[ "$ACTION" == "destroy" ]]; then
   run_ansible_navigator "destroy" "destroy.yml"
+elif [[ "$ACTION" == "stop" ]]; then
+  run_ansible_navigator "stop" "lifecycle_entry_point.yml"
+elif [[ "$ACTION" == "start" ]]; then
+  run_ansible_navigator "start" "lifecycle_entry_point.yml"
 fi

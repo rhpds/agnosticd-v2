@@ -4,3 +4,7 @@
   connection: local
   gather_facts: false
   become: false
+  tasks:
+  - name: Deploy none cloud_provider debug task
+    ansible.builtin.debug:
+      msg: Deploy none cloud_provider debug task

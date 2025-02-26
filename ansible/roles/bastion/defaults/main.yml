@@ -1,10 +1,37 @@
 ---
-# defaults file for bastion
-
+# SSH Key for bastion access to the {{ cloud_user }} account
 bastion_ssh_key_type: rsa
 bastion_ssh_key_name: bastion_{{ guid }}
-bastion_ssh_key_path: >-
-  ~/.ssh/{{ bastion_ssh_key_name }}
-bastion_ssh_pubkey_path: >-
-  ~/.ssh/{{ bastion_ssh_key_name
-  | regex_replace('\.pem$', '') }}.pub
+bastion_ssh_key_path: ~/.ssh/{{ bastion_ssh_key_name }}
+bastion_ssh_pubkey_path: ~/.ssh/{{ bastion_ssh_key_name | regex_replace('\.pem$', '') }}.pub
+
+# Install FTL to the bastion
+bastion_install_ftl: false
+
+# Remove PasswordAuthentication line from 50-cloud-init.conf
+bastion_remove_cloud_init_conf: true
+
+# Set up a student user on the bastion
+# ------------------------------------
+bastion_setup_student_user: true
+
+# Name of the student user
+bastion_student_user_name: lab-user
+
+# Password for the student user, generated if empty
+bastion_student_user_password: ""
+
+# Password length in case it's being generated
+bastion_student_user_password_length: 12
+
+# Optional public key of the student user to be added to authorized_keys
+bastion_student_user_key: ""
+
+# Enable sudo for the student user
+bastion_student_user_sudo: true
+
+# Set agnosticd_user_info data with bastion access
+bastion_student_user_set_user_data: true
+
+# Set agnosticd_user_info msg with bastion access
+bastion_student_user_show_user_info: false

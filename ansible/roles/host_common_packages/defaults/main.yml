@@ -1,0 +1,24 @@
+---
+# Run a full package update
+host_common_packages_update_all: true
+
+# Number of retries installing packages before failing
+host_common_packages_install_retries: 10
+
+# Common Packages to install for RHEL 9
+host_common_packages_el9:
+- python3
+- unzip
+- bash-completion
+- tmux
+- bind-utils
+- wget
+- nano
+- git
+- vim-enhanced
+- httpd-tools
+- tree
+- jq
+
+# Extra packages to install in addition to common packages
+host_common_packages_extra: []

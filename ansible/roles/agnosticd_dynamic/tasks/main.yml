@@ -3,7 +3,7 @@
   ansible.builtin.file:
     path: "{{ _dir }}"
     state: directory
-    mode: "0775"
+    mode: ug=rwx,o=rx
   loop:
   - "{{ agnosticd_dynamic_cache_dir }}"
   - "{{ agnosticd_dynamic_roles_dir }}"

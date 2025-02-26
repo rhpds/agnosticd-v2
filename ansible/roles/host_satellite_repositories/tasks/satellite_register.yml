@@ -1,0 +1,161 @@
+---
+- name: Check subscription-manager package existence
+  when: cloud_provider == 'gcp' or cloud_provider == 'azure'
+  ansible.builtin.command: which subscription-manager
+  ignore_errors: true
+  register: check_sm_out
+
+- name: Install subscription-manager package
+  when:
+  - cloud_provider == 'gcp' or cloud_provider == 'azure'
+  - check_sm_out is failed
+  ansible.builtin.package:
+    name: subscription-manager
+    state: present
+
+- name: Remove rh-amazon-rhui-client package
+  when: cloud_provider == 'aws'
+  ansible.builtin.package:
+    name: rh-amazon-rhui-client
+    state: absent
+    disablerepo: "*"    ## This option is undocumented but works, Pulls from yum & dnf
+
+- name: Unregister the system just in case
+  ansible.builtin.include_tasks: unregister.yml
+
+- name: Install CA certificate from satellite server
+  ansible.builtin.get_url:
+    url: "https://{{ host_satellite_repositories_hostname }}/pub/katello-server-ca.crt"
+    dest: /etc/pki/ca-trust/source/anchors/{{ host_satellite_repositories_hostname }}.ca.crt
+    mode: u=rw,go=r
+    validate_certs: false
+  retries: 10
+  delay: 10
+
+- name:  Update CA trust bundle
+  ansible.builtin.command: update-ca-trust
+
+- name: Remove satellite cert
+  ansible.builtin.package:
+    name: katello-ca-consumer-*.noarch
+    state: absent
+    disablerepo: "*"
+  ignore_errors: true
+
+- name: Find current repository files
+  ansible.builtin.find:
+    paths: /etc/yum.repos.d
+    recurse: false
+    patterns:
+    - '*.repo'
+  register: r_find_repos
+
+- name: Remove current repository files
+  ansible.builtin.file:
+    path: "{{ file.path }}"
+    state: absent
+  loop: "{{ r_find_repos.files }}"
+  loop_control:
+    loop_var: file
+    label: "{{ file.path }}"
+  ignore_errors: true
+
+# WK: use `yum` to allow ignore of GPG errors
+#     `package` does not have that options and results in random failures
+- name: Install Satellite CA certificate package
+  ansible.builtin.yum:
+    name: "{{ host_satellite_repositories_ca_rpm_url }}"
+    state: present
+    disablerepo: "*"
+    disable_gpg_check: true
+  register: r_install_satellite_ca_rpm
+  until: not r_install_satellite_ca_rpm.failed
+  retries: 10
+  delay: 10
+
+# prutledg - package profile reporting is slamming the satellite server and not necessary
+- name: Disable reporting of package profile to Satellite
+  community.general.ini_file:
+    path: /etc/rhsm/rhsm.conf
+    section: rhsm
+    option: report_package_profile
+    value: "0"
+    mode: ug=rw,o=r
+
+- name: Generate UUID for dmi.system.uuid if cloud provider is Equinix Metal
+  when: cloud_provider == 'equinix_metal'
+  ansible.builtin.set_fact:
+    dmi_system_uuid: "{{ 999999999 | random | to_uuid }}"
+
+- name: Set host_satellite_repositories_subscription_hostname to provided value
+  when: host_satellite_repositories_subscription_hostname | default("") | length > 0
+  ansible.builtin.set_fact:
+    _host_satellite_repositories_subscription_hostname: "{{ host_satellite_repositories_subscription_hostname }}"
+
+- name: Set host_satellite_repositories_subscription_hostname with randomization
+  when: host_satellite_repositories_subscription_hostname | default("") | length== 0
+  ansible.builtin.set_fact:
+    _host_satellite_repositories_subscription_hostname: >-
+      {%- if guid in inventory_hostname -%}
+      {{ inventory_hostname }}-{{ ansible_date_time.iso8601_basic | lower }}
+      {%- else -%}
+      {{ inventory_hostname }}.{{ guid }}.internal-{{ ansible_date_time.iso8601_basic | lower }}
+      {%- endif -%}
+
+- name: Set network.fqdn in /etc/rhsm/facts/katello.facts
+  ansible.builtin.copy:
+    dest: /etc/rhsm/facts/katello.facts
+    content: "{{ __content | to_json }}"
+    mode: "0664"
+  vars:
+    __content: >-
+      {{
+        {"network.fqdn": _host_satellite_repositories_subscription_hostname}
+        | combine({"dmi.system.uuid": dmi_system_uuid} if cloud_provider == 'equinix_metal' else {})
+      }}
+
+- name: Register with activation-key
+  when: host_satellite_repositories_ha is not defined or not host_satellite_repositories_ha | bool
+  community.general.redhat_subscription:
+    state: present
+    consumer_name: "{{ _host_satellite_repositories_subscription_hostname }}"
+    server_hostname: "{{ host_satellite_repositories_hostname }}"
+    org_id: "{{ host_satellite_repositories_org }}"
+    activationkey: "{{ host_satellite_repositories_activationkey }}"
+    pool: "{{ host_satellite_repositories_pool | default(omit) }}"
+
+- name: Register with activation-key with HA
+  when: host_satellite_repositories_ha is defined and host_satellite_repositories_ha | bool
+  community.general.redhat_subscription:
+    state: present
+    consumer_name: "{{ _host_satellite_repositories_subscription_hostname }}"
+    server_hostname: "{{ host_satellite_repositories_hostname }}"
+    server_port: "8443"
+    server_prefix: /rhsm
+    rhsm_baseurl: "https://{{ host_satellite_repositories_hostname }}/pulp/repos"
+    org_id: "{{ host_satellite_repositories_org }}"
+    activationkey: "{{ host_satellite_repositories_activationkey }}"
+    pool: "{{ set_reposithost_satellite_repositories_poolories_satellite_pool | default(omit) }}"
+    force_register: "{{ host_satellite_repositories_force_register | bool }}"
+
+- name: Enable RHSM to manage repositories
+  ansible.builtin.command: subscription-manager config --rhsm.manage_repos=1
+
+- name: Lock RHEL 9 release to specific version
+  when: host_satellite_repositories_rhel9_lock_release is defined and ansible_os_family == 'RedHat' and ansible_distribution_major_version == "9"
+  ansible.builtin.command: subscription-manager release --set={{ host_satellite_repositories_rhel9_lock_release }}
+  register: lock_result
+  until: lock_result is succeeded
+  retries: 15
+  delay: 10
+
+- name: Enable repos
+  when:
+  - host_satellite_repositories_use_content_view | bool
+  - host_satellite_repositories_activationkey != ''
+  community.general.rhsm_repository:
+    name: "*"
+    state: enabled
+
+- name: Clean repositories
+  ansible.builtin.command: "yum clean all"

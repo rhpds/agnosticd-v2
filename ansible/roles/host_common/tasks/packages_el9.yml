@@ -1,9 +1,0 @@
----
-- name: Install common packages for RHEL 9
-  ansible.builtin.package:
-    state: present
-    name: "{{ host_common_packages_el9 }}"
-  register: r_package
-  until: r_package is succeeded
-  retries: "{{ host_common_install_basic_packages_retries }}"
-  delay: 10

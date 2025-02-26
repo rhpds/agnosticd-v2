@@ -27,8 +27,8 @@
     __collections_path: "{{ lookup('config', 'COLLECTIONS_PATHS')[0] }}"
   ansible.builtin.command: >-
     ansible-galaxy collection install
-    -r "{{ r_tempfile.path }}"
-    -p "{{ __collections_path | quote }}"
+    --requirements-file "{{ r_tempfile.path }}"
+    --collections-path "{{ __collections_path | quote }}"
     --force-with-deps
   register: r_ee_ansible_galaxy_install_collections
   until: r_ee_ansible_galaxy_install_collections is successful

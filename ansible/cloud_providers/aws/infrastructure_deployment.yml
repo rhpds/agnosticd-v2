@@ -12,11 +12,11 @@
     ansible.builtin.include_role:
       name: infra_images
 
-  - name: Run infra_aws_capacity_reservation
+  - name: Run aws_capacity_reservation
     vars:
       ACTION: provision
     ansible.builtin.include_role:
-      name: infra_aws_capacity_reservation
+      name: aws_capacity_reservation
 
   - name: Rerun detection
     when: agnosticd_aws_capacity_reservation_results.reservations | default({}) | length > 0
@@ -29,12 +29,12 @@
       ansible.builtin.include_role:
         name: infra_images
 
-  - name: Run infra_aws_open_environment role
+  - name: Run aws_open_environment role
     when: agnosticd_open_environment | default(false) | bool
     vars:
       ACTION: provision
     ansible.builtin.include_role:
-      name: infra_aws_open_environment
+      name: aws_open_environment
 
   - name: Create SSH provision key
     when:
@@ -51,11 +51,11 @@
   - name: Create keypair in AWS
     when: instances | default([]) | length > 0
     ansible.builtin.include_role:
-      name: infra_aws_ssh_key
+      name: aws_ssh_key
 
-  - name: Run infra_aws_template_generate role
+  - name: Run aws_template_generate role
     ansible.builtin.include_role:
-      name: infra_aws_template_generate
+      name: aws_template_generate
 
   - name: Check if Cloudformation has been deployed already
     amazon.aws.cloudformation_info:
@@ -80,16 +80,16 @@
     ansible.builtin.set_fact:
       cloudformation_already_deployed: false
 
-  - name: Run infra_aws_template_create role
+  - name: Run aws_template_create role
     when:
     - cloudformation_enabled | default(true) | bool
     - not cloudformation_already_deployed | bool
     vars:
       aws_region_loop: "{{ aws_region }}"
     ansible.builtin.include_role:
-      name: infra_aws_template_create
+      name: aws_template_create
 
-  - name: Run infra_aws_template_create role into fallback region
+  - name: Run aws_template_create role into fallback region
     when:
     - cloudformation_enabled | default(true) | bool
     - not cloudformation_already_deployed | bool
@@ -98,7 +98,7 @@
     vars:
       aws_region_loop: "{{ item }}"
     ansible.builtin.include_role:
-      name: infra_aws_template_create
+      name: aws_template_create
     loop: "{{ fallback_regions }}"
 
   - name: Report cloudformation error
@@ -124,9 +124,9 @@
       when: aws_region_final is not defined
       ansible.builtin.include_tasks: detect_region_tasks.yml
 
-    - name: Run infra_aws_create_inventory role
+    - name: Run aws_create_inventory role
       ansible.builtin.include_role:
-        name: infra_aws_create_inventory
+        name: aws_create_inventory
 
     - name: Run common SSH config generator role
       when:
@@ -151,21 +151,18 @@
       aws_region_final: "{{ hostvars.localhost.aws_region_final }}"
       ansible_ssh_extra_args: "{{ ansible_ssh_extra_args | default() }} -F {{ output_dir }}/{{ config }}_{{ guid }}_ssh_conf"
 
-  - name: Run infra_aws_wait_for_linux_hosts role
+  - name: Run aws_wait_for_linux_hosts role
     ansible.builtin.include_role:
-      name: infra_aws_wait_for_linux_hosts
+      name: aws_wait_for_linux_hosts
 
-  - name: Run infra_aws_linux_set_hostname role
+  - name: Set Linux hostname
     ansible.builtin.include_role:
-      name: infra_aws_linux_set_hostname
+      name: aws_linux_set_hostname
 
   - name: Add authorized_keys
-    when: >-
-      ssh_authorized_keys | default([]) | length > 0
-      or
-      all_ssh_authorized_keys | default([]) | length > 0
+    when: host_ssh_authorized_keys | default([]) | length > 0
     ansible.builtin.include_role:
-      name: ssh_authorized_keys
+      name: host_ssh_authorized_keys
 
 - name: Step 001.4 Configure Windows hosts and wait for connection
   gather_facts: false
@@ -189,9 +186,9 @@
       ansible_winrm_server_cert_validation: ignore
       aws_region_final: "{{ hostvars.localhost.aws_region_final }}"
 
-  - name: Run infra_aws_wait_for_windows_hosts role
+  - name: Run aws_wait_for_windows_hosts role
     ansible.builtin.include_role:
-      name: infra_aws_wait_for_windows_hosts
+      name: aws_wait_for_windows_hosts
 
   - name: Set output_dir for all Windows hosts
     ansible.builtin.set_fact:

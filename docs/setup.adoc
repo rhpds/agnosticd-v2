@@ -80,7 +80,7 @@ mkdir -p ~/Development
 cd ~/Development
 ----
 
-. Clone the AgnosticD V2 repository:
+. Clone and change into the AgnosticD V2 repository:
 +
 [source,sh]
 ----
@@ -109,7 +109,8 @@ In order to deploy a (base) config you will need a few things:
 * A secrets file with common secret information - for example Red Hat Satellite configuration or OpenShift pull secrets
 * A separate secrets file with cloud account credentials for the environment to deploy into.
 
-After the setup script has been executed you will find seed files in the `agnosticd-v2-secrets` and `agnosticd-v2-vars` directories. These directories are where the deployer script expects to find these files. Don't move them elsewhere.
+After the setup script has been executed you will find seed files in the `agnosticd-v2-secrets` and `agnosticd-v2-vars` directories.
+These directories are where the deployer script expects to find these files. Don't move them elsewhere.
 
 === The `secrets.yml` file
 
@@ -121,10 +122,10 @@ This is the example `secrets.yml` file that `agd setup` creates:
 # -------------------------------------------------------------------
 # Satellite Repos
 # -------------------------------------------------------------------
-set_repositories_satellite_url: <Your Satellite URL here>
-set_repositories_satellite_ha: true
-set_repositories_satellite_org: <Your Org Here>
-set_repositories_satellite_activationkey: <Your Activation Key here>
+host_satellite_repositories_hostname: <Your Satellite URL here>
+host_satellite_repositories_ha: true
+host_satellite_repositories_org: <Your Org Here>
+host_satellite_repositories_activationkey: <Your Activation Key here>
 
 # -------------------------------------------------------------------
 # OpenShift Secrets
@@ -132,19 +133,23 @@ set_repositories_satellite_activationkey: <Your Activation Key here>
 ocp4_pull_secret: '<Add Your Pull Secret here>'
 ----
 
-You will need to fill in the actual values for your environment. Note that if you are not deploying OpenShift you will not need the `ocp4_pull_secret` variable - but you may need other variables depending on your config.
+You will need to fill in the actual values for your environment. Note that if you are not deploying OpenShift
+you will not need the `ocp4_pull_secret` variable - but you may need other variables depending on your config.
 
 You can get your OpenShift Pull secret from https://console.redhat.com/openshift/create/local.
 
 === The `secrets-account.yml` file
 
-The second secrets file that you need is a file holding the credentials for the cloud provider that you are going to be using.
+The second secrets file that you need is a file holding the credentials for the cloud provider that you are
+going to be using.
 
-For AWS you can provision an https://catalog.demo.redhat.com/catalog?search=aws+blank&item=babylon-catalog-prod%2Fsandboxes-gpte.sandbox-open.prod[AWS Blank Open Environment^] from the Red Hat Demo Platform to deploy into.
+For AWS you can provision an https://catalog.demo.redhat.com/catalog?search=aws+blank&item=babylon-catalog-prod%2Fsandboxes-gpte.sandbox-open.prod[AWS Blank Open Environment^]
+from the Red Hat Demo Platform to deploy into.
 
 Once the *AWS Blank Open Environment* is available you will need to copy the information from that environmen into your file.
 
-Here is an example assuming you got assigned Sandbox1234 - of course if you have been assigned another sandbox you will need to rename the file and update the `subdomain_base_suffix` accordingly:
+Here is an example assuming you got assigned Sandbox1234 - of course if you have been assigned another sandbox you will
+need to rename the file and update the `subdomain_base_suffix` accordingly:
 
 .secrets-sandbox1234.yml
 [source,yaml]
@@ -158,7 +163,7 @@ aws_secret_access_key: <Your AWS Secret Access Key here>
 # Replace XXX with your sandbox number and rename this
 # file to secrets-sandboxXXX.yml where XXX is the number of
 # your assigned sandbox
-subdomain_base_suffix: .sandbox1234.opentlc.com
+base_domain: sandbox1234.opentlc.com
 
 # Don't use capacity reservations when deploying locally
 agnosticd_aws_capacity_reservation_enable: false
@@ -168,7 +173,10 @@ Other platforms (IBM Cloud, CNV, ...) will have similar files. For example `secr
 
 === The config vars file
 
-In order to deploy a configuration you will need to set up the variables for the configuration. An example config to deploy an OpenShift Cluster is copied into the `agnosticd-v2-vars` directory when running `agd setup`. This file works out of the box - but you can of course modify it to suit your needs. At a minimum you should update your e-mail address under `cloud_tags` and replace the `ssh_authorized_keys` variable with your public key hosted on Github.
+In order to deploy a configuration you will need to set up the variables for the configuration.
+An example config to deploy an OpenShift Cluster is copied into the `agnosticd-v2-vars` directory when running `agd setup`.
+This file works out of the box - but you can of course modify it to suit your needs. At a minimum you should update your e-mail address
+under `cloud_tags` and replace the `host_ssh_authorized_keys` variable with your public key hosted on Github
 
 .Example file created by `agd setup`:
 [source,yaml]
@@ -199,20 +207,24 @@ cloud_tags:
 
 # ===================================================================
 # OpenShift cluster specific settings
-#     See ansible/configs/openshift-cluster/default_vars.yml for
+#     See ansible/configs/openshift-cluster/default_vars.yml
+#     and ansible/configs/{{ cloud_provider }}/default_vars for
 #     available variables
 # ===================================================================
 
 # -------------------------------------------------------------------
-# Bastion VM settings
+# Set authorized keys on all created instances
 # -------------------------------------------------------------------
 # Replace with your SSH key on Github
-ssh_authorized_keys:
+host_ssh_authorized_keys:
 - key: https://github.com/wkulhanek.keys
 
-# Create a student user
-install_student_user: true
-student_name: student
+# -------------------------------------------------------------------
+# Bastion VM settings
+# -------------------------------------------------------------------
+# Create a student user on the bastion
+bastion_setup_student_user: true
+bastion_student_user_name: student
 
 # -------------------------------------------------------------------
 # OpenShift settings
@@ -220,11 +232,7 @@ student_name: student
 cluster_name: ocp
 
 host_ocp4_installer_root_url: http://mirror.openshift.com/pub/openshift-v4/clients
-
-#host_ocp4_installer_version: "4.18"
-host_ocp4_installer_use_dev_preview: true
-host_ocp4_installer_url: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/candidate-4.18/openshift-install-linux.tar.gz
-host_ocp4_client_url: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/candidate-4.18/openshift-client-linux.tar.gz
+host_ocp4_installer_version: "4.18"
 
 # Save kubeadmin password in user data - only necessary if no authentication is set up for the cluster
 host_ocp4_installer_set_user_data_kubeadmin_password: true

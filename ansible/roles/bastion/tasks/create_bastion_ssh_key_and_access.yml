@@ -4,7 +4,7 @@
     comment: Bastion
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-    mode: "0600"
+    mode: u=rw
     path: "{{ bastion_ssh_key_path }}"
     regenerate: partial_idempotence
     size: 2048
@@ -14,25 +14,6 @@
   ansible.builtin.slurp:
     src: "{{ bastion_ssh_key_path }}.pub"
   register: r_bastion_ssh_pubkey
-#   ansible.builtin.command: >-
-#     ssh-keygen
-#     -t {{ bastion_ssh_key_type | quote }}
-#     -f {{ bastion_ssh_key_path | quote }}
-#     -q -N ""
-#   args:
-#     creates: "{{ bastion_ssh_key_path }}"
-#   register: r_ssh_key_gen
-
-# - name: Fix permission of ssh key
-#   ansible.builtin.file:
-#     path: "{{ bastion_ssh_key_path }}"
-#     mode: "0400"
-
-# - name: Generate SSH pub key content
-#   ansible.builtin.command: >-
-#     ssh-keygen -y -f {{ bastion_ssh_key_path | quote }}
-#   changed_when: false
-#   register: r_bastion_ssh_pubkey
 
 - name: Save all facts for SSH
   ansible.builtin.set_fact:
@@ -44,11 +25,6 @@
 - name: Debug ssh pub key
   ansible.builtin.debug:
     msg: "{{ bastion_ssh_pubkey_content }}"
-# - name: Write SSH pub key
-#   ansible.builtin.copy:
-#     content: "{{ bastion_ssh_pubkey_content }}"
-#     dest: "{{ bastion_ssh_pubkey_path }}"
-#     mode: "0600"
 
 - name: Add bastion access to all hosts
   when:

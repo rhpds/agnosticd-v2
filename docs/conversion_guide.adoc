@@ -1,0 +1,53 @@
+= Conversion Guide
+
+To convert an AgnosticV config from AgD v1 to AgD v2 follow these guidelines
+
+== Common changes
+
+* `env_type` is now called `config`.
+* `ec2` cloud provider has been renamed to `aws` for consistency.
+* `software_to_deploy` does no longer exist. It was only used by OpenShift anyway. It has been replaced by `host_ocp4_deploy_installation_method` for the `openshift-cluster` config
+
+== OpenShift Cluster
+
+The `ocp4-cluster` config has been renamed to `openshift-cluster`.
+The term `master` has been replaced by `control_plane` where possible.
+`infra_workloads` has been renamed to `workloads`
+`student_workloads` have been removed
+
+== DNS
+
+TBD
+
+== Common Roles
+
+=== Packages
+
+install_common_packages: true
+
+# To install extra packages (beyond what's in the common list of packages)
+# host_common_packages_extramon_extra_packages:
+# - java-17-openjdk
+# - maven
+# - podman
+
+# Run a full dnf update on the hosts
+host_common_packages_update_all: true
+
+=== Repositories
+
+install_satellite_repositories: true
+
+# These vars are needed and need to come from secrets:
+# host_satellite_repositories_hostname:
+# host_satellite_repositories_ha:
+# host_satellite_repositories_org:
+# host_satellite_repositories_activationkey:
+
+== Bastion
+
+install_bastion: true
+bastion_student_user_name: lab-user
+bastion_install_ftl: false
+
+== OpenShift Cluster

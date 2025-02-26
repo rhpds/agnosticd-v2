@@ -9,7 +9,6 @@
 # emails.
 
 # agnosticd-core
-
 CODEOWNERS @redhat-cop/agnosticd-core
 LICENSE @redhat-cop/agnosticd-core
 ansible.cfg @redhat-cop/agnosticd-core
@@ -25,27 +24,23 @@ ansible/library/ @redhat-cop/agnosticd-core
 tools/execution_environments/ee-multicloud-public/ @redhat-cop/agnosticd-core
 
 # Core Configs
-ansible/configs/ocp4-cluster/ @redhat-cop/agnosticd-core
+ansible/configs/openshift-cluster/ @redhat-cop/agnosticd-core
 ansible/configs/rosa-consolidated/ @redhat-cop/agnosticd-core
 
 # Core roles
-
 ansible/roles-infra/ @redhat-cop/agnosticd-core
 ansible/roles/host-lets-encrypt-certs-certbot/ @redhat-cop/agnosticd-core
 
 # AgnosticD on-demand capacity plugin for AWS
-
 ansible/action_plugins/agnosticd_odcr.py @fridim
 ansible/action_plugins/test_agnosticd_odcr.py @fridim
 
 # Azure
-
 ansible/*azure* @redhat-cop/agnosticd-core @rut31337
 ansible/cloud_providers/*azure* @redhat-cop/agnosticd-core @rut31337
 ansible/roles-infra/*azure* @redhat-cop/agnosticd-core @rut31337
 
 # AWS Images
-
 ansible/roles-infra/infra-images/defaults/main.yaml @redhat-cop/agnosticd-core @bbethell-1
 
 # VMC (VMWare Cloud)

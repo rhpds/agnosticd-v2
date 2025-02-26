@@ -1,0 +1,101 @@
+---
+- name: Set _bastion_student_user_password if password has been provided
+  when: bastion_student_user_password | default("") | length > 0
+  ansible.builtin.set_fact:
+    _bastion_student_user_password: "{{ bastion_student_user_password }}"
+
+- name: Generate _bastion_student_user_password if not defined
+  when: bastion_student_user_password | default("") | length == 0
+  ansible.builtin.set_fact:
+    _bastion_student_user_password: "{{ lookup('password', '/dev/null length=' ~ bastion_student_user_password_length ~' chars=ascii_letters,digits') }}"
+
+- name: Create student user
+  ansible.builtin.user:
+    name: "{{ bastion_student_user_name }}"
+    password: "{{ _bastion_student_user_password | password_hash('sha512') }}"
+    comment: Red Hat Demo Platform Student
+    group: users
+    groups: "{{ 'wheel' if bastion_student_user_sudo | bool else '' }}"
+    shell: /bin/bash
+    state: present
+
+- name: Add student public key if provided
+  when: bastion_student_user_key | default("") | length > 0
+  ansible.posix.authorized_key:
+    user: "{{ student_name }}"
+    key: "{{ student_key }}"
+
+- name: Enable password authentication
+  ansible.builtin.lineinfile:
+    line: PasswordAuthentication yes
+    regexp: '^ *PasswordAuthentication'
+    path: /etc/ssh/sshd_config
+
+- name: Remove PasswordAuthentication line from 50-cloud-init.conf
+  when: bastion_remove_cloud_init_conf | bool
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config.d/50-cloud-init.conf
+    regexp: PasswordAuthentication
+    state: absent
+
+- name: Disable root password authentication
+  ansible.builtin.lineinfile:
+    line: PermitRootLogin without-password
+    regexp: '^ *PermitRootLogin'
+    path: /etc/ssh/sshd_config
+
+- name: Allow passwordless sudo
+  when: bastion_student_user_sudo | bool
+  ansible.builtin.lineinfile:
+    path: '/etc/sudoers'
+    state: present
+    line: "{{ bastion_student_user_name }}         ALL=(ALL)       NOPASSWD: ALL"
+    insertafter: "'^{{ remote_user | default(ansible_user) }}"
+
+- name: Restart sshd
+  ansible.builtin.service:
+    name: sshd
+    state: restarted
+
+- name: Print and set access user info
+  vars:
+    _bastion_public_hostname: >-
+      {{ hostvars[groups.bastions.0].public_dns_name
+      | default(hostvars[groups.bastions.0].public_ip_address)
+      }}
+  block:
+  - name: Print access info (non CNV)
+    when:
+    - bastion_student_user_show_user_info | bool
+    - not cloud_provider == "openshift_cnv"
+    agnosticd_user_info:
+      msg: |
+        You can access your bastion via SSH:
+        ssh {{ bastion_student_user_name }}@{{ _bastion_public_hostname }}
+
+        Use password '{{ _bastion_student_user_password }}' when prompted.
+
+  - name: Print access info (CNV)
+    when:
+    - bastion_student_user_show_user_info | bool
+    - cloud_provider == "openshift_cnv"
+    agnosticd_user_info:
+      msg: |
+        You can access your bastion via SSH:
+        ssh {{ bastion_student_user_name }}@{{ _bastion_public_hostname }} -p {{ hostvars[groups['bastions'][0]].bastion_ssh_port }}
+
+        Use password '{{ _bastion_student_user_password }}' when prompted.
+
+  - name: Set access data
+    when: bastion_student_user_set_user_data | bool
+    agnosticd_user_info:
+      data:
+        bastion_public_hostname: "{{ _bastion_public_hostname }}"
+        bastion_ssh_password: "{{ _bastion_student_user_password }}"
+        bastion_ssh_user_name: "{{ bastion_student_user_name }}"
+
+  - name: Set bastion port for CNV
+    when: cloud_provider == "openshift_cnv"
+    agnosticd_user_info:
+      data:
+        bastion_ssh_port: "{{ hostvars[groups['bastions'][0]].bastion_ssh_port }}"

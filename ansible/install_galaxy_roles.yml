@@ -49,8 +49,8 @@
   - name: Install roles from requirements.yml
     ansible.builtin.command: >-
       ansible-galaxy install
-      -r "{{ requirements_path_final }}"
-      -p "{%- if requirements_content | length > 0 -%}
+      --requirements-file "{{ requirements_path_final }}"
+      --collections-path "{%- if requirements_content | length > 0 -%}
       {{ playbook_dir }}/dynamic-roles
       {%- else -%}
       {{ playbook_dir | default('.') }}/configs/{{ config }}/roles
@@ -72,8 +72,8 @@
       __collections_path: "{{ lookup('config', 'COLLECTIONS_PATHS')[0] }}"
     ansible.builtin.command: >-
       ansible-galaxy collection install
-      -r "{{ requirements_path_final }}"
-      -p "{{ __collections_path | quote }}"
+      --requirements-file "{{ requirements_path_final }}"
+      --collections-path "{{ __collections_path | quote }}"
       --force-with-deps
     when: >-
       not __from_ee | bool

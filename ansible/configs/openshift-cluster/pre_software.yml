@@ -9,18 +9,20 @@
     ansible.builtin.debug:
       msg: "Step 003 - Pre Software"
 
-- name: Step 003.1 Configure all hosts with repositories, common files and set environment key
+- name: Step 003.1 Configure all hosts with repositories and common packages
   hosts:
   - all:!windows
   become: true
   gather_facts: false
   roles:
   - name: Set up repositories
-    when: repo_method is defined
-    role: set_repositories
-  - name: Install common items
-    when: install_common | bool
-    role: host_common
+    when: install_satellite_repositories | bool
+    role: host_satellite_repositories
+
+  - name: Install common packages
+    when: install_common_packages | bool
+    role: host_common_packages
+
   tasks:
   - name: Add GUID to /etc/skel/.bashrc
     ansible.builtin.lineinfile:
@@ -28,60 +30,10 @@
       regexp: "^export GUID"
       line: "export GUID={{ guid }}"
 
-- name: Step 003.2 - Configuring Bastion Hosts
+- name: Step 003.2 - Configuring bastion hosts
   hosts: bastions
   become: true
   roles:
   - name: Set up bastion
     when: install_bastion | bool
     role: bastion
-  - name: Set up student user
-    when: install_student_user | bool
-    role: bastion_student_user
-  tasks:
-  # - name: Setup Student SSH Key
-  #   when:
-  #   - install_student_user | bool
-  #   - student_name is defined
-  #   - env_authorized_key is defined
-  #   block:
-  #   - name: Copy SSH private key to student user .ssh directory
-  #     ansible.builtin.copy:
-  #       src: "/root/.ssh/{{ env_authorized_key }}.pem"
-  #       dest: "~{{ student_name }}/.ssh/{{ env_authorized_key }}.pem"
-  #       mode: u=rw,go=
-  #       owner: "{{ student_name }}"
-  #       remote_src: true
-
-  #   - name: Copy SSH public key to student user .ssh directory
-  #     ansible.builtin.copy:
-  #       src: "/root/.ssh/{{ env_authorized_key }}.pub"
-  #       dest: "~{{ student_name }}/.ssh/{{ env_authorized_key }}.pub"
-  #       mode: u=rw,go=
-  #       owner: "{{ student_name }}"
-  #       remote_src: true
-
-  #   - name: Copy SSH config to student user .ssh directory
-  #     ansible.builtin.copy:
-  #       src: "/root/.ssh/config"
-  #       dest: "~{{ student_name }}/.ssh/config"
-  #       mode: u=rw,go=
-  #       owner: "{{ student_name }}"
-  #       remote_src: true
-
-# WK: Try to run all workloads from controller
-# - name: Step 003.3 Create a Python3 VirtualEnv for use in the k8s Ansible tasks
-#   hosts: bastions
-#   gather_facts: true
-#   become: true
-#   tasks:
-#   - name: Setup k8s virtualenv
-#     when: ansible_distribution == "RedHat" and ansible_distribution_major_version == "9"
-#     ansible.builtin.include_role:
-#       name: host_virtualenv
-#     vars:
-#       host_virtualenv_path: /opt/virtualenvs/k8s
-#       # Merge base k8s requirements with cloud provider specific requirements
-#       host_virtualenv_requirements:
-#       - requirements_k8s_el9.txt
-#       - requirements_{{ cloud_provider }}_el9.txt

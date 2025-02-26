@@ -16,11 +16,11 @@
     vars:
       __vars_file_base:
       # Global default vars related to the cloud provider
-      - cloud_providers/{{ cloud_provider }}/{{ cloud_provider }}_default_vars
+      - cloud_providers/{{ cloud_provider }}/default_vars
       # Default vars of the config
       - configs/{{ config }}/default_vars
       # Default vars of the config, specific to a cloud provider
-      - configs/{{ config }}/default_vars_{{ cloud_provider }}
+      - configs/{{ config }}/{{ cloud_provider }}/default_vars
       __vars_file_extension:
       - yaml
       - yml
@@ -32,15 +32,15 @@
       loop_var: __vars_file_parts
       label: "{{ __vars_file }}"
 
-  - name: Debug secrets
-    ansible.builtin.debug:
-      msg: "Secrets file: {{ secrets_file | default('undefined') }}"
-      verbosity: 2
+  # - name: Debug secrets
+  #   ansible.builtin.debug:
+  #     msg: "Secrets file: {{ secrets_file | default('undefined') }}"
+  #     verbosity: 2
 
-  - name: Include secret_file if passed as extra-var
-    when: secret_file is defined
-    ansible.builtin.include_vars:
-      file: "{{ secret_file }}"
+  # - name: Include secret_file if passed as extra-var
+  #   when: secret_file is defined
+  #   ansible.builtin.include_vars:
+  #     file: "{{ secret_file }}"
 
   - name: Set passthrough user data
     delegate_to: localhost

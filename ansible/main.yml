@@ -33,14 +33,11 @@
 # ################################################################################
 # ################################################################################
 
-# Use first found:
-# - infra.yml in config directory
-# - common cloud_provider
 - name: Deploy infrastructure
   vars:
     findme:
-    - configs/{{ config }}/infra_{{ cloud_provider }}.yml
-    - configs/{{ config }}/infra.yml
+    - configs/{{ config }}/{{ cloud_provider }}/infrastructure_deployment.yml
+    - configs/{{ config }}/infrastructure_deployment.yml
     - cloud_providers/{{ cloud_provider }}/infrastructure_deployment.yml
     - cloud_providers/none/infrastructure_deployment.yml
   ansible.builtin.import_playbook: "{{ lookup('first_found', findme) }}"
@@ -57,7 +54,7 @@
 - name: Export inventory
   vars:
     agnosticd_inventory_exporter_stage: post_infra
-  ansible.builtin.import_playbook: "export_inventory.yml"
+  ansible.builtin.import_playbook: export_inventory.yml
 
 # ###############################################################################
 # ###############################################################################
@@ -89,7 +86,7 @@
 - name: Export inventory
   vars:
     agnosticd_inventory_exporter_stage: post_software
-  ansible.builtin.import_playbook: "export_inventory.yml"
+  ansible.builtin.import_playbook: export_inventory.yml
 
 - name: Save output dir
   ansible.builtin.import_playbook: save_output_dir.yml

@@ -1,0 +1,22 @@
+---
+# The following variables need to come from a secret
+# host_satellite_repositories_hostname:
+# host_satellite_repositories_ha:
+# host_satellite_repositories_org:
+# host_satellite_repositories_activationkey:
+
+host_satellite_repositories_ca_rpm_url: "https://{{ host_satellite_repositories_hostname }}/pub/katello-ca-consumer-latest.noarch.rpm"
+host_satellite_repositories_activationkey: "{{ host_satellite_repositories_activationkey | default('') }}"
+# pattern matching a pool name for attachment via Satellite
+# host_satellite_repositories_pool: "^$"
+
+# By default use content view mode
+host_satellite_repositories_use_content_view: true
+
+host_satellite_repositories_force_register: false
+
+# Lock to a RHEL release
+# host_satellite_repositories_rhel9_lock_release: "9.3"
+
+# Default action
+ACTION: provision
