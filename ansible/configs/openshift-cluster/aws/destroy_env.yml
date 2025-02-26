@@ -133,4 +133,4 @@
       name: host_ocp4_destroy
 
 - name: Import default aws destroy playbook
-  ansible.builtin.import_playbook: "../../cloud_providers/aws/destroy_env.yml"
+  ansible.builtin.import_playbook: "../../../cloud_providers/aws/destroy_env.yml"
