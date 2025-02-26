@@ -49,8 +49,8 @@
   - name: Install roles from requirements.yml
     ansible.builtin.command: >-
       ansible-galaxy install
-      --requirements-file "{{ requirements_path_final }}"
-      --collections-path "{%- if requirements_content | length > 0 -%}
+      --role-file "{{ requirements_path_final }}"
+      --roles-path "{%- if requirements_content | length > 0 -%}
       {{ playbook_dir }}/dynamic-roles
       {%- else -%}
       {{ playbook_dir | default('.') }}/configs/{{ config }}/roles
@@ -64,8 +64,8 @@
           )
     register: r_ansible_galaxy_install_roles
     until: r_ansible_galaxy_install_roles is successful
-    retries: 10
-    delay: 30
+    retries: 5
+    delay: 10
 
   - name: Install collections from requirements.yml (Not EE)
     vars:
@@ -84,8 +84,8 @@
       and __collections_path.startswith('/tmp/')
     register: r_ansible_galaxy_install_collections
     until: r_ansible_galaxy_install_collections is successful
-    retries: 10
-    delay: 30
+    retries: 5
+    delay: 10
 
   - name: Get installed collections (EE)
     when: >-

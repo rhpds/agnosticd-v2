@@ -32,16 +32,6 @@
       loop_var: __vars_file_parts
       label: "{{ __vars_file }}"
 
-  # - name: Debug secrets
-  #   ansible.builtin.debug:
-  #     msg: "Secrets file: {{ secrets_file | default('undefined') }}"
-  #     verbosity: 2
-
-  # - name: Include secret_file if passed as extra-var
-  #   when: secret_file is defined
-  #   ansible.builtin.include_vars:
-  #     file: "{{ secret_file }}"
-
   - name: Set passthrough user data
     delegate_to: localhost
     when:
