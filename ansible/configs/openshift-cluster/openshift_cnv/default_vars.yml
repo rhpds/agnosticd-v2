@@ -38,7 +38,7 @@ instances:
   metadata:
   - AnsibleGroup: "bastions"
   - function: bastion
-  - user: "{{ student_name }}"
+  - user: "{{ bastion_student_user_name }}"
   - project: "{{ project_tag }}"
   - ostype: linux
   - Purpose: "{{ purpose }}"

@@ -22,8 +22,8 @@
 - name: Add student public key if provided
   when: bastion_student_user_key | default("") | length > 0
   ansible.posix.authorized_key:
-    user: "{{ student_name }}"
-    key: "{{ student_key }}"
+    user: "{{ bastion_student_user_name }}"
+    key: "{{ bastion_student_user_key }}"
 
 - name: Enable password authentication
   ansible.builtin.lineinfile:

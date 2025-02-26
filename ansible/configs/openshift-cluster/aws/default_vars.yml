@@ -131,7 +131,7 @@ instances:
   - key: "project"
     value: "{{ project_tag }}"
   - key: "user"
-    value: "{{ student_name | default('not set') }}"
+    value: "{{ bastion_student_user_name | default('not set') }}"
   rootfs_size: "{{ bastion_rootfs_size }}"
   security_groups:
   - BastionSG

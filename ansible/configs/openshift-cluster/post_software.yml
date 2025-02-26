@@ -49,7 +49,7 @@
   tasks:
   - name: Report Access Information
     when:
-    - install_student_user | bool
+    - bastion_setup_student_user | bool
     - openshift_cluster_show_access_user_info | bool
     - cloud_provider != "openshift_cnv"
     vars:
@@ -84,21 +84,21 @@
         data:
           bastion_public_hostname: "{{ _bastion_public_hostname }}"
           bastion_ssh_password: "{{ _bastion_ssh_password }}"
-          bastion_ssh_user_name: "{{ student_name }}"
+          bastion_ssh_user_name: "{{ bastion_student_user_name }}"
         msg: |
           You can access your bastion via SSH using password '{{ _bastion_ssh_password }}':
-          ssh {{ student_name }}@{{ _bastion_public_hostname }}
+          ssh {{ bastion_student_user_name }}@{{ _bastion_public_hostname }}
 
   - name: Print access user info (CNV)
     when:
-    - install_student_user | bool
+    - bastion_setup_student_user | bool
     - cloud_provider == "openshift_cnv"
     agnosticd_user_info:
       data:
         bastion_ssh_port: "{{ hostvars[groups['bastions'][0]].bastion_ssh_port }}"
       msg: |
         You can access your bastion via SSH using password '{{ hostvars[groups['bastions'][0]]['student_password'] }}':
-        ssh {{ student_name }}@{{ openshift_cnv_ssh_address }} -p {{ hostvars[groups['bastions'][0]].bastion_ssh_port }}
+        ssh {{ bastion_student_user_name }}@{{ openshift_cnv_ssh_address }} -p {{ hostvars[groups['bastions'][0]].bastion_ssh_port }}
 
 # - name: Step 005.5 Clean up Google SDK
 #   hosts: localhost

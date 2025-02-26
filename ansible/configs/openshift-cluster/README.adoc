@@ -1,12 +1,11 @@
-= OCP 4 Cluster
+= OpenShift Cluster
 
 == Config Description
 
 The following config includes:
 
 * One bastion host for installation
-// * One utility VM for other services such as container registry and httpd
-* DNS and other resources for OCP4
+* DNS and other resources for OpenShift
 * SSH access setup
 
 == Review the `default_vars.yml` variable file

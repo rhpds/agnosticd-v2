@@ -561,24 +561,24 @@
       mode: "0600"
 
   - name: Set up Student User
-    when: install_student_user | bool
+    when: bastion_setup_student_user | bool
     block:
-    - name: Make sure .kube directory exists in /home/{{ student_name }}
+    - name: Make sure .kube directory exists in /home/{{ bastion_student_user_name }}
       become: true
       ansible.builtin.file:
         state: directory
-        path: "/home/{{ student_name }}/.kube"
-        owner: "{{ student_name }}"
+        path: "/home/{{ bastion_student_user_name }}/.kube"
+        owner: "{{ bastion_student_user_name }}"
         group: users
         mode: "0700"
 
-    - name: Copy /home/{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig to /home/{{ student_name }}/.kube
+    - name: Copy /home/{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig to /home/{{ bastion_student_user_name }}/.kube
       become: true
       ansible.builtin.copy:
         src: /home/{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig
-        dest: /home/{{ student_name }}/.kube/config
+        dest: /home/{{ bastion_student_user_name }}/.kube/config
         remote_src: true
-        owner: "{{ student_name }}"
+        owner: "{{ bastion_student_user_name }}"
         group: users
         mode: "0600"
 
