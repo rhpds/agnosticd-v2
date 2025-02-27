@@ -60,7 +60,7 @@
         path: /home/{{ ansible_user }}/{{ cluster_name }}/.openshift_install.log
         dest: /home/{{ ansible_user }}/{{ cluster_name }}/.openshift_install.log.gz
         format: gz
-        mode: "0664"
+        mode: ug=rw,o=r
 
     - name: Get Install log
       ansible.builtin.fetch:
@@ -88,7 +88,7 @@
     path: /home/{{ ansible_user }}/.kube
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-    mode: "0700"
+    mode: u=rwx
 
 - name: Make sure .kube directory exists for root
   become: true
@@ -97,16 +97,16 @@
     path: /root/.kube
     owner: root
     group: root
-    mode: "0700"
+    mode: u=rwx
 
-- name: Copy cluster kubeconfig to /home/{{ ansible_user }}/.kube/config
+- name: Copy cluster kubeconfig to /home/{{ ansible_user }}
   ansible.builtin.copy:
     remote_src: true
     src: "/home/{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig"
     dest: "/home/{{ ansible_user }}/.kube/config"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-    mode: "0600"
+    mode: u=rw
 
 - name: Copy cluster kubeconfig to /root/.kube/config
   become: true
@@ -116,7 +116,7 @@
     dest: /root/.kube/config
     owner: root
     group: root
-    mode: "0600"
+    mode: u=rw
 
 - name: Set up Student User
   when: bastion_setup_student_user | bool
@@ -128,9 +128,9 @@
       path: "/home/{{ bastion_student_user_name }}/.kube"
       owner: "{{ bastion_student_user_name }}"
       group: users
-      mode: "0700"
+      mode: u=rwx
 
-  - name: Copy /home/{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig to /home/{{ bastion_student_user_name }}/.kube
+  - name: Copy kubeconfig to /home/{{ bastion_student_user_name }}
     become: true
     ansible.builtin.copy:
       src: /home/{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig
@@ -138,11 +138,8 @@
       remote_src: true
       owner: "{{ bastion_student_user_name }}"
       group: users
-      mode: "0600"
+      mode: u=rw
 
 - name: Create OpenShift Bash completion file
   become: true
   ansible.builtin.shell: oc completion bash >/etc/bash_completion.d/openshift
-
-- name: Gather and Print cluster info
-  ansible.builtin.import_tasks: print_cluster_info.yml

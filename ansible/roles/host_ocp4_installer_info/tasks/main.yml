@@ -1,0 +1,86 @@
+---
+- name: Get kubeadmin password
+  ansible.builtin.slurp:
+    path: /home/{{ ansible_user }}/{{ cluster_name }}/auth/kubeadmin-password
+  register: r_slurp_kubeadmin_password
+
+- name: Get OpenShift cluster information
+  delegate_to: localhost
+  block:
+  - name: Determine Web console URL
+    delegate_to: localhost
+    kubernetes.core.k8s_info:
+      api_version: config.openshift.io/v1
+      kind: Console
+      name: cluster
+      kubeconfig: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+    register: r_console
+    retries: 30
+    delay: 5
+    until:
+    - r_console.resources | length > 0
+    - r_console.resources[0].status is defined
+    - r_console.resources[0].status.consoleURL is defined
+    - r_console.resources[0].status.consoleURL | length > 0
+
+  - name: Determine API server URL
+    delegate_to: localhost
+    kubernetes.core.k8s_info:
+      api_version: config.openshift.io/v1
+      kind: Infrastructure
+      name: cluster
+      kubeconfig: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+    register: r_api
+    retries: 30
+    delay: 5
+    until:
+    - r_api.resources | length > 0
+    - r_api.resources[0].status is defined
+    - r_api.resources[0].status.apiServerURL is defined
+    - r_api.resources[0].status.apiServerURL | length > 0
+
+  - name: Determine OpenShift Ingress Domain
+    delegate_to: localhost
+    kubernetes.core.k8s_info:
+      api_version: config.openshift.io/v1
+      kind: Ingress
+      name: cluster
+      kubeconfig: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+    register: r_ingress
+    retries: 30
+    delay: 5
+    until:
+    - r_ingress.resources | length > 0
+    - r_ingress.resources[0].spec.domain is defined
+    - r_ingress.resources[0].spec.domain | length > 0
+
+- name: Set facts for OpenShift access
+  ansible.builtin.set_fact:
+    openshift_api_url: "{{ r_api.resources[0].status.apiServerURL | urlsplit('hostname') }}"
+    openshift_console_url: "{{ r_console.resources[0].status.consoleURL }}"
+    openshift_cluster_ingress_domain: "{{ r_ingress.resources[0].spec.domain }}"
+    openshift_kubeadmin_password: "{{ r_slurp_kubeadmin_password.content | b64decode }}"
+
+- name: Set user data for kubeadmin password
+  when: host_ocp4_installer_info_set_user_data_kubeadmin_password | bool
+  agnosticd_user_info:
+    data:
+      openshift_kubeadmin_password: "{{ openshift_kubeadmin_password }}"
+
+- name: Set user data for OpenShift access
+  when: host_ocp4_installer_info_set_user_data | bool
+  agnosticd_user_info:
+    data:
+      openshift_api_url: "{{ openshift_api_url }}"
+      openshift_console_url: "{{ openshift_console_url }}"
+      openshift_cluster_ingress_domain: "{{ openshift_cluster_ingress_domain }}"
+
+- name: Show user messages for OpenShift access
+  when: host_ocp4_installer_info_show_user_info | bool
+  agnosticd_user_info:
+    msg: |-
+      OpenShift Console: {{ openshift_console_url }}
+      OpenShift API for command line 'oc' client: {{ openshift_api_url }}
+      {% if host_ocp4_installer_set_user_data_kubeadmin_password | bool %}
+      OpenShift kubeadmin password: {{ openshift_kubeadmin_password }}
+      {% endif %}

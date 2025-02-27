@@ -16,6 +16,7 @@
 #   agd destroy   --guid wkaws --config openshift-cluster --account sandbox1275
 #   agd stop      --guid wkaws --config openshift-cluster --account sandbox1275
 #   agd start     --guid wkaws --config openshift-cluster --account sandbox1275
+#   agd status    --guid wkaws --config openshift-cluster --account sandbox1275
 # Note:
 #   config_name uses the file `../agnosticd-v2-vars/<config_name>.yml`
 #   account_name uses the file `../agnosticd-v2-secrets/secret-<secret_name>.yml`
@@ -53,6 +54,7 @@ print_usage() {
   echo "  $0 destroy   --guid wkaws --config openshift-cluster --account sandbox1275"
   echo "  $0 stop      --guid wkaws --config openshift-cluster --account sandbox1275"
   echo "  $0 start     --guid wkaws --config openshift-cluster --account sandbox1275"
+  echo "  $0 status    --guid wkaws --config openshift-cluster --account sandbox1275"
   echo ""
 }
 
@@ -140,8 +142,8 @@ agd_setup() {
   echo "Check if software is installed in the virtual env..."
 
   if ! command_exists ansible-navigator; then
-    echo "  Installing ansible-navigator..."
-    pip install ansible-navigator 2>&1 >/dev/null
+    echo "  Installing ansible and ansible-navigator..."
+    pip install ansible ansible-navigator 2>&1 >/dev/null
   fi
 
   echo
@@ -236,7 +238,7 @@ fi
 if [[ $# -eq 1 && (  "${1}" == "setup"  || "${1}" == "init" ) ]]; then
   agd_setup
   exit 0
-elif [[ $# -eq 7 && ("${1}" == "provision" || "${1}" == "destroy" || "${1}" == "stop" || "${1}" == "start") ]]; then
+elif [[ $# -eq 7 && ("${1}" == "provision" || "${1}" == "destroy" || "${1}" == "stop" || "${1}" == "start" || "${1}" == "status" ) ]]; then
   ACTION="${1}"
   shift
   VALID_ARGS=$(getopt -o g:c:a: --long guid:,config:,account: -- "$@")
@@ -298,8 +300,6 @@ if [[ "$ACTION" == "provision" ]]; then
   run_ansible_navigator "provision" "main.yml"
 elif [[ "$ACTION" == "destroy" ]]; then
   run_ansible_navigator "destroy" "destroy.yml"
-elif [[ "$ACTION" == "stop" ]]; then
-  run_ansible_navigator "stop" "lifecycle_entry_point.yml"
-elif [[ "$ACTION" == "start" ]]; then
-  run_ansible_navigator "start" "lifecycle_entry_point.yml"
+elif [[ "$ACTION" == "stop" || "$ACTION" == "start" || "$ACTION" == "status" ]]; then
+  run_ansible_navigator "$ACTION" "lifecycle_entry_point.yml"
 fi

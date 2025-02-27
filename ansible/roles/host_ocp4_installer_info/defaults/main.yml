@@ -1,0 +1,7 @@
+# Controls for agnosticd_user_info
+host_ocp4_installer_info_set_user_data: true
+host_ocp4_installer_info_show_user_info: true
+
+# Set user data for kubedamin password.
+# Usually the kubeadmin is disabled so this must be explicitly enabled.
+host_ocp4_installer_info_set_user_data_kubeadmin_password: false

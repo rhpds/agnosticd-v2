@@ -4,7 +4,7 @@
 
 AgnosticD V2 is an updated, streamlined evaluation of AgnosticD. It is supposed to be easy to adopt and make development simple.
 
-This documentat explains how to set up AgnosticD V2 and how to deploy both configs and post-deploy customizations (previously known as workloads) to these configs.
+This document explains how to set up AgnosticD V2 and how to deploy both configs and post-deploy customizations (previously known as workloads) to these configs.
 
 Currently AgnosticD V2 is supported on RHEL 9.5 (and higher), Fedora 41 (and higher) and macOS Sequoia (and higher).
 
@@ -291,6 +291,33 @@ To destroy a config you run the script the same way as during provision - except
 [source,sh]
 ----
 ./bin/agd destroy --guid myocp --config openshift-cluster --account sandbox1234
+----
+
+== Stopping a config
+
+To stop a config you run the script the same way as during provision - except you use the `stop` function:
+
+[source,sh]
+----
+./bin/agd stop --guid myocp --config openshift-cluster --account sandbox1234
+----
+
+== Starting a config
+
+To start a config you run the script the same way as during provision - except you use the `start` function:
+
+[source,sh]
+----
+./bin/agd start --guid myocp --config openshift-cluster --account sandbox1234
+----
+
+== Getting status of a config
+
+To get the status of a config you run the script the same way as during provision - except you use the `status` function:
+
+[source,sh]
+----
+./bin/agd status --guid myocp --config openshift-cluster --account sandbox1234
 ----
 
 == Running post-install configuration

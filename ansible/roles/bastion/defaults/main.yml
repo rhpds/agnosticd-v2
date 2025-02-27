@@ -34,4 +34,4 @@ bastion_student_user_sudo: true
 bastion_student_user_set_user_data: true
 
 # Set agnosticd_user_info msg with bastion access
-bastion_student_user_show_user_info: false
+bastion_student_user_show_user_info: true

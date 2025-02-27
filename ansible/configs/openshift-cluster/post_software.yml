@@ -39,68 +39,17 @@
       path: "/home/{{ ansible_user }}/.config/gcloud"
       state: absent
 
+  - name: Print GCP access user info
+    when:
+    - cloud_provider == "gcp"
+    - agnosticd_open_environment | default(false) | bool
+    ansible.builtin.include_role:
+      name: open-env-gcp-user-info
+
 - name: Step 005.2 - Deploy Workloads
   ansible.builtin.import_playbook: workloads.yml
 
-- name: Step 005.5 Print Student Info
-  hosts: localhost
-  gather_facts: false
-  become: false
-  tasks:
-  - name: Report Access Information
-    when:
-    - bastion_setup_student_user | bool
-    - openshift_cluster_show_access_user_info | bool
-    - cloud_provider != "openshift_cnv"
-    vars:
-      _bastion_inventory_name: "{{ groups['bastions'][0] }}"
-      _bastion_ssh_password: "{{ hostvars[bastion_hostname]['student_password'] }}"
-      _kubeadmin_password: "{{ hostvars[bastion_hostname]['kubeadmin_password']['content'] | b64decode }}"
-    block:
-    - name: Set Bastion Hostname (AWS)
-      when: cloud_provider == 'aws'
-      ansible.builtin.set_fact:
-        _bastion_public_hostname: "{{ hostvars[_bastion_inventory_name].shortname }}.{{ cluster_dns_zone }}"
-
-    - name: Set Bastion Hostname (GCP)
-      when: cloud_provider == "azure" or cloud_provider == "gcp"
-      ansible.builtin.set_fact:
-        _bastion_public_hostname: "bastion.{{ cluster_dns_zone }}."
-
-    - name: Set Bastion Hostname (Other)
-      when: _bastion_public_hostname is not defined
-      ansible.builtin.set_fact:
-        _bastion_public_hostname: "{{ hostvars[_bastion_inventory_name].shortname }}.{{ cluster_dns_zone }}"
-
-    - name: Print GCP access user info
-      when:
-      - cloud_provider == "gcp"
-      - agnosticd_open_environment | default(false) | bool
-      ansible.builtin.include_role:
-        name: open-env-gcp-user-info
-
-    - name: Print access user info
-      agnosticd_user_info:
-        data:
-          bastion_public_hostname: "{{ _bastion_public_hostname }}"
-          bastion_ssh_password: "{{ _bastion_ssh_password }}"
-          bastion_ssh_user_name: "{{ bastion_student_user_name }}"
-        msg: |
-          You can access your bastion via SSH using password '{{ _bastion_ssh_password }}':
-          ssh {{ bastion_student_user_name }}@{{ _bastion_public_hostname }}
-
-  - name: Print access user info (CNV)
-    when:
-    - bastion_setup_student_user | bool
-    - cloud_provider == "openshift_cnv"
-    agnosticd_user_info:
-      data:
-        bastion_ssh_port: "{{ hostvars[groups['bastions'][0]].bastion_ssh_port }}"
-      msg: |
-        You can access your bastion via SSH using password '{{ hostvars[groups['bastions'][0]]['student_password'] }}':
-        ssh {{ bastion_student_user_name }}@{{ openshift_cnv_ssh_address }} -p {{ hostvars[groups['bastions'][0]].bastion_ssh_port }}
-
-# - name: Step 005.5 Clean up Google SDK
+# - name: Step 005.3 Clean up Google SDK
 #   hosts: localhost
 #   gather_facts: false
 #   become: false

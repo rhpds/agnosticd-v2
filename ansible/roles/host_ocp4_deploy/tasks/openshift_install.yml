@@ -1,11 +1,34 @@
 ---
-######################### Prep hosts to run OpenShift Installer
-- name: Call Role to provision OCP4 install host
-  ansible.builtin.include_role:
-    name: host_ocp4_provisioner
+# Make sure there isn't another openshift-install running
+- name: Wait for openshift-install to complete
+  ansible.builtin.command: pidof openshift-install
+  register: r_check_openshift_install_running
+  until: r_check_openshift_install_running.rc != 0
+  retries: 360
+  delay: 10
+  failed_when: r_check_openshift_install_running.rc == 0
+  changed_when: false
 
-######################### Run OpenShift Installer
-- name: Call Role to install OpenShift
-  when: install_ocp4 | default(true) | bool
+# Enable multiple ansible playbook runs. Don't install a cluster if one has been installed before
+- name: Check if there is a cluster installed
+  ansible.builtin.stat:
+    path: "/home/{{ ansible_user }}/{{ cluster_name }}/install-config.yaml.bak"
+  register: r_stat_install_config
+
+- name: Install OpenShift
+  when: not r_stat_install_config.stat.exists
+  block:
+  ######################### Prep hosts to run OpenShift Installer
+  - name: Call Role to provision OCP4 install host
+    ansible.builtin.include_role:
+      name: host_ocp4_provisioner
+
+  ######################### Run OpenShift Installer
+  - name: Call Role to install OpenShift
+    when: install_ocp4 | default(true) | bool
+    ansible.builtin.include_role:
+      name: host_ocp4_installer
+
+- name: Get installed cluster information
   ansible.builtin.include_role:
-    name: host_ocp4_installer
+    name: host_ocp4_installer_info

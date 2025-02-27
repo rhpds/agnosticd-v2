@@ -59,11 +59,34 @@
 
 - name: Print and set access user info
   vars:
-    _bastion_public_hostname: >-
-      {{ hostvars[groups.bastions.0].public_dns_name
-      | default(hostvars[groups.bastions.0].public_ip_address)
-      }}
+    _bastion_inventory_name: "{{ groups['bastions'][0] }}"
   block:
+  - name: Set _bastion_public_hostname from inventory (not an OpenShift Cluster config)
+    when: cluster_dns_zone | default("") | length == 0
+    ansible.builtin.set_fact:
+      _bastion_public_hostname: >-
+            {{ hostvars[groups.bastions.0].public_dns_name
+            | default(hostvars[groups.bastions.0].public_ip_address)
+            }}
+
+  - name: Set _bastion_public_hostname from cluster_dns_zone
+    when: cluster_dns_zone | default("") | length > 0
+    block:
+    - name: Set Bastion Hostname (AWS)
+      when: cloud_provider == 'aws'
+      ansible.builtin.set_fact:
+        _bastion_public_hostname: "{{ hostvars[_bastion_inventory_name].shortname }}.{{ cluster_dns_zone }}"
+
+    - name: Set Bastion Hostname (GCP)
+      when: cloud_provider == "azure" or cloud_provider == "gcp"
+      ansible.builtin.set_fact:
+        _bastion_public_hostname: "bastion.{{ cluster_dns_zone }}"
+
+    - name: Set Bastion Hostname (Other)
+      when: _bastion_public_hostname | length == 0
+      ansible.builtin.set_fact:
+        _bastion_public_hostname: "{{ hostvars[_bastion_inventory_name].shortname }}.{{ cluster_dns_zone }}"
+
   - name: Print access info (non CNV)
     when:
     - bastion_student_user_show_user_info | bool

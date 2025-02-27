@@ -1,0 +1,10 @@
+---
+- name: Empty Lifecycle Hook
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+  - name: Print empty message
+    ansible.builtin.debug:
+      msg: "Empty Lifecycle Hook"

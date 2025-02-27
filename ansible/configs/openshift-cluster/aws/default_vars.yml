@@ -125,7 +125,7 @@ instances:
     "ec2": "{{ bastion_instance_type }}"
   tags:
   - key: "AnsibleGroup"
-    value: "bastions,clientvms"
+    value: "bastions"
   - key: "Purpose"
     value: "{{ purpose }}"
   - key: "project"

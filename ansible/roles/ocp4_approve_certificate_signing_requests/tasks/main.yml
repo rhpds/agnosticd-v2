@@ -9,4 +9,3 @@
 
 - name: Approve CertificateSigningRequests
   ansible.builtin.include_tasks: approve-certificate-signing-requests.yml
-...

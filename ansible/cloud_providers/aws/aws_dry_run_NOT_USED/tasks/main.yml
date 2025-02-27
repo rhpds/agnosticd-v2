@@ -1,6 +1,0 @@
----
-- name: Import AWS tasks
-  ansible.bultin.import_tasks: aws.yml
-
-- name: Import cloudformation tasks
-  ansible.builtin.import_tasks: cloudformation.yml

@@ -13,15 +13,13 @@
        })
     }}
 
-- name: Call Lifecycle hooks
-  vars:
-    _params:
-      files:
-        - configs/{{ config }}/lifecycle_hook_post_{{ ACTION }}.yml
-        - configs/{{ config }}/lifecycle_hook.yml
-        - lifecycle_hook.yml
+- name: Call lifecycle hooks
   ansible.builtin.import_playbook: >-
-    {{ lookup('first_found', _params) }}
+    {{ lookup('first_found', {
+        'files': [ 'lifecycle_hook_post_' + ACTION + '.yml', 'lifecycle_hook.yml' ],
+        'paths': ['configs/' + config, playbook_dir]
+      })
+    }}
 
 - name: Save output dir
   ansible.builtin.import_playbook: save_output_dir.yml
