@@ -6,6 +6,7 @@
     group/k8s:
       kubeconfig: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
       validate_certs: false
+  delegate_to: localhost
   block:
   - name: Get Nodes in order to check status
     kubernetes.core.k8s_info:
