@@ -130,7 +130,7 @@
     state: present
     consumer_name: "{{ _host_satellite_repositories_subscription_hostname }}"
     server_hostname: "{{ host_satellite_repositories_hostname }}"
-    server_port: "8443"
+    server_port: "443"
     server_prefix: /rhsm
     rhsm_baseurl: "https://{{ host_satellite_repositories_hostname }}/pulp/repos"
     org_id: "{{ host_satellite_repositories_org }}"
