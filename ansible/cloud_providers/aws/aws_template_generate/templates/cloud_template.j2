@@ -1,9 +1,5 @@
-#jinja2: lstrip_blocks: "True"
-#touch
 ---
 AWSTemplateFormatVersion: "2010-09-09"
-Mappings:
-  RegionMapping: {{ aws_ami_region_mapping | to_json }}
 
 Resources:
   Vpc:
@@ -13,11 +9,11 @@ Resources:
       EnableDnsSupport: true
       EnableDnsHostnames: true
       Tags:
-        - Key: Name
-          Value: "{{ aws_vpc_name }}"
-        - Key: Hostlication
-          Value:
-            Ref: "AWS::StackId"
+      - Key: Name
+        Value: "{{ aws_vpc_name }}"
+      - Key: Hostlication
+        Value:
+          Ref: "AWS::StackId"
 
   VpcInternetGateway:
     Type: "AWS::EC2::InternetGateway"
@@ -49,7 +45,7 @@ Resources:
   PublicSubnet:
     Type: "AWS::EC2::Subnet"
     DependsOn:
-      - Vpc
+    - Vpc
     Properties:
     {% if aws_availability_zone is defined %}
       AvailabilityZone: {{ aws_availability_zone }}
@@ -57,11 +53,11 @@ Resources:
 
       CidrBlock: "{{ aws_public_subnet_cidr }}"
       Tags:
-        - Key: Name
-          Value: "{{ project_tag }}"
-        - Key: Hostlication
-          Value:
-            Ref: "AWS::StackId"
+      - Key: Name
+        Value: "{{ project_tag }}"
+      - Key: Hostlication
+        Value:
+          Ref: "AWS::StackId"
       MapPublicIpOnLaunch: true
       VpcId:
         Ref: Vpc
@@ -83,8 +79,8 @@ Resources:
       VpcId:
         Ref: Vpc
       Tags:
-        - Key: Name
-          Value: "{{ security_group['name'] }}"
+      - Key: Name
+        Value: "{{ security_group['name'] }}"
 {% endfor %}
 
 {% for security_group in default_security_groups | list + security_groups | list
@@ -93,22 +89,22 @@ Resources:
   {{ security_group['name'] }}{{ rule['name'] }}:
     Type: "AWS::EC2::SecurityGroup{{ rule['rule_type'] }}"
     Properties:
-     GroupId:
-       Fn::GetAtt:
-         - "{{ security_group['name'] }}"
-         - GroupId
-     IpProtocol: {{ rule['protocol'] }}
-     FromPort: {{ rule['from_port'] }}
-     ToPort: {{ rule['to_port'] }}
+      GroupId:
+        Fn::GetAtt:
+        - "{{ security_group['name'] }}"
+        - GroupId
+      IpProtocol: {{ rule['protocol'] }}
+      FromPort: {{ rule['from_port'] }}
+      ToPort: {{ rule['to_port'] }}
   {% if rule['cidr'] is defined %}
-     CidrIp: "{{ rule['cidr'] }}"
+      CidrIp: "{{ rule['cidr'] }}"
   {% endif  %}
 
   {% if rule['from_group'] is defined %}
      SourceSecurityGroupId:
        Fn::GetAtt:
-        - "{{ rule['from_group'] }}"
-        - GroupId
+       - "{{ rule['from_group'] }}"
+       - GroupId
   {% endif  %}
 {% endfor %}
 {% endfor %}
@@ -118,10 +114,10 @@ Resources:
     Properties:
       Name: "{{ aws_dns_zone_private }}"
       VPCs:
-        - VPCId:
-            Ref: Vpc
-          VPCRegion:
-            Ref: "AWS::Region"
+      - VPCId:
+          Ref: Vpc
+        VPCRegion:
+          Ref: "AWS::Region"
       HostedZoneConfig:
         Comment: "{{ aws_comment }}"
 
@@ -138,7 +134,7 @@ Resources:
   DnsPublicDelegation:
     Type: "AWS::Route53::RecordSetGroup"
     DependsOn:
-      - DnsZonePublic
+    - DnsZonePublic
     Properties:
 {%   if HostedZoneId is defined %}
       HostedZoneId: "{{ HostedZoneId }}"
@@ -146,13 +142,13 @@ Resources:
       HostedZoneName: "{{ aws_dns_zone_root }}"
 {%   endif %}
       RecordSets:
-        - Name: "{{ aws_dns_zone_public }}"
-          Type: NS
-          TTL: {{ aws_dns_ttl_public }}
-          ResourceRecords:
-            "Fn::GetAtt":
-              - DnsZonePublic
-              - NameServers
+      - Name: "{{ aws_dns_zone_public }}"
+        Type: NS
+        TTL: {{ aws_dns_ttl_public }}
+        ResourceRecords:
+          "Fn::GetAtt":
+          - DnsZonePublic
+          - NameServers
 {% endif %}
 
 {% for instance in instances %}
@@ -162,9 +158,9 @@ Resources:
     Type: "AWS::Route53::RecordSetGroup"
     DependsOn:
 {%     for c in range(1, (instance['count']|int)+1) %}
-      - {{ instance.name | replace('-', '') }}{{ c }}
+    - {{ instance.name | replace('-', '') }}{{ c }}
 {%       if instance['public_dns'] %}
-      - {{ instance.name | replace('-', '') }}{{ c }}EIP
+    - {{ instance.name | replace('-', '') }}{{ c }}EIP
 {%       endif %}
 {%     endfor %}
     Properties:
@@ -186,9 +182,9 @@ Resources:
         TTL: {{ aws_dns_ttl_public }}
         ResourceRecords:
 {%     for c in range(1,(instance['count'] |int)+1) %}
-          - "Fn::GetAtt":
-            - {{ instance.name | replace('-', '') }}{{ c }}EIP
-            - PublicIp
+        - "Fn::GetAtt":
+          - {{ instance.name | replace('-', '') }}{{ c }}EIP
+          - PublicIp
 {%     endfor %}
 {%   endif %}
 
@@ -216,65 +212,65 @@ Resources:
 {%     if instance['security_groups'] is defined %}
       SecurityGroupIds:
 {%       for sg in instance.security_groups %}
-        - Ref: {{ sg }}
+      - Ref: {{ sg }}
 {%       endfor %}
 {%     else %}
       SecurityGroupIds:
-        - Ref: DefaultSG
+      - Ref: DefaultSG
 {%     endif %}
       SubnetId:
         Ref: PublicSubnet
       Tags:
 {%     if instance['unique'] | default(false) | bool %}
-        - Key: Name
-          Value: {{ instance['name'] }}
-        - Key: internaldns
-          Value: {{ instance['name'] }}.{{ aws_dns_zone_private_chomped }}
+      - Key: Name
+        Value: {{ instance['name'] }}
+      - Key: internaldns
+        Value: {{ instance['name'] }}.{{ aws_dns_zone_private_chomped }}
 {%     else %}
-        - Key: Name
-          Value: {{ instance['name'] }}{{ loop.index }}
-        - Key: internaldns
-          Value: {{ instance['name'] }}{{ loop.index }}.{{ aws_dns_zone_private_chomped }}
+      - Key: Name
+        Value: {{ instance['name'] }}{{ loop.index }}
+      - Key: internaldns
+        Value: {{ instance['name'] }}{{ loop.index }}.{{ aws_dns_zone_private_chomped }}
 {%     endif %}
-        - Key: "owner"
-          Value: "{{ requester_email | default(email, true) | default(requester_username, true) | default('unknownuser', true) }}"
-        - Key: "Project"
-          Value: "{{ project_tag }}"
-        - Key: "{{ project_tag }}"
-          Value: "{{ instance['name'] }}"
+      - Key: "owner"
+        Value: "{{ requester_email | default(email, true) | default(requester_username, true) | default('unknownuser', true) }}"
+      - Key: "Project"
+        Value: "{{ project_tag }}"
+      - Key: "{{ project_tag }}"
+        Value: "{{ instance['name'] }}"
 {%     if instance.ansible_user is defined %}
-        - Key: ansible_user
-          Value: "{{ instance.ansible_user }}"
+      - Key: ansible_user
+        Value: "{{ instance.ansible_user }}"
 {%     endif %}
 {%     if instance.remote_user is defined %}
-        - Key: remote_user
-          Value: "{{ instance.remote_user }}"
+      - Key: remote_user
+        Value: "{{ instance.remote_user }}"
 {%     endif %}
 {%     for tag in instance['tags'] %}
-        - Key: {{ tag['key'] }}
-          Value: {{ tag['value'] }}
+      - Key: {{ tag['key'] }}
+        Value: {{ tag['value'] }}
 {%     endfor %}
       BlockDeviceMappings:
 {%     if '/dev/sda1' not in instance.volumes | default([]) | json_query('[].device_name')
        and '/dev/sda1' not in instance.volumes | default([]) | json_query('[].name')
 %}
-        - DeviceName: "/dev/sda1"
-          Ebs:
-            VolumeSize: "{{ instance['rootfs_size'] | default(aws_default_rootfs_size) }}"
-            VolumeType: "{{ aws_default_volume_type }}"
+      - DeviceName: "/dev/sda1"
+        Ebs:
+          VolumeSize: "{{ instance['rootfs_size'] | default(aws_default_rootfs_size) }}"
+          VolumeType: "{{ aws_default_volume_type }}"
 {%     endif %}
 {%     for vol in instance.volumes|default([]) if vol.enable | default(true) %}
-        - DeviceName: "{{ vol.name | default(vol.device_name) }}"
-          Ebs:
+      - DeviceName: "{{ vol.name | default(vol.device_name) }}"
+        Ebs:
 {%       if cloud_provider in vol and 'type' in vol.ec2 %}
-            VolumeType: "{{ vol['ec2'].type }}"
+          VolumeType: "{{ vol['ec2'].type }}"
 {%       else %}
-            VolumeType: "{{ aws_default_volume_type }}"
+          VolumeType: "{{ aws_default_volume_type }}"
 {%       endif %}
 {%       if vol.snapshot_id is defined %}
-            SnapshotId: "{{ vol.snapshot_id}}"
+          SnapshotId: "{{ vol.snapshot_id}}"
 {%       endif %}
-            VolumeSize: "{{ vol.size }}"
+          VolumeSize: "{{ vol.size }}"
 {%     endfor %}
 
   {{ instance.name | replace('-', '') }}{{ loop.index }}InternalDns:
@@ -284,16 +280,16 @@ Resources:
         Ref: DnsZonePrivate
       RecordSets:
 {%     if instance['unique'] | default(false) | bool %}
-        - Name: "{{ instance['name'] }}.{{ aws_dns_zone_private }}"
+      - Name: "{{ instance['name'] }}.{{ aws_dns_zone_private }}"
 {%     else %}
-        - Name: "{{ instance['name'] }}{{ loop.index }}.{{ aws_dns_zone_private }}"
+      - Name: "{{ instance['name'] }}{{ loop.index }}.{{ aws_dns_zone_private }}"
 {%     endif %}
-          Type: A
-          TTL: {{ aws_dns_ttl_private }}
-          ResourceRecords:
-            - "Fn::GetAtt":          
-              - {{ instance.name | replace('-', '') }}{{ loop.index }}
-              - PrivateIp
+        Type: A
+        TTL: {{ aws_dns_ttl_private }}
+        ResourceRecords:
+        - "Fn::GetAtt":          
+          - {{ instance.name | replace('-', '') }}{{ loop.index }}
+          - PrivateIp
 
 {%     if instance['public_dns'] %}
   {{ instance.name | replace('-', '') }}{{ loop.index }}EIP:
@@ -307,7 +303,7 @@ Resources:
   {{ instance.name | replace('-', '') }}{{ loop.index }}PublicDns:
     Type: "AWS::Route53::RecordSetGroup"
     DependsOn:
-      - {{ instance.name | replace('-', '') }}{{ loop.index }}EIP
+    - {{ instance.name | replace('-', '') }}{{ loop.index }}EIP
     Properties:
 {%     if instance.public_dns_zone is defined %}
       HostedZoneName: {{ instance.public_dns_zone }}
@@ -323,16 +319,16 @@ Resources:
 {%     endif %}
       RecordSets:
 {%       if instance['unique'] | default(false) | bool %}
-        - Name: {{ instance.name }}.{{ instance.public_dns_zone | default(aws_dns_zone_public_prefix | default('') ~ aws_dns_zone_public) }}
+      - Name: {{ instance.name }}.{{ instance.public_dns_zone | default(aws_dns_zone_public_prefix | default('') ~ aws_dns_zone_public) }}
 {%       else %}
-        - Name: {{ instance.name }}{{ loop.index }}.{{ instance.public_dns_zone | default(aws_dns_zone_public_prefix | default('') ~ aws_dns_zone_public) }}
+      - Name: {{ instance.name }}{{ loop.index }}.{{ instance.public_dns_zone | default(aws_dns_zone_public_prefix | default('') ~ aws_dns_zone_public) }}
 {%       endif %}
-          Type: A
-          TTL: {{ aws_dns_ttl_public }}
-          ResourceRecords:
-            - "Fn::GetAtt":
-              - {{ instance.name | replace('-', '') }}{{ loop.index }}EIP
-              - PublicIp
+        Type: A
+        TTL: {{ aws_dns_ttl_public }}
+        ResourceRecords:
+        - "Fn::GetAtt":
+          - {{ instance.name | replace('-', '') }}{{ loop.index }}EIP
+          - PublicIp
 {%     endif %}
 {%   endfor %}
 {% endfor %}
@@ -342,35 +338,34 @@ Resources:
     Type: AWS::IAM::User
     Properties:
       Policies:
-        - PolicyName: Route53Access
-          PolicyDocument:
-            Statement:
-              - Effect: Allow
-                Action: route53:GetHostedZone
-                Resource: arn:aws:route53:::change/*
+      - PolicyName: Route53Access
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action: route53:GetHostedZone
+            Resource: arn:aws:route53:::change/*
 
-              - Effect: Allow
-                Action: route53:ListHostedZones
-                Resource: "*"
+          - Effect: Allow
+            Action: route53:ListHostedZones
+            Resource: "*"
 
-              - Effect: Allow
-                Action:
-                  - route53:ChangeResourceRecordSets
-                  - route53:ListResourceRecordSets
-                  - route53:GetHostedZone
+          - Effect: Allow
+            Action:
+            - route53:ChangeResourceRecordSets
+            - route53:ListResourceRecordSets
+            - route53:GetHostedZone
 {%   if aws_dns_create_public_zone %}
-                Resource:
-                  Fn::Join:
-                    - ""
-                    - - "arn:aws:route53:::hostedzone/"
-                      - Ref: DnsZonePublic
+            Resource:
+              Fn::Join:
+              - ""
+              - - "arn:aws:route53:::hostedzone/"
+                - Ref: DnsZonePublic
 {%   else %}
-                Resource: "arn:aws:route53:::hostedzone/{{ HostedZoneId }}"
+            Resource: "arn:aws:route53:::hostedzone/{{ HostedZoneId }}"
 {%   endif %}
-
-              - Effect: Allow
-                Action: route53:GetChange
-                Resource: arn:aws:route53:::change/*
+          - Effect: Allow
+            Action: route53:GetChange
+            Resource: arn:aws:route53:::change/*
 
   Route53UserAccessKey:
       DependsOn: Route53User
@@ -388,12 +383,12 @@ Resources:
     Properties:
       UserName: "{{ email | default('student') }}-{{ guid }}"
       Policies:
-        - PolicyName: AccessAll
-          PolicyDocument:
-            Statement:
-              - Effect: Allow
-                Action: "*"
-                Resource: "*"
+      - PolicyName: AccessAll
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action: "*"
+            Resource: "*"
 
   StudentUserAccessKey:
       DependsOn: StudentUser
@@ -420,8 +415,8 @@ Outputs:
   Route53UserSecretAccessKey:
     Value:
       Fn::GetAtt:
-        - Route53UserAccessKey
-        - SecretAccessKey
+      - Route53UserAccessKey
+      - SecretAccessKey
     Description: IAM User for Route53 (Let's Encrypt)
 {% endif %}
 
@@ -441,7 +436,7 @@ Outputs:
   StudentUserSecretAccessKey:
     Value:
       Fn::GetAtt:
-        - StudentUserAccessKey
-        - SecretAccessKey
+      - StudentUserAccessKey
+      - SecretAccessKey
     Description: IAM secret access key for student
 {% endif %}

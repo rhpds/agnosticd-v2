@@ -18,7 +18,7 @@
   ansible.builtin.set_fact:
     cloudformation_template: "{{ output_dir }}/{{ config }}.{{ guid }}.{{ cloud_provider }}_cloud_template"
 
-- name: Print cloudformation_template
+- name: Print cloudformation_template path
   ansible.builtin.debug:
     var: cloudformation_template
 
