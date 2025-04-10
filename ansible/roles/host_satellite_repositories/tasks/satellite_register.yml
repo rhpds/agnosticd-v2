@@ -82,11 +82,6 @@
     value: "0"
     mode: ug=rw,o=r
 
-- name: Generate UUID for dmi.system.uuid if cloud provider is Equinix Metal
-  when: cloud_provider == 'equinix_metal'
-  ansible.builtin.set_fact:
-    dmi_system_uuid: "{{ 999999999 | random | to_uuid }}"
-
 - name: Set host_satellite_repositories_subscription_hostname to provided value
   when: host_satellite_repositories_subscription_hostname | default("") | length > 0
   ansible.builtin.set_fact:
@@ -111,7 +106,6 @@
     __content: >-
       {{
         {"network.fqdn": _host_satellite_repositories_subscription_hostname}
-        | combine({"dmi.system.uuid": dmi_system_uuid} if cloud_provider == 'equinix_metal' else {})
       }}
 
 - name: Register with activation-key

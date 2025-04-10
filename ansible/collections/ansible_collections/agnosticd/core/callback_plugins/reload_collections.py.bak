@@ -1,0 +1,88 @@
+#!/usr/bin/python
+
+from __future__ import (absolute_import, division, print_function)
+__metaclass__ = type
+
+DOCUMENTATION = '''
+    callback: reload_collections
+    callback_type: notification
+    requirements:
+      - python >= 3.5
+    short_description: Reloads collection paths after specific tasks
+    description:
+      - This callback plugin reloads Ansible collection paths after a specific task marker
+      - Add a task with the tag 'reload_collections' to trigger the reload
+    options:
+      marker_task:
+        default: "Collections installed"
+        description: Task name that signals collections have been installed
+        env:
+          - name: RELOAD_COLLECTIONS_MARKER
+        ini:
+          - section: callback_reload_collections
+            key: marker_task
+'''
+
+import os
+import sys
+import importlib
+import ansible.plugins.loader as plugin_loader
+from ansible.plugins.callback import CallbackBase
+
+class CallbackModule(CallbackBase):
+    CALLBACK_VERSION = 2.0
+    CALLBACK_TYPE = 'notification'
+    CALLBACK_NAME = 'reload_collections'
+    CALLBACK_NEEDS_WHITELIST = False
+
+    def __init__(self):
+        super(CallbackModule, self).__init__()
+        self.marker_task = "Collections installed"
+        self.collection_reload_needed = False
+        self._display.vvv("Collection reloader plugin initialized")
+        self._display.display(">>> COLLECTION RELOADER PLUGIN INITIALIZED <<<", color='yellow')
+
+    def v2_playbook_on_start(self, playbook):
+        self._display.vvv("Playbook started, collection reloader active")
+
+    def v2_playbook_on_task_start(self, task, is_conditional):
+        task_name = task.get_name()
+        if task_name == self.marker_task or 'reload_collections' in task.tags:
+            self.collection_reload_needed = True
+            self._display.display("Collection reload marker task detected: {0}".format(task_name))
+
+    def v2_runner_on_ok(self, result):
+        if self.collection_reload_needed and 'ansible-galaxy collection install' in str(result._result):
+            self._display.display("Collection installation detected, preparing to reload collection paths")
+            self.reload_collection_paths()
+            self.collection_reload_needed = False
+
+    def reload_collection_paths(self):
+        """Reload Ansible collection paths to make newly installed collections available"""
+        self._display.display("Reloading collection paths...")
+        
+        # Clear the plugin loader caches
+        plugin_loader.module_loader.clear()
+        plugin_loader.action_loader.clear()
+        plugin_loader.filter_loader.clear()
+        plugin_loader.test_loader.clear()
+        plugin_loader.lookup_loader.clear()
+        
+        # Reload the ansible.plugins.loader module
+        importlib.reload(plugin_loader)
+        
+        # Update collection paths
+        try:
+            from ansible.utils.collection_loader import AnsibleCollectionLoader
+            from ansible.utils.collection_loader._collection_finder import _AnsibleCollectionFinder
+            
+            # Refresh the collection finder
+            if hasattr(_AnsibleCollectionFinder, '_install'):
+                _AnsibleCollectionFinder._install()
+                self._display.display("Collection finder reinstalled successfully")
+            
+            # Reset the collection loader cache
+            AnsibleCollectionLoader._collection_finder._reload()
+            self._display.display("Collection paths reloaded successfully")
+        except Exception as e:
+            self._display.error(f"Failed to reload collection paths: {str(e)}")

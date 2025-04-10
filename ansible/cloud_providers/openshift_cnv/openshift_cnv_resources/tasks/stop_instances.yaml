@@ -9,14 +9,10 @@
   retries: "{{ openshift_cnv_retries }}"
   delay: "{{ openshift_cnv_delay }}"
 
-
 - name: Stop the Virtual Machines (running)
-  loop: "{{ r_vm_list.resources }}"
-  loop_control:
-    loop_var: _instance
   when:
-    - _instance.spec.running is defined
-    - _instance.spec.running | bool
+  - _instance.spec.running is defined
+  - _instance.spec.running | bool
   kubevirt.core.kubevirt_vm:
     host: "{{ sandbox_openshift_api_url }}"
     api_key: "{{ k8s_auth_results.k8s_auth.api_key | default(sandbox_openshift_api_key) }}"
@@ -25,6 +21,9 @@
     name: "{{ _instance.metadata.name }}"
     namespace: "{{ openshift_cnv_namespace }}"
   register: r_stop_vm
+  loop: "{{ r_vm_list.resources }}"
+  loop_control:
+    loop_var: _instance
   until: r_stop_vm is success
   retries: "{{ openshift_cnv_retries }}"
   delay: "{{ openshift_cnv_delay }}"

@@ -1,11 +1,14 @@
 ---
-- include_tasks: authentication.yaml
+- name: Include authentication tasks
   when: sandbox_openshift_username | default(false)
+  ansible.builtin.include_tasks: authentication.yaml
 
-- block:
-    - ansible.builtin.include_tasks: create_inventory.yaml
+- name: Create Inventory
+  block:
+  - name: Include create inventory tasks
+    ansible.builtin.include_tasks: create_inventory.yaml
   module_defaults:
     group/k8s:
       host: "{{ sandbox_openshift_api_url }}"
-      api_key: "{{ k8s_auth_results.k8s_auth.api_key|default(sandbox_openshift_api_key) }}"
+      api_key: "{{ k8s_auth_results.k8s_auth.api_key | default(sandbox_openshift_api_key) }}"
       validate_certs: false

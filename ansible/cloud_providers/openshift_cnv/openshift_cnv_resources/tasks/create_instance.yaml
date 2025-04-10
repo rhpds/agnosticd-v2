@@ -93,7 +93,6 @@
         }
     ] }}"
 
-
 - name: Create instance(s) "{{ _instance.name }}"
   vars:
     _instance_name: "{{ _instance.name }}{{ _index+1 if _instance.count|d(1)|int > 1 }}"

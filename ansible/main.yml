@@ -23,7 +23,6 @@
 # ########### Step 000 Pre infrastructure deploy tasks
 # ###############################################################################
 # ###############################################################################
-
 - name: Run pre-infra tasks
   ansible.builtin.import_playbook: "configs/{{ config }}/pre_infra.yml"
 
@@ -32,7 +31,6 @@
 # ########### Step 001 Deploy infrastructure
 # ################################################################################
 # ################################################################################
-
 - name: Deploy infrastructure
   vars:
     findme:
@@ -47,7 +45,6 @@
 # ########## Step 002 Post infrastructure deploy tasks
 # ###############################################################################
 # ###############################################################################
-
 - name: Post infrastructure tasks
   ansible.builtin.import_playbook: "configs/{{ config }}/post_infra.yml"
 
@@ -61,7 +58,6 @@
 # ########## Step 003 Pre software deploy tasks
 # ###############################################################################
 # ###############################################################################
-
 - name: Pre Software
   ansible.builtin.import_playbook: "configs/{{ config }}/pre_software.yml"
 
@@ -70,7 +66,6 @@
 # ########### Step 004 Software deploy tasks
 # #################################################################################
 # #################################################################################
-
 - name: Config specific software playbook ('{{ config }}')
   ansible.builtin.import_playbook: "configs/{{ config }}/software.yml"
 
@@ -79,7 +74,6 @@
 # ########### Step 005 Post software deploy tasks
 # ###############################################################################
 # ###############################################################################
-
 - name: Post software tasks
   ansible.builtin.import_playbook: "configs/{{ config }}/post_software.yml"
 

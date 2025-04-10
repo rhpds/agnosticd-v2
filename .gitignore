@@ -26,7 +26,6 @@ __pycache__
 *secrets[_-]vars.yaml
 *secrets[_-]vars.yml
 ansible-navigator.log
-ansible/collections/ansible_collections/*
 ansible/configs/*/roles
 ansible/destroy-artifact-*
 ansible/lifecycle_entry_point-artifact-*

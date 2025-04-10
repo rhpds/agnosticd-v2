@@ -1,13 +1,14 @@
 ---
-roles:
+roles: []
 # External role to setup grader host virtualenv and FTL grading infra
+# roles:
 # - name: ftl-injector
 #   src: https://github.com/redhat-gpte-devopsautomation/ftl-injector
 #   version: v0.20.0
 
 # Collections in addition to what is already available in the
-# Execution Envrionment quay.io/agnosticd/ee-multicloud:2025-02-14
+# Execution Envrionment quay.io/agnosticd/ee-multicloud:2025-04-07
 collections:
 - name: https://github.com/rhpds/assisted_installer.git
   type: git
-  version: v0.0.2
+  version: v0.0.3

@@ -1,5 +1,6 @@
 ---
 - name: Create routes with tls
+  when: "{{ route.tls | default(false) == true }}"
   kubernetes.core.k8s:
     definition:
       apiVersion: route.openshift.io/v1
@@ -8,7 +9,7 @@
         name: "{{ route.name }}"
         namespace: "{{ openshift_cnv_namespace }}"
       spec:
-        host: "{{ route.host|default(route.name) }}.{{ guid }}.{{ sandbox_openshift_apps_domain }}"
+        host: "{{ route.host | default(route.name) }}.{{ guid }}.{{ sandbox_openshift_apps_domain }}"
         port:
           targetPort: "{{ route.targetPort }}"
         tls:
@@ -17,8 +18,7 @@
         to:
           kind: Service
           name: "{{ route.service }}"
-  when: "{{ route.tls|default(False) == True}}"
-  loop: "{{ _instance.routes|default([]) }}"
+  loop: "{{ _instance.routes | default([]) }}"
   loop_control:
     loop_var: route
   register: r_createroute
@@ -27,6 +27,7 @@
   delay: "{{ openshift_cnv_delay }}"
 
 - name: Create routes without tls
+  when: "{{ route.tls | default(false) == false }}"
   kubernetes.core.k8s:
     definition:
       apiVersion: route.openshift.io/v1
@@ -35,15 +36,14 @@
         name: "{{ route.name }}"
         namespace: "{{ openshift_cnv_namespace }}"
       spec:
-        host: "{{ route.host|default(route.name) }}.{{ guid }}.{{ sandbox_openshift_apps_domain }}"
-        path: "{{ route.path|default('/') }}"
+        host: "{{ route.host | default(route.name) }}.{{ guid }}.{{ sandbox_openshift_apps_domain }}"
+        path: "{{ route.path | default('/') }}"
         port:
           targetPort: "{{ route.targetPort }}"
         to:
           kind: Service
           name: "{{ route.service }}"
-  when: "{{ route.tls|default(false) == false  }}"
-  loop: "{{ _instance.routes|default([]) }}"
+  loop: "{{ _instance.routes | default([]) }}"
   loop_control:
     loop_var: route
   register: r_createroute
