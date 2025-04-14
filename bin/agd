@@ -205,11 +205,18 @@ unsupported_os() {
 run_ansible_navigator() {
   local action="$1"
   local playbook="$2"
+
   if [ ! -d "${OUTPUT_DIR_ROOT}/${GUID}" ]; then
     mkdir -p "${OUTPUT_DIR_ROOT}/${GUID}"
   fi
+
+  if [ ! -d "/tmp/requirements_collections/ansible_collections" ]; then
+    mkdir -p /tmp/requirements_collections/ansible_collections
+  fi
+
   export ANSIBLE_LOG_PATH="/output_dir_root/${GUID}/${GUID}.log"
   export ANSIBLE_NAVIGATOR_PLAYBOOK_ARTIFACT_SAVE_AS=/output_dir_root/${GUID}
+  # export ANSIBLE_COLLECTIONS_PATH=/runner/requirements_collections
 
   ansible-navigator run "ansible/${playbook}" \
     --extra-vars "ACTION=${action}" \

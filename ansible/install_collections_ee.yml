@@ -20,7 +20,15 @@
       {{ r_requirements_content
       | agnosticd_filter_out_installed_collections(installed_collections)
       | to_yaml }}
-    mode: "0664"
+    mode: ug=rw,o=r
+
+- name: Get COLLECTIONS_PATHS
+  ansible.builtin.set_fact:
+    _collections_path: "{{ lookup('config', 'COLLECTIONS_PATHS') }}"
+
+- name: Debug COLLECTIONS_PATHS
+  ansible.builtin.debug:
+    var: _collections_path
 
 - name: Install collections from requirements.yml (EE)
   vars:
@@ -39,3 +47,7 @@
   ansible.builtin.file:
     path: "{{ r_tempfile.path }}"
     state: absent
+
+# - name: Sleep
+#   ansible.builtin.pause:
+#     minutes: 3600

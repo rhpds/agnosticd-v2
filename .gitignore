@@ -31,6 +31,7 @@ ansible/destroy-artifact-*
 ansible/lifecycle_entry_point-artifact-*
 ansible/main-artifact-*
 ansible/workload_vars.yml
+ansible/requirements_collections/*
 artifacts
 destroy-artifact-*
 dynamic-cache

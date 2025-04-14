@@ -14,5 +14,7 @@ ansible-navigator:
       dest: /vars
     - src: ../agnosticd-v2-output
       dest: /output_dir_root
+    - src: /tmp/requirements_collections/ansible_collections
+      dest: /home/runner/.ansible/collections
 
   format: json

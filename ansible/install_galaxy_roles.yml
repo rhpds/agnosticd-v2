@@ -5,11 +5,6 @@
   gather_facts: false
   become: false
   vars:
-    # User can override this variable to specify a different requirements.yml, like:
-    # -e requirements_path=.../requirements_prod.yml
-    ## PS: ROLE_IMPROVE_TASK
-    ## Needs to be validated
-    ## var is called from main.yml
     requirements_path: "configs/{{ config }}/requirements.yml"
     requirements_content: {}
     __from_ee: >-
@@ -29,7 +24,7 @@
       ansible.builtin.copy:
         dest: "{{ requirements_path_final }}"
         content: "{{ requirements_content | to_yaml }}"
-        mode: "0664"
+        mode: ug=rw,o=r
 
   - name: Use requirements_path from the config
     when: requirements_content | length == 0
@@ -57,7 +52,7 @@
       {%- endif -%}"
     when: >-
       r_requirements_stat.stat.exists
-      and r_requirements_content|default([]) | length > 0
+      and r_requirements_content | default([]) | length > 0
       and (r_requirements_content is sequence
             or (r_requirements_content is mapping
                 and 'roles' in r_requirements_content)
