@@ -216,7 +216,6 @@ run_ansible_navigator() {
 
   export ANSIBLE_LOG_PATH="/output_dir_root/${GUID}/${GUID}.log"
   export ANSIBLE_NAVIGATOR_PLAYBOOK_ARTIFACT_SAVE_AS=/output_dir_root/${GUID}
-  # export ANSIBLE_COLLECTIONS_PATH=/runner/requirements_collections
 
   ansible-navigator run "ansible/${playbook}" \
     --extra-vars "ACTION=${action}" \
@@ -226,6 +225,9 @@ run_ansible_navigator() {
     --extra-vars "@/secrets/secrets-${ACCOUNT_NAME}.yml" \
     --extra-vars "@/secrets/secrets.yml" \
     --extra-vars "output_dir=/output_dir_root/${GUID}" \
+    --eev ../agnosticd-v2-vars:/vars/:Z \
+    --eev ../agnosticd-v2-secrets/:/secrets/ \
+    --eev /tmp/requirements_collections/:/home/runner/.ansible/collections:Z \
     --mode stdout
 }
 
