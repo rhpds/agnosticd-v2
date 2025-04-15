@@ -15,7 +15,7 @@ spec:
         - "/etc/ceph/cleanup-script.sh"
         env:
         - name: LAB
-          value: {{ env_type }}-{{ guid }}
+          value: {{ config }}-{{ guid }}
         volumeMounts:
         - name: keyring-volume
           mountPath: /etc/ceph

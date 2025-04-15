@@ -8,8 +8,8 @@
   gather_facts: false
   become: false
   tasks:
-  - name: Run infra-openshift-cnv-resources
+  - name: Run openshift-cnv-resources
     vars:
       ACTION: destroy
     ansible.builtin.include_role:
-      name: infra_openshift_cnv_resources
+      name: openshift_cnv_resources
