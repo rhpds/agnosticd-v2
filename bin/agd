@@ -210,8 +210,8 @@ run_ansible_navigator() {
     mkdir -p "${OUTPUT_DIR_ROOT}/${GUID}"
   fi
 
-  if [ ! -d "/tmp/requirements_collections/ansible_collections" ]; then
-    mkdir -p /tmp/requirements_collections/ansible_collections
+  if [ ! -d "${OUTPUT_DIR_ROOT}/${GUID}/requirements_collections/ansible_collections" ]; then
+    mkdir -p ${OUTPUT_DIR_ROOT}/${GUID}/requirements_collections/ansible_collections
   fi
 
   export ANSIBLE_LOG_PATH="/output_dir_root/${GUID}/${GUID}.log"
@@ -225,9 +225,10 @@ run_ansible_navigator() {
     --extra-vars "@/secrets/secrets-${ACCOUNT_NAME}.yml" \
     --extra-vars "@/secrets/secrets.yml" \
     --extra-vars "output_dir=/output_dir_root/${GUID}" \
-    --eev ../agnosticd-v2-vars:/vars/:Z \
-    --eev ../agnosticd-v2-secrets/:/secrets/ \
-    --eev /tmp/requirements_collections/:/home/runner/.ansible/collections:Z \
+    --execution-environment-volume-mounts ${VARS_DIR}:/vars:Z \
+    --execution-environment-volume-mounts ${SECRETS_DIR}:/secrets:Z \
+    --execution-environment-volume-mounts ${OUTPUT_DIR_ROOT}:/output_dir_root:Z \
+    --execution-environment-volume-mounts ${OUTPUT_DIR_ROOT}/${GUID}/requirements_collections:/home/runner/.ansible/collections:Z \
     --mode stdout
 }
 
