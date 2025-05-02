@@ -64,7 +64,7 @@ install_common_packages: true
 # - podman
 
 # Run a full dnf update on the hosts
-host_common_packages_update_all: true
+host_common_packages_update_all: false
 
 # -------------------------------------------------
 # OpenShift
