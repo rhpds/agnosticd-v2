@@ -6,7 +6,7 @@
 
 - name: Generate SSH keys
   community.crypto.openssh_keypair:
-    comment: AWS Provision Key
+    comment: AgnosticD Provision Key
     mode: u=rw
     path: "{{ ssh_provision_key_path }}"
     regenerate: full_idempotence

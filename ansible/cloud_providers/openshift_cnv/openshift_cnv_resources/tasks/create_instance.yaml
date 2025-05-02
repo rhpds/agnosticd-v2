@@ -50,52 +50,59 @@
 
 - name: Set the instances disks
   ansible.builtin.set_fact:
-    _instance_disks: "{{ _instance_disks | from_yaml + [
-    {
-        'name': _disk.metadata.name,
-        'disk': {'bus': _instance.disk_type | default('virtio')}
-    }
-    ] }}"
-    _instance_volumes: "{{ _instance_volumes | from_yaml + [
+    _instance_disks: >-
+      {{ _instance_disks | from_yaml + [
         {
-            'name': _disk.metadata.name,
-            'dataVolume': {'name': _disk.metadata.name}
+          'name': _disk.metadata.name,
+          'disk': {'bus': _instance.disk_type | default('virtio')}
         }
-    ] }}"
+      ] }}
+    _instance_volumes: >-
+      {{ _instance_volumes | from_yaml + [
+        {
+          'name': _disk.metadata.name,
+          'dataVolume': {'name': _disk.metadata.name}
+        }
+      ] }}"
   loop: "{{ _instance.disks | default([]) | list }}"
   loop_control:
     loop_var: _disk
-
 
 - name: Set cloud_config
   ansible.builtin.set_fact:
     _cloud_config: |-
         #cloud-config
-        host_ssh_authorized_keys:
+        ssh_authorized_keys:
         - {{ lookup('file', ssh_provision_pubkey_path ) }}
-        {{_instance.userdata|default('')|replace('#cloud-config','')|default('')}}
+        {{_instance.userdata | default('') | replace('#cloud-config','') | default('') }}
+
+- name: Debug cloud_config
+  ansible.builtin.debug:
+    var: _cloud_config
 
 - name: Set cloud init disk if needed
-  set_fact:
-    _instance_volumes: "{{ _instance_volumes | from_yaml + [
+  ansible.builtin.set_fact:
+    _instance_volumes: >-
+      {{ _instance_volumes | from_yaml + [
         {
-            'name': 'cloudinitdisk',
-            'cloudInitNoCloud': {
-                'userDataBase64': _cloud_config | b64encode,
-                'networkDataBase64': _instance.networkdata | default('network: 2') | b64encode
-            }
+          'name': 'cloudinitdisk',
+          'cloudInitNoCloud': {
+            'userDataBase64': _cloud_config | b64encode,
+            'networkDataBase64': _instance.networkdata | default('network: 2') | b64encode
+          }
         }
-    ] }}"
-    _instance_disks: "{{ _instance_disks | from_yaml + [
+      ] }}
+    _instance_disks: >-
+      {{ _instance_disks | from_yaml + [
         {
-            'disk': {'bus': 'virtio'},
-            'name': 'cloudinitdisk'
+          'disk': {'bus': 'virtio'},
+          'name': 'cloudinitdisk'
         }
-    ] }}"
+      ] }}
 
 - name: Create instance(s) "{{ _instance.name }}"
   vars:
-    _instance_name: "{{ _instance.name }}{{ _index+1 if _instance.count|d(1)|int > 1 }}"
+    _instance_name: "{{ _instance.name }}{{ _index+1 if _instance.count | default(1) | int > 1 }}"
     _datavolume:
       - metadata:
           name: "{{ _instance_name }}-{{ guid }}"
@@ -124,9 +131,6 @@
           type: "{{ _instance.machine_type | default('pc-q35-rhel9.2.0') }}"
         memory:
           guest: "{{ _instance.memory }}"
-          memory:
-            hugepages:
-              pageSize: "1Gi"
         devices:
           disks: {{ _instance_disks | replace('INSTANCENAME', _instance_name) }}
           interfaces: {{ _instance_interfaces }}
@@ -141,17 +145,17 @@
         namespace: "{{ openshift_cnv_namespace }}"
         annotations: >-
           {{ cloud_tags_final
-          | combine(_instance.metadata|default({})) | combine(_instance.tags|default({}) | ec2_tags_to_dict) }}
+          | combine(_instance.metadata | default({})) | combine(_instance.tags | default({}) | ec2_tags_to_dict) }}
       spec:
         dataVolumeTemplates: >-
-         {{ _datavolume + (_instance.disks | default([]) | to_json | replace('INSTANCENAME',_instance_name) | from_json)  }}
+         {{ _datavolume + (_instance.disks | default([]) | to_json | replace('INSTANCENAME',_instance_name) | from_json) }}
         running: true
         template:
           metadata:
             labels:
               vm.cnv.io/name: "{{ _instance_name }}"
           spec: "{{ _spec | from_yaml }}"
-  loop: "{{ range(1, _instance.count|default(1)|int+1) | list }}"
+  loop: "{{ range(1, _instance.count | default(1) | int+1) | list }}"
   loop_control:
     index_var: _index
   register: r_openshift_cnv_instance
@@ -159,7 +163,7 @@
   retries: "{{ openshift_cnv_retries }}"
   delay: "{{ openshift_cnv_delay }}"
 
-- name: Wait till VM is running
+- name: Wait till VMs are running
   vars:
     _instance_name: "{{ _instance.name }}{{ _index+1 if _instance.count | default(1) | int > 1 }}"
   kubernetes.core.k8s_info:
@@ -175,6 +179,7 @@
   loop_control:
     index_var: _index
 
-- ansible.builtin.set_fact:
+- name: Save instances
+  ansible.builtin.set_fact:
     r_openshift_cnv_instances: "{{ r_openshift_cnv_instances + [item] }}"
   loop: "{{ r_openshift_cnv_instance.results | list }}"

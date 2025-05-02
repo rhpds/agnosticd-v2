@@ -1,5 +1,5 @@
 ---
-- name: Search for all running pods
+- name: Search for all running Virtual Machines
   kubernetes.core.k8s_info:
     api_version: kubevirt.io/v1
     kind: VirtualMachine
@@ -13,17 +13,17 @@
 
 # Find the bastion
 - name: Find the bastion in this batch of hosts
-  when: '"bastions" in item.metadata.annotations.AnsibleGroup|default("")'
+  when: '"bastions" in item.metadata.annotations.AnsibleGroup | default("")'
   ansible.builtin.set_fact:
     local_bastion: "{{ item.metadata.name }}"
   loop: "{{ r_openshift_cnv_instances.resources | list }}"
   ignore_errors: true
 
 - name: Expose bastion externally
-  when: local_bastion|default(False)
+  when: local_bastion | default(false)
   kubernetes.core.k8s:
     host: "{{ sandbox_openshift_api_url }}"
-    api_key: "{{ k8s_auth_results.k8s_auth.api_key|default(sandbox_openshift_api_key) }}"
+    api_key: "{{ k8s_auth_results.k8s_auth.api_key | default(sandbox_openshift_api_key) }}"
     validate_certs: false
     definition:
       apiVersion: v1
@@ -52,12 +52,12 @@
     shortname: "{{ item.metadata.name }}"
     ansible_user: "{{ remote_user }}"
     ansible_ssh_host: "{{ item.metadata.name }}"
-    ssh_port: "{{ r_expose_bastion.result.spec.ports.0.nodePort|default(omit) }}"
+    ssh_port: "{{ r_expose_bastion.result.spec.ports.0.nodePort | default(omit) }}"
     private_ip_address: "{{ item.metadata.name }}"
     public_ip_address: "{{ openshift_cnv_ssh_address }}"
     groups: "{{ item.metadata.annotations.AnsibleGroup | default(omit) }}"
     bastion: "{{ local_bastion | default('') }}"
-    bastion_ssh_port: "{{ r_expose_bastion.result.spec.ports.0.nodePort|default(omit) }}"
+    bastion_ssh_port: "{{ r_expose_bastion.result.spec.ports.0.nodePort | default(omit) }}"
     # Specify if the node is isolated, so won't connect to it
     isolated: "{{ item.metadata.annotations.isolated | default(false) }}"
   loop: "{{ r_openshift_cnv_instances.resources | list }}"
