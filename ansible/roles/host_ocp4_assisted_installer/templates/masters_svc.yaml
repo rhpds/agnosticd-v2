@@ -8,10 +8,10 @@ metadata:
   namespace: {{ namespace }}
 spec:
   ports:
-    - name: api
-      port: 6443
-      protocol: TCP
-      targetPort: 6443
+  - name: api
+    port: 6443
+    protocol: TCP
+    targetPort: 6443
   selector:
     role: control-plane
   type: LoadBalancer

@@ -1,33 +1,34 @@
 ---
-- name: Set Ansible Python interpreter to k8s virtualenv
-  ansible.builtin.set_fact:
-    ansible_python_interpreter: /opt/virtualenvs/k8s/bin/python
+# - name: Set Ansible Python interpreter to k8s virtualenv
+#   ansible.builtin.set_fact:
+#     ansible_python_interpreter: /opt/virtualenvs/k8s/bin/python
 
 - name: Set URLs for OpenShift GA releases (specific version)
-  when: (ocp4_installer_version | string).split('.') | length >= 3
+  when: (host_ocp4_installer_version | string).split('.') | length >= 3
   ansible.builtin.set_fact:
     ocp4_client_url: >-
       {{ '{0}/ocp/{1}/openshift-client-linux-{1}.tar.gz'.format(
         ocp4_installer_root_url | default("https://mirror.openshift.com/pub/openshift-v4/clients"),
-        ocp4_installer_version
+        host_ocp4_installer_version
       ) }}
 
 - name: Set URLs for OpenShift GA releases (latest stable)
-  when: (ocp4_installer_version | string).split('.') | length == 2
+  when: (host_ocp4_installer_version | string).split('.') | length == 2
   ansible.builtin.set_fact:
     ocp4_client_url: >-
       {{ '{0}/ocp/stable-{1}/openshift-client-linux.tar.gz'.format(
         ocp4_installer_root_url | default("https://mirror.openshift.com/pub/openshift-v4/clients"),
-        ocp4_installer_version
+        host_ocp4_installer_version
       ) }}
 
-- name: Get the OpenShift CLI
+- name: Install the OpenShift CLI on the bastion
   become: true
+  delegate_to: bastion
   ansible.builtin.unarchive:
     src: "{{ ocp4_client_url }}"
     remote_src: true
     dest: /usr/bin
-    mode: "0775"
+    mode: ug=rwx,o=rx
     owner: root
     group: root
   register: r_client
@@ -43,7 +44,7 @@
     host: "{{ sandbox_openshift_api_url }}"
   register: k8s_auth_results
 
-- name: Install OCP using Assisted Installed
+- name: Install OCP using Assisted Installer
   module_defaults:
     group/k8s:
       host: "{{ sandbox_openshift_api_url }}"
@@ -140,7 +141,7 @@
       delay: 30
 
   - name: Configure a full cluster
-    when: worker_instance_count|int > 0
+    when: worker_instance_count | int > 0
     block:
     - name: Add the service (type LoadBalancer) for Full Clusters - control plane
       vars:
@@ -194,7 +195,6 @@
       until: r_route53_add_record is success
       retries: 10
       delay: 30
-
 
     - name: Add the service (type LoadBalancer) for Full Clusters - workers
       vars:
@@ -258,27 +258,27 @@
       wait: true
       wait_timeout: 300
 
-  - name: Create Assisted Installer Cluster
+  - name: Create Assisted Installer cluster
     rhpds.assisted_installer.create_cluster:
       name: "{{ cluster_name }}"
       openshift_version: "{{ ai_cluster_version }}"
       base_dns_domain: "{{ cluster_dns_zone }}"
       offline_token: "{{ ai_offline_token }}"
       pull_secret: "{{ ai_pull_secret }}"
-      high_availability_mode: "{{ 'Full' if master_instance_count | int > 1 else 'None' }}"
+      high_availability_mode: "{{ 'Full' if control_plane_instance_count | int > 1 else 'None' }}"
       schedulable_masters: false
       olm_operators: []
       service_networks:
-        - cidr: "{{ ai_service_network_cidr }}"
+      - cidr: "{{ ai_service_network_cidr }}"
       machine_networks:
-        - cidr: "{{ ai_network_prefix }}.0/24"
+      - cidr: "{{ ai_network_prefix }}.0/24"
       cluster_networks:
-        - cidr: "{{ ai_cluster_network_cidr }}"
-          host_prefix: 23
+      - cidr: "{{ ai_cluster_network_cidr }}"
+        host_prefix: 23
       api_vips:
-        - ip: "{{ ai_network_prefix }}.100"
+      - ip: "{{ ai_network_prefix }}.100"
       ingress_vips:
-        - ip: "{{ ai_network_prefix }}.101"
+      - ip: "{{ ai_network_prefix }}.101"
     register: newcluster
 
   - name: Add etcd manifest
@@ -331,7 +331,7 @@
       ai_masters_macs2: >
         {{ ai_masters_macs2 + ['f6' |
             community.general.random_mac(ai_ocp_namespace + cluster_name + 'm2' + _index|string)] }}
-    loop: "{{ range(1, master_instance_count | int + 1) | list }}"
+    loop: "{{ range(1, control_plane_instance_count | int + 1) | list }}"
     loop_control:
       loop_var: _index
 
@@ -347,7 +347,7 @@
             ]
           })
         }}
-    loop: "{{ range(1, master_instance_count | int + 1) | list | product(ai_attach_masters_networks) | list }}"
+    loop: "{{ range(1, control_plane_instance_count | int + 1) | list | product(ai_attach_masters_networks) | list }}"
     loop_control:
       loop_var: item
 
@@ -379,7 +379,6 @@
     loop_control:
       loop_var: item
 
-
   - name: Set static_network_config variable
     ansible.builtin.set_fact:
       static_network_config: "{{ lookup('template', 'static_network_config_full.j2') | from_yaml }}"
@@ -406,8 +405,8 @@
       namespace: "{{ ai_ocp_namespace }}"
       pvcname: "installation-iso"
 
-  - name: Create a three control plane VMs for Full cluster
-    ansible.builtin.include_tasks: kubevirt/create_masters_etcd.yaml
+  - name: Create three control plane VMs for full cluster
+    ansible.builtin.include_tasks: create_control_plane_etcd.yaml
     vars:
       pvcinstall: "installation-iso"
       vmname: "{{ ai_ocp_vmname_master_prefix }}-{{ _index }}"
@@ -416,12 +415,12 @@
       network: "{{ cluster_name }}-openshift"
       network_name: "{{ cluster_name }}-openshift"
       pod_network: "192.168.{{ _index }}.0/24"
-    loop: "{{ range(1, master_instance_count | int + 1) | list }}"
+    loop: "{{ range(1, control_plane_instance_count | int + 1) | list }}"
     loop_control:
       loop_var: _index
 
-  - name: Create {{ worker_instance_count }} worker VMs for Full cluster
-    ansible.builtin.include_tasks: kubevirt/create_workers.yaml
+  - name: Create {{ worker_instance_count }} worker VMs for full cluster
+    ansible.builtin.include_tasks: create_workers.yaml
     vars:
       pvcinstall: "installation-iso"
       vmname: "{{ ai_ocp_vmname_worker_prefix }}-{{ _index }}"
@@ -441,7 +440,7 @@
         {'hostname': ai_ocp_vmname_master_prefix + "-" + _index | string,
         'role': 'master',
         'installation_disk': '/dev/vda'}] }}
-    loop: "{{ range(1, master_instance_count | int + 1) | list }}"
+    loop: "{{ range(1, control_plane_instance_count | int + 1) | list }}"
     loop_control:
       loop_var: _index
 
@@ -460,7 +459,7 @@
     rhpds.assisted_installer.wait_for_hosts:
       cluster_id: "{{ newcluster.result.id }}"
       offline_token: "{{ ai_offline_token }}"
-      expected_hosts: "{{ master_instance_count | int + worker_instance_count | int }}"
+      expected_hosts: "{{ control_plane_instance_count | int + worker_instance_count | int }}"
       infra_env_id: "{{ newinfraenv.result.id }}"
       configure_hosts: "{{ ai_configure_hosts }}"
       wait_timeout: 600

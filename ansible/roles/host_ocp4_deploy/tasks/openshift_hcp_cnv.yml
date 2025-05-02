@@ -4,4 +4,4 @@
   when: install_ocp4 | default(true) | bool
   become: false
   ansible.builtin.include_role:
-    name: host-ocp4-hcp-cnv-install
+    name: host_ocp4_hcp_cnv_install

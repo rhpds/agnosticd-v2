@@ -1,7 +1,6 @@
 ---
 ######################### Deploy OpenShift using Assisted Installer
-- name: Call Role to install OpenShift using Assisted Installer
+- name: Call role to install OpenShift using Assisted Installer
   when: install_ocp4 | default(true) | bool
-  become: false
   ansible.builtin.include_role:
-    name: host-ocp4-assisted-installer
+    name: host_ocp4_assisted_installer

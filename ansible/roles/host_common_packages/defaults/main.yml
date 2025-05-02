@@ -1,6 +1,6 @@
 ---
 # Run a full package update
-host_common_packages_update_all: true
+host_common_packages_update_all: false
 
 # Number of retries installing packages before failing
 host_common_packages_install_retries: 10
