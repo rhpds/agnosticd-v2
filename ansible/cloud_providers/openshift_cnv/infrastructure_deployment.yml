@@ -35,11 +35,11 @@
     ansible.builtin.include_role:
       name: infra_dns
 
-  - name: Run infra_openshift_cnv_create_inventory Role
+  - name: Run openshift_cnv_create_inventory role
     ansible.builtin.import_role:
       name: openshift_cnv_create_inventory
 
-  - name: Run Common SSH Config Generator Role
+  - name: Run common SSH config generator role
     when: "instances | default(false) and 'bastions' in groups"
     ansible.builtin.import_role:
       name: infra_common_ssh_config_generate
@@ -47,13 +47,13 @@
 - name: Include global vars again, this time for all hosts now that the inventory is built
   import_playbook: ../../include_vars.yml
 
-- name: Step 001.3 Configure Linux Hosts and Wait for Connection
+- name: Step 001.3 Configure Linux hosts and wait for connection
   hosts:
   - all:!windows:!network
   gather_facts: false
   any_errors_fatal: true
   ignore_errors: false
-  become: true
+  become: false
   tasks:
   - name: Set facts for remote access
     ansible.builtin.set_fact:
@@ -61,7 +61,11 @@
         {{ ansible_ssh_extra_args | default() }}
         -F {{ output_dir }}/{{ config }}_{{ guid }}_ssh_conf
 
-  - name: Run infra_generic_wait_for_linux_hosts Role
+  - name: Debug extra args
+    ansible.builtin.debug:
+      var: ansible_ssh_extra_args
+
+  - name: Run infra_generic_wait_for_linux_hosts role
     vars:
       infra_generic_wait_for_linux_hosts_delay: 30
       infra_generic_wait_for_linux_hosts_sleep: 10

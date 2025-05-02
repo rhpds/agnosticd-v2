@@ -21,7 +21,7 @@ wait_for_dns: true
 ceph_cleanup_job_image: registry.redhat.io/odf4/rook-ceph-rhel9-operator:v4.15
 
 # Bastion Configuration
-bastion_instance_image: rhel-9.5
+bastion_instance_image: rhel-9.4
 bastion_cores: 2
 bastion_memory: 2G
 bastion_rootfs_size: 30Gi
