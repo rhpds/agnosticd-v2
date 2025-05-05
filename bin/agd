@@ -115,10 +115,10 @@ agd_setup() {
   echo "*****************************************************************"
   echo "Check if VirtualEnv is set up already. Set it up if not..."
 
-  if command_exists python; then
+  if command_exists python3; then
 
       # ensure the version is 3.11 or higher
-      if [[ "$(python --version | cut -d' ' -f2 | cut -d'.' -f1)" -lt 3 || "$(python --version | cut -d' ' -f2 | cut -d'.' -f2)" -lt 11 ]]; then
+      if [[ "$(python3 --version | cut -d' ' -f2 | cut -d'.' -f1)" -lt 3 || "$(python3 --version | cut -d' ' -f2 | cut -d'.' -f2)" -lt 11 ]]; then
           echo "  ERROR: Python version 3.11 or higher is required."
           exit 1
       fi
@@ -127,10 +127,10 @@ agd_setup() {
           source "$VENV_DIR/bin/activate"
       else
           echo "  Creating new virtual environment..."
-          python -m venv "$VENV_DIR" 2>&1 >/dev/null
+          python3 -m venv "$VENV_DIR" 2>&1 >/dev/null
 
           source "$VENV_DIR/bin/activate"
-          pip install --upgrade pip 2>&1 >/dev/null
+          pip3 install --upgrade pip 2>&1 >/dev/null
       fi
   else
       echo "  ERROR: Python must be installed."

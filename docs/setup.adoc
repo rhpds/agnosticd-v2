@@ -63,7 +63,7 @@ sudo dnf -y install git python3.11 python3.11-devel gcc oniguruma-devel
 +
 [source,sh]
 ----
-sudo dnf -y install podman git python3.11 python3.11-devel gcc oniguruma-devel
+sudo dnf -y install podman git python3 python3-devel pip3 gcc oniguruma-devel
 ----
 
 . Continue with the common setup steps.
