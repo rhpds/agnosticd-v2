@@ -142,8 +142,8 @@ agd_setup() {
   echo "Check if software is installed in the virtual env..."
 
   if ! command_exists ansible-navigator; then
-    echo "  Installing ansible and ansible-navigator..."
-    pip install ansible ansible-navigator 2>&1 >/dev/null
+    echo "  Installing ansible developer tools..."
+    pip install ansible-dev-tools 2>&1 >/dev/null
   fi
 
   echo
