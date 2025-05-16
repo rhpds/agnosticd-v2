@@ -1,6 +1,6 @@
 ---
 - name: Run OpenShift install on bastion
-  delegate_to: bastion
+  delegate_to: "{{ groups['bastions'][0] }}"
   block:
   # Make sure there isn't another openshift-install running
   - name: Wait for openshift-install to complete

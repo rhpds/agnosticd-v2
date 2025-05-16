@@ -20,12 +20,21 @@
     - name: Create openshift-install manifests
       ansible.builtin.include_tasks: create_manifests.yml
 
+    # Need to split the command and the poll to run the poll on the bastion instead of localhost since this whole role is delegated to the bastion
     - name: Run the installer
       become: false
       ansible.builtin.command: openshift-install create cluster --dir=/home/{{ ansible_user }}/{{ cluster_name }}
       async: "{{ 2 * 60 * 60 }}"
-      poll: 15
+      poll: 0
       register: r_openshift_install
+
+    - name: Check installer status
+      ansible.builtin.async_status:
+        jid: "{{ r_openshift_install.ansible_job_id }}"
+      register: install_job_result
+      until: install_job_result.finished
+      retries: 300
+      delay: 15
 
     rescue:
     - name: Run destroy to reset before retry
@@ -51,8 +60,16 @@
       become: false
       ansible.builtin.command: openshift-install create cluster --dir=/home/{{ ansible_user }}/{{ cluster_name }}
       async: "{{ 2 * 60 * 60 }}"
-      poll: "{{ 0 if ocp4_ansible_managed_osp_external_network | bool else 15 }}"
+      poll: 0
       register: r_openshift_install
+
+    - name: Check installer status again
+      ansible.builtin.async_status:
+        jid: "{{ r_openshift_install.ansible_job_id }}"
+      register: install_job_result
+      until: install_job_result.finished
+      retries: 300
+      delay: 15
 
     always:
     - name: Gzip Install log

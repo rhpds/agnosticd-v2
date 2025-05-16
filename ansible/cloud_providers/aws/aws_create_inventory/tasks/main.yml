@@ -85,9 +85,9 @@
 - name: Debug hostvars
   ansible.builtin.debug:
     var: hostvars
-    verbosity: 2
+    # verbosity: 2
 
 - name: Debug groups
   ansible.builtin.debug:
     var: groups
-    verbosity: 2
+    # verbosity: 2

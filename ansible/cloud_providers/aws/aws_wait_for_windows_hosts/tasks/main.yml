@@ -15,7 +15,6 @@
     AWS_ACCESS_KEY_ID: "{{ aws_access_key_id }}"
     AWS_SECRET_ACCESS_KEY: "{{ aws_secret_access_key }}"
     AWS_DEFAULT_REGION: "{{ aws_region_final | default(aws_region) }}"
-  # ansible.builtin.command: "aws ec2 reboot-instances --instance-ids '{{ instance_id }}'"
   amazon.aws.ec2_instance:
     state: restarted
     instance_ids:
