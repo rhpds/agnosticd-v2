@@ -1,47 +1,20 @@
 ---
-
-- name: Get awscli bundle
-  ansible.builtin.get_url:
-    url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
-    dest: /tmp/awscliv2.zip
-    mode: "0664"
-
-- name: Unzip awscliv2.zip
-  ansible.builtin.unarchive:
-    src: /tmp/awscliv2.zip
-    dest: /tmp/
-    remote_src: true
-
-- name: Install awscli
-  become: true
-  ansible.builtin.command: /tmp/aws/install
-  args:
-    creates: /usr/local/bin/aws
-
-- name: Cleanup archive and tmp files
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: absent
-  loop:
-  - /tmp/aws
-  - /tmp/awscliv2.zip
-
 - name: Create .aws directory
-  become: false
   ansible.builtin.file:
     path: ~/.aws
     state: directory
-    mode: "0750"
+    owner: "{{ ansible_user }}"
+    mode: u=rwx
 
 - name: Add aws credentials for sandboxes
   when:
   - hostvars.localhost.student_access_key_id | default("") | length > 0
   - hostvars.localhost.student_access_secret_key | default("") | length > 0
-  become: false
   ansible.builtin.blockinfile:
     path: "~/.aws/credentials"
     create: true
-    mode: "0660"
+    owner: "{{ ansible_user }}"
+    mode: u=rw
     insertbefore: BOF
     marker: "# {mark} ANSIBLE MANAGED BLOCK Student Credentials"
     block: |-
@@ -55,11 +28,11 @@
   - hostvars.localhost.student_access_key_id | default("") | length == 0
   - aws_access_key_id | default("") != ""
   - aws_secret_access_key | default("") != ""
-  become: false
   ansible.builtin.blockinfile:
     state: present
     path: "~/.aws/credentials"
-    mode: "0660"
+    owner: "{{ ansible_user }}"
+    mode: u=rw
     create: true
     insertbefore: BOF
     marker: "# {mark} ANSIBLE MANAGED BLOCK Default Credentials"

@@ -16,7 +16,7 @@
   ansible.builtin.blockinfile:
     path: /etc/yum.repos.d/azure-cli.repo
     create: true
-    mode: "0664"
+    mode: ug=rw,o=r
     block: |-
       [azure-cli]
       name=Azure CLI
@@ -29,19 +29,19 @@
   ansible.builtin.package:
     name: azure-cli
 
-- name: Logging into Azure
+- name: Log into Azure
+  become: false
   no_log: true
   ansible.builtin.command: >-
     az login --service-principal
     -u {{ azure_service_principal | quote }}
     -t {{ azure_tenant | quote }}
     -p {{ azure_password | quote }}
-  become: false
 
 - name: Add osServicePrincipal.json file for OpenShift Installer
   ansible.builtin.template:
-    src: "osServicePrincipal.json.j2"
+    src: osServicePrincipal.json.j2
     dest: "/home/{{ ansible_user }}/.azure/osServicePrincipal.json"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-    mode: "0600"
+    mode: u=rw

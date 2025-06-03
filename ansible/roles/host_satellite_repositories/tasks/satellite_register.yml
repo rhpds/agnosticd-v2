@@ -101,7 +101,7 @@
   ansible.builtin.copy:
     dest: /etc/rhsm/facts/katello.facts
     content: "{{ __content | to_json }}"
-    mode: "0664"
+    mode: ug=rw,o=r
   vars:
     __content: >-
       {{

@@ -5,7 +5,7 @@ bastion_ssh_key_name: bastion_{{ guid }}
 bastion_ssh_key_path: ~/.ssh/{{ bastion_ssh_key_name }}
 bastion_ssh_pubkey_path: ~/.ssh/{{ bastion_ssh_key_name | regex_replace('\.pem$', '') }}.pub
 
-# Install FTL to the bastion
+# Install FTL on the bastion
 bastion_install_ftl: false
 
 # Remove PasswordAuthentication line from 50-cloud-init.conf

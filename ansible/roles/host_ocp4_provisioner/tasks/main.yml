@@ -1,15 +1,10 @@
 ---
-- name: Ensure directory /etc/ansible exists
-  ansible.builtin.file:
-    path: /etc/ansible
-    state: directory
-    mode: "0775"
-
 - name: Set up cloud provider specific prerequisites
   when:
   - cloud_provider == "aws" or
     cloud_provider == "azure" or
-    cloud_provider == "gcp"
+    cloud_provider == "gcp" or
+    cloud_provider == "vmc"
   ansible.builtin.import_tasks: "{{ cloud_provider }}_prereqs.yml"
 
 - name: Install slirp4netns

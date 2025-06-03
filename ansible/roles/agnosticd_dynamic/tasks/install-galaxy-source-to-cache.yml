@@ -16,7 +16,7 @@
           scm: {{ _source.scm }}
         {% endif %}
       dest: "{{ _requirements_yaml }}"
-      mode: "0664"
+      mode: ug=rw,o=r
 
   - name: Install ansible-galaxy source for {{ _source_name }}
     ansible.builtin.command: >-

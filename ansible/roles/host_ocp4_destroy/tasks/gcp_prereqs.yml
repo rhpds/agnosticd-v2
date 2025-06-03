@@ -2,7 +2,7 @@
 - name: Create the base directory
   ansible.builtin.file:
     path: "/home/{{ ansible_user }}/.gcp"
-    mode: "0700"
+    mode: u=rwx
     owner: "{{ ansible_user }}"
     state: directory
 
@@ -10,6 +10,5 @@
   ansible.builtin.copy:
     src: "{{ gcp_credentials_file }}"
     dest: "/home/{{ ansible_user }}/.gcp/osServiceAccount.json"
-    mode: "0600"
+    mode: u=rw
     owner: "{{ ansible_user }}"
-  become: false

@@ -31,7 +31,7 @@
   ansible.builtin.file:
     dest: "{{ ansible_ssh_config }}"
     state: touch
-    mode: "0664"
+    mode: ug=rw,o=r
 
 - name: Add bastion proxy config to workdir ssh config file
   ansible.builtin.blockinfile:

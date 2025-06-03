@@ -15,7 +15,7 @@
       {%   endif %}
       {% endfor %}
     dest: "{{ agnosticd_dynamic_roles_dir }}/requirements.yaml"
-    mode: "0664"
+    mode: ug=rw,o=r
 
 - name: Install ansible-galaxy sources
   ansible.builtin.command: >-
