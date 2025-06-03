@@ -2,7 +2,7 @@
 - name: Retrieve the region from user-data.yaml
   when: aws_region | default('') == ''
   ansible.builtin.set_fact:
-    aws_region: "{{ lookup('agnosticd_user_data', 'aws_region') }}"
+    aws_region: "{{ lookup('agnosticd.core.agnosticd_user_data', 'aws_region') }}"
 
 - name: Run AWS lifecycle action
   environment:
