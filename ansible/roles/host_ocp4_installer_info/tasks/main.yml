@@ -8,7 +8,6 @@
   delegate_to: localhost
   block:
   - name: Determine Web console URL
-    delegate_to: localhost
     kubernetes.core.k8s_info:
       api_version: config.openshift.io/v1
       kind: Console
@@ -24,7 +23,6 @@
     - r_console.resources[0].status.consoleURL | length > 0
 
   - name: Determine API server URL
-    delegate_to: localhost
     kubernetes.core.k8s_info:
       api_version: config.openshift.io/v1
       kind: Infrastructure
@@ -40,7 +38,6 @@
     - r_api.resources[0].status.apiServerURL | length > 0
 
   - name: Determine OpenShift Ingress Domain
-    delegate_to: localhost
     kubernetes.core.k8s_info:
       api_version: config.openshift.io/v1
       kind: Ingress

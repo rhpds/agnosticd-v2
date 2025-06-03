@@ -16,13 +16,13 @@
     ansible.builtin.import_tasks: generate_install_config.yml
 
   - name: Installation and getting the logs
+    become: false
     block:
     - name: Create openshift-install manifests
       ansible.builtin.include_tasks: create_manifests.yml
 
     # Need to split the command and the poll to run the poll on the bastion instead of localhost since this whole role is delegated to the bastion
     - name: Run the installer
-      become: false
       ansible.builtin.command: openshift-install create cluster --dir=/home/{{ ansible_user }}/{{ cluster_name }}
       async: "{{ 2 * 60 * 60 }}"
       poll: 0
@@ -31,14 +31,13 @@
     - name: Check installer status
       ansible.builtin.async_status:
         jid: "{{ r_openshift_install.ansible_job_id }}"
-      register: install_job_result
-      until: install_job_result.finished
+      register: r_install_job_result
+      until: r_install_job_result.finished
       retries: 300
       delay: 15
 
     rescue:
     - name: Run destroy to reset before retry
-      become: false
       ansible.builtin.command: openshift-install destroy cluster --dir=/home/{{ ansible_user }}/{{ cluster_name }}
 
     - name: Pause briefly for cloud provider cleanup to finish
@@ -57,7 +56,6 @@
       ansible.builtin.include_tasks: create_manifests.yml
 
     - name: Retry the installer
-      become: false
       ansible.builtin.command: openshift-install create cluster --dir=/home/{{ ansible_user }}/{{ cluster_name }}
       async: "{{ 2 * 60 * 60 }}"
       poll: 0
@@ -66,8 +64,8 @@
     - name: Check installer status again
       ansible.builtin.async_status:
         jid: "{{ r_openshift_install.ansible_job_id }}"
-      register: install_job_result
-      until: install_job_result.finished
+      register: r_install_job_result
+      until: r_install_job_result.finished
       retries: 300
       delay: 15
 

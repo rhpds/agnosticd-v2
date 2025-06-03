@@ -53,7 +53,7 @@ project_tag: "{{ config }}-{{ guid }}"
 
 # Bastion configuration
 bastion_instance_type: t3a.medium
-bastion_instance_image: RHEL95GOLD-latest
+bastion_instance_image: RHEL96GOLD-latest
 # bastion_instance_platform: Linux/UNIX
 # For standard (not GOLD) RHEL images:
 # bastion_instance_platform: Red Hat Enterprise Linux

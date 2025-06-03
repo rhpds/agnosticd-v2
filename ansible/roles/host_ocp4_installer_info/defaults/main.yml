@@ -1,3 +1,4 @@
+---
 # Controls for agnosticd_user_info
 host_ocp4_installer_info_set_user_data: true
 host_ocp4_installer_info_show_user_info: true

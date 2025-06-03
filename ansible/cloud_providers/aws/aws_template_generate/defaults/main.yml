@@ -80,7 +80,7 @@ aws_default_volume_type: gp3
 #################################################################
 
 # changed to GOLD to save money via Red Hat Cloud Access program
-aws_default_image: RHEL95GOLD
+aws_default_image: RHEL96GOLD
 
 # When aws_template_generate_auto_select_availability_zone is set to true,
 # the role will set aws_availability_zone to an availability that can host

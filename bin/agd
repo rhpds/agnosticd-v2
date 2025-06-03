@@ -77,7 +77,6 @@ agd_setup() {
   echo "********************************************************"
   echo "AgnosticD V2 Setup"
   echo "********************************************************"
-  echo
 
   echo
   echo "********************************************************"
@@ -133,7 +132,7 @@ agd_setup() {
           pip3 install --upgrade pip 2>&1 >/dev/null
       fi
   else
-      echo "  ERROR: Python must be installed."
+      echo "  ERROR: Python 3.11 or higher must be installed."
       exit 1
   fi
 
@@ -178,8 +177,8 @@ init_podman() {
     podman machine init \
       --cpus 4 \
       --memory 8192 \
-      agnosticd \
-      --now
+      --now \
+      agnosticd
 
     # Set the agnosticd machine to be the default machine.
     podman system connection default agnosticd
