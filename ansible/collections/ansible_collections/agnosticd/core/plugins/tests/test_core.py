@@ -5,7 +5,7 @@ from ansible.errors import AnsibleFilterError
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-import core
+import ansible.collections.ansible_collections.agnosticd.core.plugins.filter.core as core
 
 
 

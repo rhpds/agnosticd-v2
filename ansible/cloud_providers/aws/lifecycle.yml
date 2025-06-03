@@ -54,7 +54,7 @@
     when: ACTION == 'status'
     block:
     - name: Report status in user info
-      agnosticd_user_info:
+      agnosticd.core.agnosticd_user_info:
         msg: |-
           {{ "%-60s %-10s %s" | format("Instance", "State", "Type") }}
           ----------------------------------------------------------------

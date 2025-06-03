@@ -37,5 +37,5 @@
     when:
     - agnosticd_passthrough_user_data is defined
     - agnosticd_passthrough_user_data | length > 0
-    agnosticd_user_info:
+    agnosticd.core.agnosticd_user_info:
       data: "{{ agnosticd_passthrough_user_data }}"

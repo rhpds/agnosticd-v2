@@ -178,7 +178,6 @@ def equinix_metal_tags_to_dict(tags):
     return converted
 
 
-
 # Backport https://github.com/ansible-collections/amazon.aws/commit/bc1dc58a882b563a4e5448d693ef08b4c2bbbceb#diff-11d6a927433f45aa84de2f54fa0adf33e8094ebb417c75ea476ffe61b4e4f587
 # here to support old version of boto that we use in our different virtualenvs
 def dict_sanitize_boto3_filter(filters_dict):
@@ -194,6 +193,7 @@ def dict_sanitize_boto3_filter(filters_dict):
             filters_sanitized[k] = v
 
     return filters_sanitized
+
 
 def image_to_ec2_filters(image):
     '''Convert agnosticd instances[].image dict to ec2 filters to be used in ec2_ami_info'''
@@ -229,6 +229,7 @@ def image_to_ec2_filters(image):
 
     return dict_sanitize_boto3_filter(filters)
 
+
 def agnosticd_get_all_images(image, predefined, done=None):
     '''Cascade and list images (and fallback images) from an image
     or a list of images'''
@@ -261,6 +262,7 @@ def agnosticd_get_all_images(image, predefined, done=None):
             result.extend(agnosticd_get_all_images(_image, predefined, done))
 
         return result
+
 
 def agnosticd_filter_out_installed_collections(requirements, installed_collections):
     '''Remove collections from a requirement content that are already installed.
@@ -356,6 +358,7 @@ def agnosticd_instances_to_odcr(instances, agnosticd_images):
         })
 
     return result
+
 
 class FilterModule(object):
     ''' AgnosticD core jinja2 filters '''

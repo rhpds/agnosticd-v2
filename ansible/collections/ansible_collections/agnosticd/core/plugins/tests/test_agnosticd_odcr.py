@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import pytest
-import agnosticd_odcr
+import ansible.collections.ansible_collections.agnosticd.core.plugins.action.agnosticd_odcr as agnosticd_odcr
 import datetime
 
 def test_parse_duration():

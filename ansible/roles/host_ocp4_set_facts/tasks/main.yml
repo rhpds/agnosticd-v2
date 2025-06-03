@@ -80,7 +80,7 @@
 
 - name: Set user data for OpenShift cluster
   when: host_ocp4_set_facts_set_user_data | bool
-  agnosticd_user_info:
+  agnosticd.core.agnosticd_user_info:
     data:
       openshift_api_url: "{{ openshift_api_url }}"
       openshift_console_url: "{{ openshift_console_url }}"

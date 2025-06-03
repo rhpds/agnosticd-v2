@@ -202,7 +202,7 @@
 
   - name: Save stack_deployed for future runs (idempotent)
     when: cloudformation_out is succeeded
-    agnosticd_user_info:
+    agnosticd.core.agnosticd_user_info:
       data:
         stack_deployed: true
 

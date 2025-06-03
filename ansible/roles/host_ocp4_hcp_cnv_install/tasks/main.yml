@@ -170,7 +170,7 @@
     ansible.builtin.copy:
       dest: /tmp/kubeconfig
       content: "{{ kubeconfig_decoded }}"
-      mode: ug=rx
+      mode: ug=rx,o=
 
 - name: Get information about the router-nodeport-default service
   kubernetes.core.k8s_info:
@@ -241,7 +241,7 @@
       path: /home/{{ ansible_user }}/.kube
       owner: "{{ ansible_user }}"
       group: "{{ ansible_user }}"
-      mode: u=rwx
+      mode: u=rwx,go=
 
   - name: Make sure .kube directory exists for root
     become: true
@@ -250,7 +250,7 @@
       path: /root/.kube
       owner: root
       group: root
-      mode: u=rwx
+      mode: u=rwx,go=
 
   - name: Copy cluster kubeconfig to /home/{{ ansible_user }}/.kube/config
     ansible.builtin.copy:
@@ -259,7 +259,7 @@
       dest: "/home/{{ ansible_user }}/.kube/config"
       owner: "{{ ansible_user }}"
       group: "{{ ansible_user }}"
-      mode: u=rw
+      mode: u=rw,go=
 
   - name: Copy cluster kubeconfig to /root/.kube/config
     become: true
@@ -269,7 +269,7 @@
       dest: /root/.kube/config
       owner: root
       group: root
-      mode: u=rw
+      mode: u=rw,go=
 
   - name: Set up Student User
     when: bastion_setup_student_user | bool
@@ -281,7 +281,7 @@
         path: "/home/{{ bastion_student_user_name }}/.kube"
         owner: "{{ bastion_student_user_name }}"
         group: users
-        mode: u=rwx
+        mode: u=rwx,go=
 
     - name: Copy /tmp/kubeconfig to /home/{{ bastion_student_user_name }}/.kube
       become: true
@@ -291,7 +291,7 @@
         remote_src: true
         owner: "{{ bastion_student_user_name }}"
         group: users
-        mode: u=rw
+        mode: u=rw,go=
 
   - name: Create OpenShift Bash completion file
     become: true

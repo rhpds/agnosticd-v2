@@ -3,7 +3,7 @@
   when: _instance.image is defined
   vars:
     _images: >-
-      {{ _instance.image | agnosticd_get_all_images(infra_images_predefined) }}
+      {{ _instance.image | agnosticd.core.agnosticd_get_all_images(infra_images_predefined) }}
   ansible.builtin.include_tasks: aws_loop_images.yaml
   loop: "{{ infra_images_instances | default([]) }}"
   loop_control:

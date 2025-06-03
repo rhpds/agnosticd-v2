@@ -6,7 +6,7 @@
       aws_access_key: "{{ aws_access_key_id }}"
       aws_secret_key: "{{ aws_secret_access_key }}"
       region: "{{ aws_region_final | default(aws_region) | default('us-east-1') }}"
-      filters: "{{ _image | image_to_ec2_filters }}"
+      filters: "{{ _image | agnosticd.core.image_to_ec2_filters }}"
       owners: "{{ _image.owner | default(omit) }}"
     register: r_image
 

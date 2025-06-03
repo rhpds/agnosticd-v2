@@ -1,6 +1,6 @@
 ---
 - name: Cancel on-demand capacity reservations
-  agnosticd_odcr:
+  agnosticd.core.agnosticd_odcr:
     regions: "{{ agnosticd_aws_capacity_reservation_regions }}"
     reservations: "{{ agnosticd_aws_capacity_reservations }}"
     aws_access_key_id: "{{ aws_access_key_id }}"

@@ -10,7 +10,7 @@
   delay: "{{ openshift_cnv_delay }}"
 
 - name: Report status in user info
-  agnosticd_user_info:
+  agnosticd.core.agnosticd_user_info:
     msg: |-
       {{ "%-20s %-10s" | format("Instance", "State") }}
       ----------------------------------------------------------------

@@ -44,4 +44,4 @@
     dest: "/home/{{ ansible_user }}/.azure/osServicePrincipal.json"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-    mode: u=rw
+    mode: u=rw,go=

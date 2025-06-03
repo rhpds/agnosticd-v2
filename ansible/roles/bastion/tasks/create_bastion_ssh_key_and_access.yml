@@ -4,7 +4,7 @@
     comment: Bastion
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-    mode: u=rw
+    mode: u=rw,go=
     path: "{{ bastion_ssh_key_path }}"
     regenerate: partial_idempotence
     size: 2048

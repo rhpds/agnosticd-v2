@@ -4,7 +4,7 @@
     comment: OpenShift installer
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-    mode: u=rw
+    mode: u=rw,go=
     path: "/home/{{ ansible_user }}/.ssh/id_rsa"
     regenerate: partial_idempotence
     size: 2048

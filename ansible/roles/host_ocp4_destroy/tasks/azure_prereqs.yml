@@ -2,8 +2,9 @@
 - name: Create the base directory
   ansible.builtin.file:
     path: "/home/{{ ansible_user }}/.azure"
-    mode: u=rwx
+    mode: u=rwx,go=
     owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
     state: directory
 
 - name: Add osServicePrincipal.json file for OpenShift Installer
@@ -12,7 +13,7 @@
     dest: "/home/{{ ansible_user }}/.azure/osServicePrincipal.json"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-    mode: u=rw
+    mode: u=rw,go=
 
 #  This needs to match what is in ocp4-cluster default_vars_azure.yml
 - name: Setting the Azure specific cluster namei

@@ -7,7 +7,7 @@
 - name: Generate SSH keys
   community.crypto.openssh_keypair:
     comment: AgnosticD Provision Key
-    mode: u=rw
+    mode: u=rw,go=
     path: "{{ ssh_provision_key_path }}"
     regenerate: full_idempotence
     size: 2048
@@ -28,7 +28,7 @@
 
 - name: Report user info for SSH provision key as user data
   when: infra_create_ssh_provision_key_enable_user_info_data | bool
-  agnosticd_user_info:
+  agnosticd.core.agnosticd_user_info:
     data:
       ssh_provision_key: "{{ lookup('file', ssh_provision_key_path) }}"
       ssh_provision_pubkey: "{{ ssh_provision_pubkey_content }}"

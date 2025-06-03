@@ -53,7 +53,7 @@
     openshift_cluster_ingress_domain: "{{ r_ingress_domain.resources[0].spec.domain }}"
 
 - name: Set user data for OpenShift access
-  agnosticd_user_info:
+  agnosticd.core.agnosticd_user_info:
     data:
       openshift_api_server_url: "{{ openshift_api_server_url }}"
       openshift_console_url: "{{ openshift_console_url }}"
@@ -61,7 +61,7 @@
       openshift_cluster_ingress_domain: "{{ openshift_cluster_ingress_domain }}"
 
 - name: Show user messages for OpenShift access
-  agnosticd_user_info:
+  agnosticd.core.agnosticd_user_info:
     msg: |-
       OpenShift Console: {{ openshift_console_url }}
       OpenShift API for command line 'oc' client: {{ openshift_api_server_url }}

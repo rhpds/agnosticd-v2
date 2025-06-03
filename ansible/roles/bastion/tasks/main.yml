@@ -6,7 +6,7 @@
   ansible.builtin.template:
     src: "{{ role_path }}/templates/bastion_ssh_config.j2"
     dest: ~/.ssh/config
-    mode: u=r
+    mode: u=r,go=
 
 - name: Add GUID to /etc/skel/.bashrc
   ansible.builtin.lineinfile:

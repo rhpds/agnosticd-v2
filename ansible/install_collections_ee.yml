@@ -18,7 +18,7 @@
     dest: "{{ r_tempfile.path }}"
     content: >-
       {{ r_requirements_content
-      | agnosticd_filter_out_installed_collections(installed_collections)
+      | agnosticd.core.agnosticd_filter_out_installed_collections(installed_collections)
       | to_yaml }}
     mode: ug=rw,o=r
 

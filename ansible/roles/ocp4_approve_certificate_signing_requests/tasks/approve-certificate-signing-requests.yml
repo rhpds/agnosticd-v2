@@ -1,7 +1,5 @@
 ---
 - name: Set up Kubernetes environment
-  # environment:
-  #   K8S_AUTH_KUBECONFIG: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
   module_defaults:
     group/k8s:
       kubeconfig: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"

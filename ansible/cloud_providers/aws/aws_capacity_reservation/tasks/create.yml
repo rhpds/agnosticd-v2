@@ -3,20 +3,20 @@
   when: stack_deployed is undefined
   ansible.builtin.set_fact:
     stack_deployed: >-
-      {{ lookup('agnosticd_user_data', 'stack_deployed')
+      {{ lookup('agnosticd.core.agnosticd_user_data', 'stack_deployed')
       | default(false, true)
       | bool }}
 
 - name: Retrieve the region from user-data.yml
   when: aws_region | default('', true) == ''
   ansible.builtin.set_fact:
-    aws_region: "{{ lookup('agnosticd_user_data', 'aws_region') }}"
+    aws_region: "{{ lookup('agnosticd.core.agnosticd_user_data', 'aws_region') }}"
 
 - name: Stack has not been deployed
   when: stack_deployed is not defined or not stack_deployed | bool
   block:
   - name: Create on-demand capacity reservations and save result
-    agnosticd_odcr:
+    agnosticd.core.agnosticd_odcr:
       reservations: "{{ agnosticd_aws_capacity_reservations }}"
       regions: "{{ agnosticd_aws_capacity_reservation_regions }}"
       aws_access_key_id: "{{ aws_access_key_id }}"
@@ -42,12 +42,12 @@
       aws_availability_zone: "{{ r_agnosticd_aws_capacity_reservation.single_availability_zone }}"
 
   - name: Save region in user-data
-    agnosticd_user_info:
+    agnosticd.core.agnosticd_user_info:
       data:
         aws_region: "{{ r_agnosticd_aws_capacity_reservation.region }}"
 
   - name: Save AZ in user-data
     when: r_agnosticd_aws_capacity_reservation.single_availability_zone | default('') != ''
-    agnosticd_user_info:
+    agnosticd.core.agnosticd_user_info:
       data:
         aws_availability_zone: "{{ r_agnosticd_aws_capacity_reservation.single_availability_zone }}"

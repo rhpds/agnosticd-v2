@@ -1,20 +1,22 @@
 ---
 - name: Create .aws directory
   ansible.builtin.file:
-    path: ~/.aws
+    path: "~{{ ansible_user }}/.aws"
     state: directory
     owner: "{{ ansible_user }}"
-    mode: u=rwx
+    group: "{{ ansible_user }}"
+    mode: u=rwx,go=
 
 - name: Add aws credentials for sandboxes
   when:
   - hostvars.localhost.student_access_key_id | default("") | length > 0
   - hostvars.localhost.student_access_secret_key | default("") | length > 0
   ansible.builtin.blockinfile:
-    path: "~/.aws/credentials"
+    path: "~{{ ansible_user }}/.aws/credentials"
     create: true
     owner: "{{ ansible_user }}"
-    mode: u=rw
+    group: "{{ ansible_user }}"
+    mode: u=rw,go=
     insertbefore: BOF
     marker: "# {mark} ANSIBLE MANAGED BLOCK Student Credentials"
     block: |-
@@ -30,9 +32,10 @@
   - aws_secret_access_key | default("") != ""
   ansible.builtin.blockinfile:
     state: present
-    path: "~/.aws/credentials"
+    path: "~{{ ansible_user }}/.aws/credentials"
     owner: "{{ ansible_user }}"
-    mode: u=rw
+    group: "{{ ansible_user }}"
+    mode: u=rw,go=
     create: true
     insertbefore: BOF
     marker: "# {mark} ANSIBLE MANAGED BLOCK Default Credentials"

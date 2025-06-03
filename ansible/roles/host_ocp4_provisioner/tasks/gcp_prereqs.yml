@@ -2,13 +2,15 @@
 - name: Create the .gcp directory
   ansible.builtin.file:
     path: "/home/{{ ansible_user }}/.gcp"
-    mode: u=rwx
+    mode: u=rwx,go=
     owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
     state: directory
 
 - name: Create key file for Google Cloud SDK
   ansible.builtin.copy:
     src: "{{ output_dir }}/svc-acct-creds.json"
     dest: "/home/{{ ansible_user }}/.gcp/osServiceAccount.json"
-    mode: u=rw
+    mode: u=rw,go=
     owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"

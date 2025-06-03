@@ -6,7 +6,7 @@
   gather_facts: false
   tasks:
   - name: Save user data
-    agnosticd_user_info:
+    agnosticd.core.agnosticd_user_info:
       data:
         guid: "{{ guid }}"
         cloud_provider: "{{ cloud_provider | default('none') }}"
@@ -85,7 +85,7 @@
 
     - name: Print Host Information
       when: openshift_cluster_show_access_user_info | bool
-      agnosticd_user_info:
+      agnosticd.core.agnosticd_user_info:
         msg: "{{ item }}"
       loop:
       - "Remote User: {{ remote_user }}"

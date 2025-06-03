@@ -5,7 +5,7 @@
   register: r_slurp_kubeadmin_password
 
 - name: Set user data for kubeadmin password
-  agnosticd_user_info:
+  agnosticd.core.agnosticd_user_info:
     data:
       openshift_kubeadmin_password: "{{ r_slurp_kubeadmin_password.content | b64decode }}"
 
@@ -55,7 +55,7 @@
     openshift_cluster_ingress_domain: "{{ r_ingress_domain.stdout | trim }}"
 
 - name: Set user data for OpenShift access
-  agnosticd_user_info:
+  agnosticd.core.agnosticd_user_info:
     data:
       openshift_api_url: "{{ openshift_api_url }}"
       openshift_console_url: "{{ openshift_console_url }}"
@@ -63,7 +63,7 @@
       openshift_cluster_ingress_domain: "{{ openshift_cluster_ingress_domain }}"
 
 - name: Show user messages for OpenShift access
-  agnosticd_user_info:
+  agnosticd.core.agnosticd_user_info:
     msg: |-
       OpenShift Console: {{ openshift_console_url }}
       OpenShift API for command line 'oc' client: {{ openshift_api_url }}
