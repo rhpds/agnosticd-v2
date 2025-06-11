@@ -12,3 +12,8 @@ collections:
 - name: https://github.com/rhpds/assisted_installer.git
   type: git
   version: v0.0.3
+
+# Core OCP Workloads
+- name: https://github.com/rhpds/agnosticd.core-workloads.git
+  type: git
+  version: main
