@@ -14,6 +14,6 @@ collections:
   version: v0.0.3
 
 # Core OCP Workloads
-- name: https://github.com/rhpds/agnosticd.core-workloads.git
+- name: https://github.com/rhpds/agnosticd.core_workloads.git
   type: git
   version: main
