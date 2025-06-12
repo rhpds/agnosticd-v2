@@ -9,6 +9,22 @@ config: openshift-cluster
 # ===================================================================
 
 # ===================================================================
+# Additional Collections & roles to be installed for this config
+# ===================================================================
+requirements_content:
+  collections:
+  # Core OpenShift Workloads
+  - name: https://github.com/rhpds/agnosticd.core_workloads.git
+    type: git
+    version: main
+
+  # External role to setup grader host virtualenv and FTL grading infra
+  # roles:
+  # - name: ftl-injector
+  #   src: https://github.com/redhat-gpte-devopsautomation/ftl-injector
+  #   version: v0.20.0
+
+# ===================================================================
 # AWS Specific settings
 #     See ansible/configs/openshift-cluster/default_vars_aws.yml for
 #     available variables
@@ -48,21 +64,23 @@ bastion_student_user_name: student
 # -------------------------------------------------------------------
 cluster_name: ocp
 
-host_ocp4_installer_root_url: http://mirror.openshift.com/pub/openshift-v4/clients
+host_ocp4_installer_root_url: https://mirror.openshift.com/pub/openshift-v4/clients
 host_ocp4_installer_version: "4.18"
 
-# Save kubeadmin password in user data - only necessary if no authentication is set up for the cluster
+# Save kubeadmin password in user data - only necessary if
+# no authentication is set up for the cluster
 host_ocp4_installer_set_user_data_kubeadmin_password: true
 
-# -------------------------------------------------------------------
+# ===================================================================
 # List of workloads to be deployed
-# -------------------------------------------------------------------
+# ===================================================================
 workloads:
-- ocp4_workload_cert_manager
+- agnosticd.core_workloads.ocp4_workload_cert_manager
+- agnosticd.core_workloads.ocp4_workload_authentication_htpasswd
 
-# -------------------------------------------------------------------
+# ===================================================================
 # Variables for specific workloads
-# -------------------------------------------------------------------
+# ===================================================================
 
 # -------------------------------------------------------------------
 # Workload: ocp4_workload_cert_manager
@@ -77,3 +95,10 @@ ocp4_workload_cert_manager_use_catalog_snapshot: false
 
 ocp4_workload_cert_manager_install_ingress_certificates: true
 ocp4_workload_cert_manager_install_api_certificates: false
+
+# -------------------------------------------------------------------
+# Workload: ocp4_workload_authentication_htpasswd
+# -------------------------------------------------------------------
+ocp4_workload_authentication_htpasswd_user_count: 2
+ocp4_workload_authentication_htpasswd_user_password_randomized: true
+ocp4_workload_authentication_htpasswd_admin_user: wkadmin

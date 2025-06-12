@@ -102,10 +102,10 @@ agd_setup() {
           if [ "$dir" == "$SECRETS_DIR" ]; then
               cp bin/templates/secrets.yml "$dir" 2>&1 >/dev/null
               cp bin/templates/secrets-sandboxXXX.yml "$dir" 2>&1 >/dev/null
-              echo "  Copied template files to $dir"
+              echo "  Copied secrets template files to $dir"
           elif [ "$dir" == "$VARS_DIR" ]; then
-              cp bin/templates/openshift-cluster.yml "$dir" 2>&1 >/dev/null
-              echo "  Copied template file to $dir"
+              cp bin/templates/openshift-cluster-*.yml "$dir" 2>&1 >/dev/null
+              echo "  Copied config template files to $dir"
           fi
       fi
   done

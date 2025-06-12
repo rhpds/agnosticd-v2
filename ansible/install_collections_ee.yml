@@ -40,14 +40,10 @@
     --force-with-deps
   register: r_ee_ansible_galaxy_install_collections
   until: r_ee_ansible_galaxy_install_collections is successful
-  retries: 10
-  delay: 30
+  retries: 5
+  delay: 10
 
 - name: Cleanup tempfile (EE)
   ansible.builtin.file:
     path: "{{ r_tempfile.path }}"
     state: absent
-
-# - name: Sleep
-#   ansible.builtin.pause:
-#     minutes: 3600

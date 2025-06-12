@@ -1,9 +1,0 @@
-= ocp4_workload_cert_manager - Install Red Hat Cert Manager Operator and Request and install certificates from Let's Encrypt or ZeroSSL
-
-== Role overview
-
-This role requests and installs certificates from Let's Encrypt or ZeroSSL for an OpenShift 4 Cluster.
-
-== Review the defaults variable file
-
-The defautls file link:./defaults/main.yml[./defaults/main.yml] contains all the variables you need to define to control the deployment of your workload.

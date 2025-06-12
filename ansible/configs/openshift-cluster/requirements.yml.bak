@@ -1,0 +1,7 @@
+---
+# Dynamic roles to be added to the deployment
+roles: []
+
+# Collections in addition to what is already available in the
+# Execution Envrionment quay.io/agnosticd/ee-multicloud:2025-04-07
+collections: []
