@@ -29,15 +29,15 @@
       # Cloud Provider Collection for {{ cloud_provider }}
       - name: https://github.com/rhpds/agnosticd.cloud_provider_{{ cloud_provider }}.git
         type: git
-        version: main
+        version: {{ cloud_provider_version | default('main') }}
     marker: "# {mark} ANSIBLE MANAGED BLOCK - cloud provider collection"
     insertafter: "^collections:"
 
-- name: Read file from remote host
+- name: Read temporary collections file
   ansible.builtin.shell: "cat {{ r_tempfile.path }}"
   register: r_collections_file
 
-- name: Print file content to stdout
+- name: Debug contents of temporary collections file
   ansible.builtin.debug:
     msg: |
       {{ item }}
@@ -68,6 +68,3 @@
   ansible.builtin.file:
     path: "{{ r_tempfile.path }}"
     state: absent
-
-- name: Abort
-  fail:

@@ -1,22 +1,22 @@
 = Cloud Provider plays
 
-Here are the ansible code dealing with Cloud Provisioning. It is separated in three files for each Cloud provider:
+Here are the ansible code dealing with Cloud Provisioning. It is separated in two files for each Cloud provider:
 
 * `infrastructure_deployment.yml`
 +
 Provision the environment (instances, VPC, dns, etc) using a template from the config. Ex: for AWS, it's a Cloudformation template.
-* `ssh_config_setup.yml`
-+
-Generate SSH config file to access the environment.
 
 * `destroy_env.yml`
 +
 Detroy the environment (instances, VPC, dns, etc).
 
+All additional roles should be created in a collection available in the https://github.com/rhpds organization. The collection must be named
+`agnosticd.cloud_providers_<cloud provider name>` so for example `agnosticd.cloud_providers_aws`.
+
 == Adding a new Cloud Provider
 
 * Steps:
-** Add the plays for deployment, SSH config setup and destroy environment.
-** Update `../lifecycle.yml` file with the tasks for start/stop/status
-*** Create the tasks in a separated file  `../lifecycle_{{cloud_provider}}.yml`
+** Add the plays for deployment and and destroy environment.
+** Create a new collection for any supporting roles
+** Ensure the collection has a role to manage the lifecycle.
 * Update `../setup_runtime.yml` to add the provider to the `agnosticd_cloud_providers` variable

@@ -3,6 +3,7 @@
 # Mandatory Variables
 # ===================================================================
 cloud_provider: openshift_cnv
+cloud_provider_version: main
 config: openshift-cluster
 # ===================================================================
 # End Mandatory Variables
