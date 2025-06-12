@@ -28,7 +28,8 @@
     when:
     - cloud_provider == 'aws'
     - target_regions is not defined
-    ansible.builtin.include_tasks: cloud_providers/aws/detect_region_tasks.yml
+    ansible.builtin.include_role: 
+      name: agnosticd.cloud_provider_aws.aws_detect_region
 
 # WKTBD: Add other cloud providers
 - name: Call cloud provider destroy logic

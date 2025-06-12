@@ -22,6 +22,27 @@
       | to_yaml }}
     mode: ug=rw,o=r
 
+- name: Ensure Cloud provider collection is added to requirements
+  ansible.builtin.blockinfile:
+    path: "{{ r_tempfile.path }}"
+    block: |
+      # Cloud Provider Collection for {{ cloud_provider }}
+      - name: https://github.com/rhpds/agnosticd.cloud_provider_{{ cloud_provider }}.git
+        type: git
+        version: main
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - cloud provider collection"
+    insertafter: "^collections:"
+
+- name: Read file from remote host
+  ansible.builtin.shell: "cat {{ r_tempfile.path }}"
+  register: r_collections_file
+
+- name: Print file content to stdout
+  ansible.builtin.debug:
+    msg: |
+      {{ item }}
+  loop: "{{ r_collections_file.stdout_lines }}"
+
 - name: Get COLLECTIONS_PATHS
   ansible.builtin.set_fact:
     _collections_path: "{{ lookup('config', 'COLLECTIONS_PATHS') }}"
@@ -47,3 +68,6 @@
   ansible.builtin.file:
     path: "{{ r_tempfile.path }}"
     state: absent
+
+- name: Abort
+  fail:

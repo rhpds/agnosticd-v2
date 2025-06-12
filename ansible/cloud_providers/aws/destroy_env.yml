@@ -9,7 +9,7 @@
     vars:
       ACTION: destroy
     ansible.builtin.include_role:
-      name: aws_capacity_reservation
+      name: agnosticd.cloud_provider_aws.aws_capacity_reservation
 
   - name: Set facts for ssh provision SSH key
     when: ssh_provision_key_name is undefined
@@ -20,15 +20,15 @@
     vars:
       ACTION: destroy
     ansible.builtin.include_role:
-      name: aws_ssh_key
+      name: agnosticd.cloud_provider_aws.aws_ssh_key
 
   - name: Run aws_open_environment Role
     when: agnosticd_open_environment | default(false) | bool
     vars:
       ACTION: destroy
     ansible.builtin.include_role:
-      name: aws_open_environment
+      name: agnosticd.cloud_provider_aws.aws_open_environment
 
   - name: Run aws_template_destroy
     ansible.builtin.include_role:
-      name: aws_template_destroy
+      name: agnosticd.cloud_provider_aws.aws_template_destroy

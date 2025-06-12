@@ -25,7 +25,7 @@
     vars:
       ACTION: provision
     ansible.builtin.include_role:
-      name: aws_capacity_reservation
+      name: agnosticd.cloud_provider_aws.aws_capacity_reservation
 
   - name: Rerun detection
     when: agnosticd_aws_capacity_reservation_results.reservations | default({}) | length > 0
@@ -43,7 +43,7 @@
     vars:
       ACTION: provision
     ansible.builtin.include_role:
-      name: aws_open_environment
+      name: agnosticd.cloud_provider_aws.aws_open_environment
 
   - name: Create SSH provision key
     when:
@@ -60,11 +60,11 @@
   - name: Create keypair in AWS
     when: instances | default([]) | length > 0
     ansible.builtin.include_role:
-      name: aws_ssh_key
+      name: agnosticd.cloud_provider_aws.aws_ssh_key
 
   - name: Run aws_template_generate role
     ansible.builtin.include_role:
-      name: aws_template_generate
+      name: agnosticd.cloud_provider_aws.aws_template_generate
 
   - name: Check if Cloudformation has been deployed already
     amazon.aws.cloudformation_info:
@@ -96,7 +96,7 @@
     vars:
       aws_region_loop: "{{ aws_region }}"
     ansible.builtin.include_role:
-      name: aws_template_create
+      name: agnosticd.cloud_provider_aws.aws_template_create
 
   - name: Run aws_template_create role into fallback region
     when:
@@ -107,7 +107,7 @@
     vars:
       aws_region_loop: "{{ item }}"
     ansible.builtin.include_role:
-      name: aws_template_create
+      name: agnosticd.cloud_provider_aws.aws_template_create
     loop: "{{ fallback_regions }}"
 
   - name: Report cloudformation error
@@ -131,11 +131,12 @@
     # when step001.1 is skipped, aws_region_final is not defined.
     - name: Include detect region tasks
       when: aws_region_final is not defined
-      ansible.builtin.include_tasks: detect_region_tasks.yml
+      ansible.builtin.include_role: 
+        name: agnosticd.cloud_provider_aws.aws_detect_region
 
     - name: Run aws_create_inventory role
       ansible.builtin.include_role:
-        name: aws_create_inventory
+        name: agnosticd.cloud_provider_aws.aws_create_inventory
 
     - name: Run common SSH config generator role
       when:
@@ -162,11 +163,11 @@
 
   - name: Run aws_wait_for_linux_hosts role
     ansible.builtin.include_role:
-      name: aws_wait_for_linux_hosts
+      name: agnosticd.cloud_provider_aws.aws_wait_for_linux_hosts
 
   - name: Set Linux hostname
     ansible.builtin.include_role:
-      name: aws_linux_set_hostname
+      name: agnosticd.cloud_provider_aws.aws_linux_set_hostname
 
   - name: Add authorized_keys
     when: host_ssh_authorized_keys | default([]) | length > 0
@@ -197,7 +198,7 @@
 
   - name: Run aws_wait_for_windows_hosts role
     ansible.builtin.include_role:
-      name: aws_wait_for_windows_hosts
+      name: agnosticd.cloud_provider_aws.aws_wait_for_windows_hosts
 
   - name: Set output_dir for all Windows hosts
     ansible.builtin.set_fact:
