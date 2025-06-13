@@ -1,0 +1,14 @@
+---
+- name: Step 0000 Test collections
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+  - name: Test installed workload collection
+    ansible.builtin.include_role:
+      name: agnosticd.core_workloads.test_collection
+
+  - name: Test installed AWS collection
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_aws.test_collection

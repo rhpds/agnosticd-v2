@@ -26,7 +26,7 @@
 
   - name: Run aws_create_inventory role
     ansible.builtin.include_role:
-      name: aws_create_inventory
+      name: agnosticd.cloud_provider_aws.aws_create_inventory
 
   - name: Create local ssh provision facts (key already exists)
     when: ssh_provision_key_name is undefined

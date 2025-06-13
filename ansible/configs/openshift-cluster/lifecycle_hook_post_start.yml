@@ -9,7 +9,7 @@
   - name: Run aws_create_inventory role
     when: cloud_provider == 'aws'
     ansible.builtin.include_role:
-      name: aws_create_inventory
+      name: agnosticd.cloud_provider_aws.aws_create_inventory
 
   # OpenShift CNV
   - name: Run infra_openshift_cnv_create_inventory role

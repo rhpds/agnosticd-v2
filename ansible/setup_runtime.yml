@@ -34,3 +34,6 @@
 
 - name: Install Galaxy roles for the config
   ansible.builtin.import_playbook: install_galaxy_roles.yml
+
+- name: Test collections
+  ansible.builtin.import_playbook: test_collections.yml
