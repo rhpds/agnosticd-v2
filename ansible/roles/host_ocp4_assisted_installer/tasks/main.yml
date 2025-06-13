@@ -406,7 +406,7 @@
       pvcname: "installation-iso"
 
   - name: Create three control plane VMs for full cluster
-    ansible.builtin.include_tasks: create_control_plane_etcd.yaml
+    ansible.builtin.include_tasks: create_control_plane_etcd.yml
     vars:
       pvcinstall: "installation-iso"
       vmname: "{{ ai_ocp_vmname_master_prefix }}-{{ _index }}"
@@ -420,7 +420,7 @@
       loop_var: _index
 
   - name: Create {{ worker_instance_count }} worker VMs for full cluster
-    ansible.builtin.include_tasks: create_workers.yaml
+    ansible.builtin.include_tasks: create_workers.yml
     vars:
       pvcinstall: "installation-iso"
       vmname: "{{ ai_ocp_vmname_worker_prefix }}-{{ _index }}"
