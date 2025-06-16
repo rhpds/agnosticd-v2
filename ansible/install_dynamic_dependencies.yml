@@ -82,7 +82,7 @@
     retries: 5
     delay: 10
 
-  - name: Get installed collections (EE)
+  - name: Install collections (EE)
     when: >-
       __from_ee | bool
       and r_requirements_content | default([]) | length > 0

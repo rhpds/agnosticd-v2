@@ -2,7 +2,8 @@
 ansible-navigator:
   execution-environment:
     container-engine: podman
-    image: quay.io/agnosticd/ee-multicloud:2025-04-07
+    # image: quay.io/agnosticd/ee-multicloud:2025-04-07
+    image: localhost/my_ee:latest
     pull:
       policy: missing
 

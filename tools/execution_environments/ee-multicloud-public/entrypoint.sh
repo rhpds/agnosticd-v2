@@ -71,7 +71,7 @@ function is_dir_writable() {
 
 function ensure_current_uid_in_passwd() {
   log_debug "is current uid ${CUR_UID} in /etc/passwd?"
-  
+
   if ! getent passwd "${CUR_USERNAME}" &> /dev/null ; then
     if [ -w "/etc/passwd" ]; then
       log_debug "appending missing uid ${CUR_UID} into /etc/passwd"
@@ -82,7 +82,7 @@ function ensure_current_uid_in_passwd() {
     fi
   else
     log_debug "current uid is already in /etc/passwd"
-  fi  
+  fi
 }
 
 function ensure_writeable_homedir() {
@@ -154,6 +154,14 @@ if [ ! -d "/runner/requirements_collections/ansible_collections" ]; then
 fi
 export HOME=/home/runner
 
+# Save originally passed arguments so we can chain-exec them later
+export ORIGINAL_ARGUMENTS=("$@")
+
+# Remove the first two arguments, which are the entrypoint script and the playbook to run leaving us with the --extra-vars parameters
+shift 2
+log_debug "Running install_dynamic_dependencies.yml"
+/usr/local/bin/ansible-playbook ./ansible/install_dynamic_dependencies.yml "$@"
+
 # chain exec whatever we were asked to run (ideally an init system) to keep any envvar state we've set
 log_debug "chain exec-ing requested command $*"
-exec "${@}"
+exec "${ORIGINAL_ARGUMENTS[@]}"

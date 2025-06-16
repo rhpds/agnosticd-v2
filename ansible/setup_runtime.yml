@@ -32,8 +32,10 @@
 - name: Include global variables from the config
   ansible.builtin.import_playbook: include_vars.yml
 
-- name: Install Galaxy roles for the config
-  ansible.builtin.import_playbook: install_galaxy_roles.yml
+# Now done by the EE entrypoint
+# - name: Install Galaxy roles for the config
+#   ansible.builtin.import_playbook: install_galaxy_roles.yml
+#   ansible.builtin.import_playbook: install_dynamic_dependencies.yml
 
-# - name: Test collections
-#   ansible.builtin.import_playbook: test_collections.yml
+- name: Test collections
+  ansible.builtin.import_playbook: test_collections.yml
