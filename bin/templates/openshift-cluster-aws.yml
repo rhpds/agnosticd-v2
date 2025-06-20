@@ -66,7 +66,7 @@ bastion_student_user_name: student
 cluster_name: ocp
 
 host_ocp4_installer_root_url: https://mirror.openshift.com/pub/openshift-v4/clients
-host_ocp4_installer_version: "4.18"
+host_ocp4_installer_version: "4.19"
 
 # Save kubeadmin password in user data - only necessary if
 # no authentication is set up for the cluster
@@ -86,7 +86,7 @@ workloads:
 # -------------------------------------------------------------------
 # Workload: ocp4_workload_cert_manager
 # -------------------------------------------------------------------
-ocp4_workload_cert_manager_channel: stable-v1.15
+ocp4_workload_cert_manager_channel: stable-v1
 
 ocp4_workload_cert_manager_aws_region: "{{ aws_region }}"
 ocp4_workload_cert_manager_aws_access_key_id: "{{ hostvars.localhost.route53user_access_key }}"
