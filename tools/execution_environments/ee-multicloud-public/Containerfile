@@ -1,6 +1,6 @@
 FROM registry.access.redhat.com/ubi8/ubi
 
-ENV DESCRIPTION="Community Execution Environment for AgnosticD and Red Hat Demo Platform"
+ENV DESCRIPTION="Community Chained Execution Environment for AgnosticD and Red Hat Demo Platform"
 LABEL ansible-execution-environment=true \
       name="agnosticd/ee-multicloud" \
       maintainer="Red Hat CoP" \
