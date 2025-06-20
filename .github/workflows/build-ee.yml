@@ -1,0 +1,74 @@
+---
+name: build-ee-multicloud
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Tag'
+        default: 'github-latest'
+        required: true
+        type: string
+      labels:
+        description: 'quay labels'
+        default: ''
+        required: false
+        type: string
+
+    secrets:
+      registry_username:
+        description: 'Username to login to Quay.io'
+        required: true
+      registry_password:
+        description: 'password to login to Quay.io'
+        required: true
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system binfmt-support
+
+      - name: Setup QEMU for multi-platform builds
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: all
+
+      - name: Cache Buildah layers
+        uses: actions/cache@v4
+        with:
+          path: /var/lib/containers/storage
+          key: ${{ runner.os }}-buildah-cache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildah-cache-
+
+      - name: Buildah Action
+        uses: redhat-actions/buildah-build@v2
+        id: build-image
+        with:
+          image: ee-multicloud
+          tags: ${{inputs.tag}} ${{ github.sha }}
+          labels: ${{ inputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          context: tools/execution_environments/ee-multicloud-public
+          containerfiles: |-
+            tools/execution_environments/ee-multicloud-public/Containerfile
+          layers: true
+
+      -  name: Push To quay.io
+         id: push-to-quay
+         uses: redhat-actions/push-to-registry@v2
+         with:
+           image: ${{ steps.build-image.outputs.image }}
+           tags: ${{ steps.build-image.outputs.tags }}
+           registry: quay.io/agnosticd
+           username: ${{ secrets.registry_username }}
+           password: ${{ secrets.registry_password }}
