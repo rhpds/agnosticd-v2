@@ -161,9 +161,10 @@ export ORIGINAL_ARGUMENTS=("$@")
 shift 2
 
 # In AAP the first parameter is still a playbook. Remove it.
-if [[ "$1" == *yml* ]]; then
-  shift
-fi
+while [[ "$1" == *.yml ]]; do shift; done
+
+echo "Remaining arguments: $@"
+log_debug "Remaining arguments: $@"
 
 log_debug "Running install_dynamic_dependencies.yml"
 /usr/local/bin/ansible-playbook ./ansible/install_dynamic_dependencies.yml "$@"
