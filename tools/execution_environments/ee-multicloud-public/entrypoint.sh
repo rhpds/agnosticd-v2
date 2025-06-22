@@ -157,20 +157,13 @@ export HOME=/home/runner
 # Save originally passed arguments so we can chain-exec them later
 export ORIGINAL_ARGUMENTS=("$@")
 
-parent_process=$(ps -o comm= -p $(ps -o ppid= -p $$))
+# Remove the first two arguments, which are the entrypoint script and the playbook to run leaving us with the --extra-vars parameters
+shift 2 ;;
 
-case $parent_process in
-  *ansible-navigator*)
-    echo "Gestartet von Ansible Navigator"
-    # Remove the first two arguments, which are the entrypoint script and the playbook to run leaving us with the --extra-vars parameters
-    shift 2 ;;
-  *ansible-runner*|*controller*)
-    # Remove the first three arguments
-    echo "Gestartet von AAP"
-    shift 3 ;;
-  *)
-    echo "Unbekannter Launcher: $parent_process" ;;
-esac
+# In AAP the first parameter is still a playbook. Remove it.
+if [[ "$1" == *yml* ]]; then
+  shift
+fi
 
 log_debug "Running install_dynamic_dependencies.yml"
 /usr/local/bin/ansible-playbook ./ansible/install_dynamic_dependencies.yml "$@"
