@@ -158,7 +158,7 @@ export HOME=/home/runner
 export ORIGINAL_ARGUMENTS=("$@")
 
 # Remove the first two arguments, which are the entrypoint script and the playbook to run leaving us with the --extra-vars parameters
-shift 2 ;;
+shift 2
 
 # In AAP the first parameter is still a playbook. Remove it.
 if [[ "$1" == *yml* ]]; then
