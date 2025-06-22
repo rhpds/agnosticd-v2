@@ -33,6 +33,7 @@ RUN dnf install -y \
         vim \
         curl \
         wget \
+        procps-ng \
     && dnf clean all
 
 # Python
