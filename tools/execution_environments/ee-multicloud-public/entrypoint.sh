@@ -154,14 +154,18 @@ if [ ! -d "/runner/requirements_collections/ansible_collections" ]; then
 fi
 export HOME=/home/runner
 
+echo "Original arguments: $@"
+log_debug "Original arguments: $@"
 # Save originally passed arguments so we can chain-exec them later
 export ORIGINAL_ARGUMENTS=("$@")
 
-# Remove the first two arguments, which are the entrypoint script and the playbook to run leaving us with the --extra-vars parameters
+# For Ansible-Navigator remove the first two arguments, which are the entrypoint script and the playbook to run leaving us with the --extra-vars parameters
 shift 2
 
-# In AAP the first parameter is still a playbook. Remove it.
-while [[ "$1" == *.yml ]]; do shift; done
+# For AAP check if last argument contains 'yml' and remove it
+if [[ "${@: -1}" == *yml* ]]; then
+  set -- "${@:1:$(($#-1))}"
+fi
 
 echo "Remaining arguments: $@"
 log_debug "Remaining arguments: $@"
