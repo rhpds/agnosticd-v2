@@ -154,8 +154,8 @@ if [ ! -d "/runner/requirements_collections/ansible_collections" ]; then
 fi
 export HOME=/home/runner
 
-echo "ANSIBLE_COLLECTIONS_PATHS: ${ANSIBLE_COLLECTIONS_PATHS}"
-log_debug "ANSIBLE_COLLECTIONS_PATHS: ${ANSIBLE_COLLECTIONS_PATHS}"
+# Ansible Collections Paths is only set from AAP, not from Navigator.
+# ANSIBLE_COLLECTIONS_PATHS: /runner/requirements_collections:~/.ansible/collections:/usr/share/ansible/collections
 
 echo "Original arguments: $*"
 log_debug "Original arguments: $*"
