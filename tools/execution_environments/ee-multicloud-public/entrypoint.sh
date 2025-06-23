@@ -154,6 +154,9 @@ if [ ! -d "/runner/requirements_collections/ansible_collections" ]; then
 fi
 export HOME=/home/runner
 
+echo "ANSIBLE_COLLECTIONS_PATHS: ${ANSIBLE_COLLECTIONS_PATHS}"
+log_debug "ANSIBLE_COLLECTIONS_PATHS: ${ANSIBLE_COLLECTIONS_PATHS}"
+
 echo "Original arguments: $*"
 log_debug "Original arguments: $*"
 
@@ -175,7 +178,7 @@ done
 # Execute based on AAP detection
 if (( AAP == 1 )); then
   log_debug "AAP environment detected. Running with fixed extra-vars"
-  /usr/local/bin/ansible-playbook ./ansible/install_dynamic_dependencies.yml -e @/runner/env/extravars
+  /usr/local/bin/ansible-playbook ./ansible/install_dynamic_dependencies.yml -i /runner/inventory/hosts -e @/runner/env/extravars
 else
   # Only shift in non-AAP context
   shift 2
