@@ -18,13 +18,13 @@
       when: cloudformation_out_final is defined
       ansible.builtin.debug:
         var: cloudformation_out_final
-        verbosity: 2
+        # verbosity: 2
 
     - name: Debug cloudformation_out_existing
       when: cloudformation_out_existing is defined
       ansible.builtin.debug:
         var: cloudformation_out_existing
-        verbosity: 2
+        # verbosity: 2
 
     # See logic in cloud_providers/aws/infrastructure_deployment.yml for how these variables are set
     - name: Save Route53User credentials from stack outputs (CloudFormation just created)
@@ -50,6 +50,10 @@
         route53user_secret_access_key: "{{ cloudformation_existing[project_tag].stack_outputs.Route53UserSecretAccessKey }}"
 
     - name: Debug Route53 variables
+      when:
+      - route53user is defined
+      - route53user_access_key is defined
+      - route53user_secret_access_key is defined
       ansible.builtin.debug:
         msg: "{{ item }}"
       loop:
