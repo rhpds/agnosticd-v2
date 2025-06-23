@@ -160,13 +160,16 @@ log_debug "Original arguments: $*"
 # Save originally passed arguments for chain-exec later
 export ORIGINAL_ARGUMENTS=("$@")
 
+# Convert arguments to array for safe indexing
+args=("$@")
+
 # Detect AAP environment (-u root pattern)
 AAP=0
-for ((i = 1; i < $#; i++)); do
-  if [[ "${!i}" == "-u" && "${!((i + 1))}" == "root" ]]; then
-    AAP=1
-    break
-  fi
+for ((i = 1; i < ${#args[@]}; i++)); do
+    if [[ "${args[i]}" == "-u" && "${args[i+1]}" == "root" ]]; then
+        AAP=1
+        break
+    fi
 done
 
 # Execute based on AAP detection
