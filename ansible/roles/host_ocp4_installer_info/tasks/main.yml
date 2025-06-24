@@ -78,6 +78,6 @@
     msg: |-
       OpenShift Console: {{ openshift_console_url }}
       OpenShift API for command line 'oc' client: {{ openshift_api_url }}
-      {% if host_ocp4_installer_set_user_data_kubeadmin_password | bool %}
+      {% if host_ocp4_installer_info_set_user_data_kubeadmin_password | bool %}
       OpenShift kubeadmin password: {{ openshift_kubeadmin_password }}
       {% endif %}
