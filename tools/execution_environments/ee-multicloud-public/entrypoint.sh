@@ -154,9 +154,8 @@ if [ ! -d "/runner/requirements_collections/ansible_collections" ]; then
 fi
 export HOME=/home/runner
 
-# Ansible Collections Paths is only set from AAP, not from Navigator.
-# ANSIBLE_COLLECTIONS_PATHS: /runner/requirements_collections:~/.ansible/collections:/usr/share/ansible/collections
-
+# Logic to run the playbook to install dynamic dependencies before handing over to the requested command.
+# Process Arguments differently if running in ansible-navigator or in AAP
 echo "Original arguments: $*"
 log_debug "Original arguments: $*"
 
@@ -166,7 +165,7 @@ export ORIGINAL_ARGUMENTS=("$@")
 # Convert arguments to array for safe indexing
 args=("$@")
 
-# Detect AAP environment (-u root pattern)
+# Detect AAP environment (-u root pattern - look for two parameters after each other: "-u" "root")
 AAP=0
 for ((i = 1; i < ${#args[@]}; i++)); do
     if [[ "${args[i]}" == "-u" && "${args[i+1]}" == "root" ]]; then
@@ -180,7 +179,7 @@ if (( AAP == 1 )); then
   log_debug "AAP environment detected. Running with fixed extra-vars"
   /usr/local/bin/ansible-playbook ./ansible/install_dynamic_dependencies.yml -i /runner/inventory/hosts -e @/runner/env/extravars
 else
-  # Only shift in non-AAP context
+  # Only shift in non-AAP context -> Ansible Navigator
   shift 2
   log_debug "Non-AAP environment. Running with processed arguments"
   echo "Remaining arguments: $*"
