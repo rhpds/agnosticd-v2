@@ -28,20 +28,20 @@ EXAMPLES = """
       3632643836646533620a323861653131623936653732653534316637346536613237383735336666
       3664
   debug:
-    msg: "{{ lookup('unvault_string', message) }}"
-"""     
+    msg: "{{ lookup('agnosticd.core.unvault_string', message) }}"
+"""
 
 RETURN = """
   _raw:
     description:
       - list of strings to unvault
     type: list
-    elements: raw   
+    elements: raw
 """
 
 from ansible.plugins.lookup import LookupBase
 
-class LookupModule(LookupBase): 
+class LookupModule(LookupBase):
     def run(self, terms, variables=None, **kwargs):
         self.set_options(direct=kwargs)
         ret = []

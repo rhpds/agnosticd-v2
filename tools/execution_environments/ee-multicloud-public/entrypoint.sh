@@ -154,14 +154,39 @@ if [ ! -d "/runner/requirements_collections/ansible_collections" ]; then
 fi
 export HOME=/home/runner
 
-# Save originally passed arguments so we can chain-exec them later
+# Logic to run the playbook to install dynamic dependencies before handing over to the requested command.
+# Process Arguments differently if running in ansible-navigator or in AAP
+echo "Original arguments: $*"
+log_debug "Original arguments: $*"
+
+# Save originally passed arguments for chain-exec later
 export ORIGINAL_ARGUMENTS=("$@")
 
-# Remove the first two arguments, which are the entrypoint script and the playbook to run leaving us with the --extra-vars parameters
-shift 2
-log_debug "Running install_dynamic_dependencies.yml"
-/usr/local/bin/ansible-playbook ./ansible/install_dynamic_dependencies.yml "$@"
+# Convert arguments to array for safe indexing
+args=("$@")
 
-# chain exec whatever we were asked to run (ideally an init system) to keep any envvar state we've set
-log_debug "chain exec-ing requested command $*"
+# Detect AAP environment (-u root pattern - look for two parameters after each other: "-u" "root")
+AAP=0
+for ((i = 1; i < ${#args[@]}; i++)); do
+    if [[ "${args[i]}" == "-u" && "${args[i+1]}" == "root" ]]; then
+        AAP=1
+        break
+    fi
+done
+
+# Execute based on AAP detection
+if (( AAP == 1 )); then
+  log_debug "AAP environment detected. Running with fixed extra-vars"
+  /usr/local/bin/ansible-playbook ./ansible/install_dynamic_dependencies.yml -i /runner/inventory/hosts -e @/runner/env/extravars
+else
+  # Only shift in non-AAP context -> Ansible Navigator
+  shift 2
+  log_debug "Non-AAP environment. Running with processed arguments"
+  echo "Remaining arguments: $*"
+  log_debug "Remaining arguments: $*"
+  /usr/local/bin/ansible-playbook ./ansible/install_dynamic_dependencies.yml "$@"
+fi
+
+# Chain exec original command
+log_debug "chain exec-ing requested command: ${ORIGINAL_ARGUMENTS[*]}"
 exec "${ORIGINAL_ARGUMENTS[@]}"
