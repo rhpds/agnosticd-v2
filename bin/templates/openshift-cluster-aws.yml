@@ -15,7 +15,7 @@ config: openshift-cluster
 requirements_content:
   collections:
   # Core OpenShift Workloads
-  - name: https://github.com/rhpds/agnosticd.core_workloads.git
+  - name: https://github.com/agnosticd/core_workloads.git
     type: git
     version: main
 

@@ -6,21 +6,24 @@ AgnosticD V2 is a streamlined, updated version of AgnosticD designed for easy ad
 
 *Supported platforms*: AgnosticD V2 supports RHEL 9.5+, Fedora 41+, and macOS Sequoia+.
 
-== Directory Structure Requirements
+== Local Development Directory Structure Requirements
 
-AgnosticD V2 requires a specific directory structure on your local machine. You can create this structure anywhere on your system, but all required directories must be present.
+AgnosticD V2 requires a specific directory structure on your local machine. You can have the setup script create this structure anywhere on your system, but all required directories must be present.
 
-Choose a root directory (for example, `~/Development` or `~/aad`) and create the following subdirectories:
+Choose a root directory (for example, `~/Development` or `~/aad`). The setup script creates and seeds the following subdirectories:
 
 * *agnosticd-v2*: The AgnosticD code repository
 * *agnosticd-v2-vars*: Configuration files for AgnosticD (seeded with an OpenShift cluster example using Let's Encrypt certificates)
 * *agnosticd-v2-secrets*: Secret files including:
 ** `secrets.yml` for general secrets (OpenShift pull secrets, Red Hat Satellite subscription information)
 ** `secrets-sandboxXXX.yml` for AWS Open Environment connection details from https://demo.redhat.com
-* *agnosticd-v2-output*: Output files from Ansible runs
+* *agnosticd-v2-output*: Output files from Ansible runs in `{{ guid }}` subdirectories
 * *agnosticd-v2-virtualenv*: Python 3.11 virtual environment containing ansible-navigator for deployment execution (managed automatically by deployment scripts)
 
-IMPORTANT: Always run the `agd` script from within the *agnosticd-v2* directory.
+[IMPORTANT]
+====
+Always run the `agd` script from within the *agnosticd-v2* directory.
+====
 
 == Platform-Specific Setup
 
@@ -41,9 +44,9 @@ brew install python@3.11 podman
 
 . Continue with <<common-setup,Common Setup>> steps.
 
-=== RHEL 9.5 Prerequisites
+=== RHEL 9.5/9.6 Prerequisites
 
-NOTE: These instructions are tested only on RHEL 9.5. The setup scripts enforce a minimum requirement of RHEL 9.5.
+NOTE: These instructions are tested only on RHEL 9.5 and RHEL 9.6. The setup scripts enforce a minimum requirement of RHEL 9.5.
 
 . *Enable the CodeReady Builder repository* (required for the `oniguruma-devel` package):
 +
@@ -57,6 +60,26 @@ sudo subscription-manager repos --enable codeready-builder-for-rhel-9-$(arch)-rp
 [source,sh]
 ----
 sudo dnf -y install git python3.11 python3.11-devel gcc oniguruma-devel
+----
+
+. Continue with <<common-setup,Common Setup>> steps.
+
+=== RHEL 10.0 Prerequisites
+
+NOTE: These instructions are tested only on RHEL 10.0.
+
+. *Enable the CodeReady Builder repository* (required for the `oniguruma-devel` package):
++
+[source,sh]
+----
+sudo subscription-manager repos --enable codeready-builder-for-rhel-10-$(arch)-rpms
+----
+
+. *Install prerequisites*:
++
+[source,sh]
+----
+sudo dnf -y install git python3 python3-devel gcc oniguruma-devel podman
 ----
 
 . Continue with <<common-setup,Common Setup>> steps.
@@ -101,7 +124,8 @@ cd agnosticd-v2
 ----
 +
 The setup script performs the following actions:
-* Checks for `ansible-navigator` installation and creates a Python 3.11 virtual environment if needed
++
+* Checks for `ansible-navigator` installation and creates a Python 3 virtual environment if needed
 * Creates required `agnosticd-v2-*` directories if they don't exist
 * Seeds the secrets and variables directories with example files
 
@@ -189,6 +213,7 @@ The setup process creates an example OpenShift cluster configuration in the `agn
 # Mandatory Variables
 # ===================================================================
 cloud_provider: aws
+cloud_provider_version: main
 config: openshift-cluster
 # ===================================================================
 # End Mandatory Variables
@@ -235,7 +260,7 @@ bastion_student_user_name: student
 cluster_name: ocp
 
 host_ocp4_installer_root_url: http://mirror.openshift.com/pub/openshift-v4/clients
-host_ocp4_installer_version: "4.18"
+host_ocp4_installer_version: "4.19"
 
 # Save kubeadmin password in user data (only needed without authentication setup)
 host_ocp4_installer_set_user_data_kubeadmin_password: true
@@ -244,14 +269,16 @@ host_ocp4_installer_set_user_data_kubeadmin_password: true
 # Workload Configuration
 # -------------------------------------------------------------------
 workloads:
-- ocp4_workload_cert_manager
+- agnosticd.core_workloads.ocp4_workload_cert_manager
+
+# ===================================================================
+# Variables for specific workloads
+# ===================================================================
 
 # -------------------------------------------------------------------
-# Workload-Specific Variables
+# Workload: ocp4_workload_cert_manager
 # -------------------------------------------------------------------
-
-# Certificate Manager Configuration
-ocp4_workload_cert_manager_channel: stable-v1.15
+ocp4_workload_cert_manager_channel: stable-v1
 ocp4_workload_cert_manager_aws_region: "{{ aws_region }}"
 ocp4_workload_cert_manager_aws_access_key_id: "{{ hostvars.localhost.route53user_access_key }}"
 ocp4_workload_cert_manager_aws_secret_access_key: "{{ hostvars.localhost.route53user_secret_access_key }}"
@@ -268,9 +295,9 @@ The `agd` script supports multiple operations using consistent parameter syntax.
 * `--config | -c`: Variables file name
 * `--account | -a`: Account secrets file name (without `secrets-` prefix)
 
-=== Provisioning a Configuration
+=== Provisioning an Environment
 
-Deploy a new configuration using the `provision` command:
+Deploy a new environment using the `provision` command:
 
 [source,sh]
 ----
@@ -283,42 +310,38 @@ Deploy a new configuration using the `provision` command:
 ./bin/agd provision -g myocp -c openshift-cluster -a sandbox1234
 ----
 
-=== Destroying a Configuration
+=== Destroying an Environment
 
-Remove a deployed configuration:
+Remove a deployed environment:
 
 [source,sh]
 ----
 ./bin/agd destroy --guid myocp --config openshift-cluster --account sandbox1234
 ----
 
-=== Stopping a Configuration
+=== Stopping an Environment
 
-Stop a running configuration:
+Stop a running environment:
 
 [source,sh]
 ----
 ./bin/agd stop --guid myocp --config openshift-cluster --account sandbox1234
 ----
 
-=== Starting a Configuration
+=== Starting an Environment
 
-Start a stopped configuration:
+Start a stopped environment:
 
 [source,sh]
 ----
 ./bin/agd start --guid myocp --config openshift-cluster --account sandbox1234
 ----
 
-=== Checking Configuration Status
+=== Checking Environment Status
 
-Get the current status of a configuration:
+Get the current status of an environment:
 
 [source,sh]
 ----
 ./bin/agd status --guid myocp --config openshift-cluster --account sandbox1234
 ----
-
-== Post-Installation Configuration
-
-NOTE: This functionality is currently under development and will be documented in future releases.
