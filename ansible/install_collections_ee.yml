@@ -41,8 +41,8 @@
   ansible.builtin.debug:
     msg: |
       {{ item }}
+    verbosity: 2
   loop: "{{ r_collections_file.stdout_lines }}"
-  verbosity: 2
 
 - name: Get COLLECTIONS_PATHS
   ansible.builtin.set_fact:
@@ -51,7 +51,7 @@
 - name: Debug COLLECTIONS_PATHS
   ansible.builtin.debug:
     var: _collections_path
-  verbosity: 2
+    verbosity: 2
 
 - name: Install collections from requirements.yml (EE)
   vars:
