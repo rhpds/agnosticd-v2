@@ -27,7 +27,7 @@
     path: "{{ r_tempfile.path }}"
     block: |
       # Cloud Provider Collection for {{ cloud_provider }}
-      - name: https://github.com/rhpds/agnosticd.cloud_provider_{{ cloud_provider }}.git
+      - name: https://github.com/agnosticd/cloud_provider_{{ cloud_provider }}.git
         type: git
         version: {{ cloud_provider_version | default('main') }}
     marker: "# {mark} ANSIBLE MANAGED BLOCK - cloud provider collection"
@@ -42,6 +42,7 @@
     msg: |
       {{ item }}
   loop: "{{ r_collections_file.stdout_lines }}"
+  verbosity: 2
 
 - name: Get COLLECTIONS_PATHS
   ansible.builtin.set_fact:
@@ -50,6 +51,7 @@
 - name: Debug COLLECTIONS_PATHS
   ansible.builtin.debug:
     var: _collections_path
+  verbosity: 2
 
 - name: Install collections from requirements.yml (EE)
   vars:
