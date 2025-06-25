@@ -12,11 +12,11 @@
 #   agd action [--guid ABCD --config config_name --account account_name]
 # Example:
 #   agd setup
-#   agd provision --guid wkaws --config openshift-cluster --account sandbox1275
-#   agd destroy   --guid wkaws --config openshift-cluster --account sandbox1275
-#   agd stop      --guid wkaws --config openshift-cluster --account sandbox1275
-#   agd start     --guid wkaws --config openshift-cluster --account sandbox1275
-#   agd status    --guid wkaws --config openshift-cluster --account sandbox1275
+#   agd provision --guid wkaws --config openshift-cluster-aws --account sandbox1275
+#   agd destroy   --guid wkaws --config openshift-cluster-aws --account sandbox1275
+#   agd stop      --guid wkaws --config openshift-cluster-aws --account sandbox1275
+#   agd start     --guid wkaws --config openshift-cluster-aws --account sandbox1275
+#   agd status    --guid wkaws --config openshift-cluster-aws --account sandbox1275
 # Note:
 #   config_name uses the file `../agnosticd-v2-vars/<config_name>.yml`
 #   account_name uses the file `../agnosticd-v2-secrets/secret-<secret_name>.yml`
@@ -50,11 +50,11 @@ print_usage() {
   echo ""
   echo "Examples:"
   echo "  $0 setup"
-  echo "  $0 provision --guid wkaws --config openshift-cluster --account sandbox1275"
-  echo "  $0 destroy   --guid wkaws --config openshift-cluster --account sandbox1275"
-  echo "  $0 stop      --guid wkaws --config openshift-cluster --account sandbox1275"
-  echo "  $0 start     --guid wkaws --config openshift-cluster --account sandbox1275"
-  echo "  $0 status    --guid wkaws --config openshift-cluster --account sandbox1275"
+  echo "  $0 provision --guid wkaws --config openshift-cluster-aws --account sandbox1275"
+  echo "  $0 destroy   --guid wkaws --config openshift-cluster-aws --account sandbox1275"
+  echo "  $0 stop      --guid wkaws --config openshift-cluster-aws --account sandbox1275"
+  echo "  $0 start     --guid wkaws --config openshift-cluster-aws --account sandbox1275"
+  echo "  $0 status    --guid wkaws --config openshift-cluster-aws --account sandbox1275"
   echo ""
 }
 
@@ -192,7 +192,7 @@ init_podman() {
 # -------------------------------------------------------------------
 unsupported_os() {
   echo "ERROR: Unsupported Operating System."
-  echo "       Please run this script on RHEL 9.x, Fedora 41+ or macOS."
+  echo "       Please run this script on RHEL 9.x, RHEL 10.x, Fedora 41+ or macOS."
   exit 1
 }
 
@@ -293,7 +293,12 @@ if [[ "$(uname)" == "Darwin" ]]; then
   init_podman
 elif [[ -f /etc/os-release ]]; then
   source /etc/os-release
-  [[ ("$ID" == "rhel" && "$VERSION_ID" =~ ^9\.) || ("$ID" == "fedora" && "$VERSION_ID" -ge 41) ]] || unsupported_os
+  if { [[ "$ID" == "rhel" ]] && ([[ "$VERSION_ID" =~ ^9\. ]] || [[ "$VERSION_ID" =~ ^10\. ]]); } ||
+     { [[ "$ID" == "fedora" ]] && [[ "$VERSION_ID" -ge 41 ]]; }; then
+  :
+  else
+    unsupported_os
+  fi
 else
   unsupported_os
 fi
