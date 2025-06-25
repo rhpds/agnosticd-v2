@@ -203,6 +203,16 @@ workloads:
 
 === Workload-Specific Changes
 
+==== Cert Manager Workload
+
+Change all variable names containing `ec2` to `aws`.
+
+*Configuration updates:*
+
+* `ocp4_workload_cert_manager_ec2_region` -> `ocp4_workload_cert_manager_aws_region`
+* `ocp4_workload_cert_manager_ec2_access_key_id` -> `ocp4_workload_cert_manager_aws_access_key_id`
+* `ocp4_workload_cert_manager_ec2_secret_access_key` -> `ocp4_workload_cert_manager_aws_secret_access_key`
+
 ==== Authentication Workload
 The `ocp4_workload_authentication` workload has been renamed to `ocp4_workload_authentication_htpasswd` because it only supports htpasswd authentication (LDAP support has been discontinued).
 

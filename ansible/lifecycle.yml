@@ -12,8 +12,8 @@
 - name: Include global variables
   ansible.builtin.import_playbook: include_vars.yml
 
-# This file is the default playbook for common actions.
-# You should implement those actions in your config if you
+# This file is the default playbook for lifecycle actions.
+# You should implement those actions in your cloud provider collection if you
 # need a specific process.
 - name: Run stop/start/status/... actions
   hosts: localhost
