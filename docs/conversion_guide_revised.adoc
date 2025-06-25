@@ -1,0 +1,212 @@
+= AgnosticD V2 Conversion Guide
+
+AgnosticD V2 introduces significant code cleanup, streamlining, and logical improvements over V1. This guide outlines the essential changes you need to make when migrating AgnosticD configs from V1 to V2.
+
+NOTE: This guide covers all known changes. We will update it as additional variables and modifications are identified.
+
+== Common Changes
+
+=== Core Terminology and Structure
+* *Configuration naming*: `env_type` is now `config`
+* *Cloud provider*: The `ec2` cloud provider has been renamed to `aws` for consistency
+* *Supported providers*: Currently, only `aws` and `none` cloud providers are supported and functional. This document will be updated as additional cloud providers are converted and modernized.
+
+=== Cloud Provider Management
+Cloud providers are now managed in a separate collection rather than as part of the core repository. You can lock a specific version by setting the `cloud_provider_version` variable to a branch or tag. If not specified, the system defaults to `main`.
+
+*Cloud provider playbook locations*: Cloud provider playbooks remain in AgnosticD V2 but have moved to the `cloud_provider/{{ cloud_provider }}` directory. Valid playbooks include:
+
+* `infrastructure_deployment.yml`
+* `destroy_env.yml`
+* `lifecycle.yml`
+
+All roles have been or should be refactored into collections (following the `aws` cloud provider model).
+
+=== Plugin Consolidation
+All AgnosticD plugins are now consolidated into a single collection embedded in the AgnosticD V2 repository (`/ansible/collections/ansible_collections/agnosticd/core`). You must use fully qualified plugin names in AgnosticD and workload code:
+
+* `agnosticd.core.agnosticd_user_info` (Action plugin/Module)
+* `agnosticd.core.agnosticd_odcr` (Action plugin)
+* `agnosticd.core.agnosticd_user_data` (Lookup plugin)
+* `agnosticd.core.bitwarden` (Lookup plugin)
+* `agnosticd.core.unvault_string` (Lookup plugin)
+
+*Compatibility note*: Lookup plugins are symlinked to `/ansible/lookup_plugins` for Babylon compatibility. Babylon uses `unvault_string` to set variables from Vault, and modifying Babylon would break existing deployments.
+
+=== Deprecated Features
+* *Software deployment*: `software_to_deploy` no longer exists. It was OpenShift-specific and has been replaced by `host_ocp4_deploy_installation_method` for the `openshift-cluster` config.
+* *Role directories*: The following role directories have been consolidated and no longer exist:
+** `roles_infra`
+** `roles_studentvm`
+** `roles_ocp_workloads`
+
+=== Execution Environment Changes
+Collections and roles are now installed *before* the `ansible/main.yml` playbook executes. This requires a new Execution Environment image. The current full execution environment image is:
+
+[source]
+----
+quay.io/agnosticd/ee-multicloud:chained-2025-06-24
+----
+
+IMPORTANT: Note the `chained` prefix before the build date.
+
+=== Bastion Host Changes
+* *No Python virtualenv*: There is no longer a Python `virtualenv` installed on the bastion host
+* *Container execution*: The entire deployer runs within the execution environment container
+* *Bastion task delegation*: If you must run tasks on the bastion, pin them using `delegate_to: "{{ groups['bastions'][0] }}"`
+* *Kubernetes tasks*: All k8s tasks should run from within the execution environment
+
+== OpenShift Cluster Changes
+
+=== Configuration Updates
+* *Config name*: `ocp4-cluster` has been renamed to `openshift-cluster`
+* *Terminology*: The term `master` has been replaced with `control_plane` where possible
+* *Workload naming*: `infra_workloads` has been renamed to `workloads`
+* *Workload requirements*: Workloads now require fully qualified role names
+* *Removed features*: `student_workloads` have been removed
+
+== DNS Changes
+
+TBD
+
+== Common Role Changes
+
+=== Package Installation
+[source,yaml]
+----
+install_common_packages: true
+
+# To install extra packages (beyond the common package list)
+# host_common_packages_extra_packages:
+# - java-17-openjdk
+# - maven
+# - podman
+
+# Run a full dnf update on all hosts
+host_common_packages_update_all: true
+----
+
+=== Satellite Repository Configuration
+[source,yaml]
+----
+install_satellite_repositories: true
+
+# Required variables from secrets:
+# host_satellite_repositories_hostname:
+# host_satellite_repositories_ha:
+# host_satellite_repositories_org:
+# host_satellite_repositories_activationkey:
+----
+
+=== Bastion Configuration
+[source,yaml]
+----
+install_bastion: true
+bastion_student_user_name: lab-user
+bastion_install_ftl: false
+----
+
+== Migration Example: OpenShift Cluster (Workshop) Config
+
+This section provides a step-by-step example of converting an OpenShift Cluster workshop configuration from V1 to V2.
+
+=== Initial Setup
+. *Create directory structure*: Create a new directory in AgnosticD V2. The `agd_v2` directory already exists, and the `account.yml` file contains default variable mappings for Babylon deployment.
+
+. *Copy configuration files*: Copy the following files from your V1 config:
+** `common.yaml`
+** `dev.yaml`
+** `description.adoc`
+
+=== Babylon Metadata Changes
+Update the following Babylon `__meta__` settings:
+
+* *Asset UUID*: Generate a new `asset_uuid`
+* *Execution environment*: Change the image to `quay.io/agnosticd/ee-multicloud:chained-2025-06-24`
+* *Display name*: Update to something unique (for example, add "AgdV2")
+* *Source reference*: Update as follows:
++
+[source,yaml]
+----
+deployer:
+  scm_url: https://github.com/rhpds/agnosticd_v2
+  scm_ref: main
+----
+
+=== Mandatory Variable Changes
+Make these required variable updates:
+
+* Change `env_type: ocp4-cluster` → `config: openshift-cluster`
+* Change `cloud_provider: ec2` → `cloud_provider: aws`
+* Add `cloud_provider_version: main`
+* Remove `software_to_deploy`
+
+=== Collection Requirements
+Add the required collections (minimum configuration):
+
+[source,yaml]
+----
+# ===================================================================
+# Additional Collections & roles to be installed for this config
+# ===================================================================
+requirements_content:
+  collections:
+  # Core OpenShift Workloads
+  - name: https://github.com/agnosticd/core_workloads.git
+    type: git
+    version: main
+----
+
+=== Bastion Variable Updates
+Update bastion-related variables:
+
+* `install_student_user` → `bastion_setup_student_user`
+* `student_name` → `bastion_student_user_name`
+* `student_sudo` → `bastion_student_user_sudo`
+
+*Additional bastion student user variables:*
+
+* `bastion_student_user_password: ""`
+* `bastion_student_user_password_length: 12` (Password length for generated passwords)
+* `bastion_student_user_key: ""` (Optional public key for authorized_keys)
+* `bastion_student_user_set_user_data: true` (Set agnosticd_user_info data with bastion access)
+* `bastion_student_user_show_user_info: true` (Set agnosticd_user_info message with bastion access)
+
+=== Node Variable Updates
+Update node variables (master → control_plane) if defined:
+
+* `master_instance_count` → `control_plane_instance_count`
+* `master_instance_type_family` → `control_plane_instance_type_family`
+* `master_instance_type_size` → `control_plane_instance_type_size`
+* `master_instance_type` → `control_plane_instance_type`
+* `master_storage_type` → `control_plane_storage_type`
+
+=== Workload Configuration
+Change the `infra_workloads` list to `workloads` and use fully qualified collection names:
+
+.Before (V1)
+[source,yaml]
+----
+infra_workloads:
+- ocp4_workload_authentication
+- ocp4_workload_cert_manager
+----
+
+.After (V2)
+[source,yaml]
+----
+workloads:
+- agnosticd.core_workloads.ocp4_workload_authentication_htpasswd
+- agnosticd.core_workloads.ocp4_workload_cert_manager
+----
+
+=== Workload-Specific Changes
+
+==== Authentication Workload
+The `ocp4_workload_authentication` workload has been renamed to `ocp4_workload_authentication_htpasswd` because it only supports htpasswd authentication (LDAP support has been discontinued).
+
+*Configuration updates:*
+
+* *Remove*: `ocp4_workload_authentication_idm_type: htpasswd`
+* *Change*: `ocp4_workload_authentication_remove_kubeadmin: true` → `ocp4_workload_authentication_htpasswd_remove_kubeadmin: true`
+* *Change*: `ocp4_workload_authentication_admin_user: admin` → `ocp4_workload_authentication_htpasswd_admin_user: admin`
