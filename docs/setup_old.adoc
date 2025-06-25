@@ -1,0 +1,328 @@
+= Set up and use AgnosticD V2 for Development
+
+== Overview
+
+AgnosticD V2 is an updated, streamlined evaluation of AgnosticD. It is supposed to be easy to adopt and make development simple.
+
+This document explains how to set up AgnosticD V2 and how to deploy both configs and post-deploy customizations (previously known as workloads) to these configs.
+
+Currently AgnosticD V2 is supported on RHEL 9.5 (and higher), Fedora 41 (and higher) and macOS Sequoia (and higher).
+
+== Setup
+
+AgnosticD V2 requires a prescriptive directory structure on your disk. You can host this directory tree anywhere you want - as long as all directories are there as required.
+
+Pick a root directory (e.g. ~/Development or ~/aad) on your disk. In this root directory you will end up with the following directories:
+
+* *agnosticd-v2*: The AgnosticD code repository
+* *agnosticd-v2-vars*: Configuration files for AgnosticD. This directory will be seeded with an example vars file for an OpenShift Cluster with Let's Encrypt certificates.
+* *agnosticd-v2-secrets*: Secrets. This directory will be seeded with a file `secrets.yml` to hold general secrets (like the OpenShift Pull Secret or Red Hat Satellite subscription information) and `secrets-sandboxXXX.yml` to hold connection information for an AWS Open Environment from https://demo.redhat.com.
+* *agnosticd-v2-output*: Output of any Ansible run
+* *agnosticd-v2-virtualenv*: Python 3.11 virtualenv to hold ansible-navigator to run deployments using an Ansible execution environment. You will not need to do anything with this virtual environment - the deployment script will activate it where necessary.
+
+Your working directory when running the `agd` script should be the *agnosticd-v2* directory.
+
+=== macOS Prerequisites
+
+On macOS follow these steps to set up the prerequisites for AgnosticD V2:
+
+. Install *Brew* if you don't already hae it installed. Go to https://brew.sh/ and follow the instructions.
+.. Installing *Brew* also installs the *XCode Command Line Tools* if they haven't been previously installed.
+. Once Brew has been installed, install Python 3.11 and Podman
++
+[source,sh]
+----
+brew install python@3.11 podman
+----
+
+. *NOTE*: on macOS Podman uses a virtual machine - the script sets up a podman machine called `agnosticd`. Because of a limitation of `ansible-navigator` this machine *must* be the default machine - which the setup also configures. It is something to be aware of if you are using the default podman machine otherwise.
+. Continue with the common setup steps.
+
+=== RHEL 9.5 Prerequisites
+
+These instructions have *only* been tested on RHEL 9.5. The scripts check for a minimum of RHEL 9.5 as well.
+
+. Enable the `codeready-builder` repository (necessary for the `oniguruma-devel` package):
++
+[source,sh]
+----
+sudo subscription-manager repos --enable codeready-builder-for-rhel-9-$(arch)-rpms
+----
+. Install prerequisites:
++
+[source,sh]
+----
+sudo dnf -y install git python3.11 python3.11-devel gcc oniguruma-devel
+----
+
+. Continue with the common setup steps.
+
+=== Fedora Server 41 Prerequisites
+
+. Install prerequisites:
++
+[source,sh]
+----
+sudo dnf -y install podman git python3 python3-devel pip3 gcc oniguruma-devel
+----
+
+. Continue with the common setup steps.
+
+=== Common Setup
+
+One your prerequisites are in place you can now set up AgnosticD V2.
+
+. Set up your top level directory, for example:
++
+[source,sh]
+----
+mkdir -p ~/Development
+cd ~/Development
+----
+
+. Clone and change into the AgnosticD V2 repository:
++
+[source,sh]
+----
+git clone https://github.com/rhpds/agnosticd-v2
+cd agnosticd-v2
+----
+
+. Set up the AgnosticD development environment by running the setup script (you *must* run this script from the `agnosticd-v2` root directory):
++
+[source,sh]
+----
+./bin/agd setup
+----
++
+This script will:
+
+* Check if you have `ansible-navigator` installed. If not it will set up a virtualenv using Python3.11 and install ansible-navigator.
+* Check that the other agnosticd-v2-* directories exist and create them (including seed files) if necessary.
+* Seed the secrets and vars directories if the directories were created
+
+== Deploying a config
+
+In order to deploy a (base) config you will need a few things:
+
+* A variables file holding the configuration options for the config
+* A secrets file with common secret information - for example Red Hat Satellite configuration or OpenShift pull secrets
+* A separate secrets file with cloud account credentials for the environment to deploy into.
+
+After the setup script has been executed you will find seed files in the `agnosticd-v2-secrets` and `agnosticd-v2-vars` directories.
+These directories are where the deployer script expects to find these files. Don't move them elsewhere.
+
+=== The `secrets.yml` file
+
+This is the example `secrets.yml` file that `agd setup` creates:
+
+[source,yaml]
+----
+---
+# -------------------------------------------------------------------
+# Satellite Repos
+# -------------------------------------------------------------------
+host_satellite_repositories_hostname: <Your Satellite URL here>
+host_satellite_repositories_ha: true
+host_satellite_repositories_org: <Your Org Here>
+host_satellite_repositories_activationkey: <Your Activation Key here>
+
+# -------------------------------------------------------------------
+# OpenShift Secrets
+# -------------------------------------------------------------------
+ocp4_pull_secret: '<Add Your Pull Secret here>'
+----
+
+You will need to fill in the actual values for your environment. Note that if you are not deploying OpenShift
+you will not need the `ocp4_pull_secret` variable - but you may need other variables depending on your config.
+
+You can get your OpenShift Pull secret from https://console.redhat.com/openshift/create/local.
+
+=== The `secrets-account.yml` file
+
+The second secrets file that you need is a file holding the credentials for the cloud provider that you are
+going to be using.
+
+For AWS you can provision an https://catalog.demo.redhat.com/catalog?search=aws+blank&item=babylon-catalog-prod%2Fsandboxes-gpte.sandbox-open.prod[AWS Blank Open Environment^]
+from the Red Hat Demo Platform to deploy into.
+
+Once the *AWS Blank Open Environment* is available you will need to copy the information from that environmen into your file.
+
+Here is an example assuming you got assigned Sandbox1234 - of course if you have been assigned another sandbox you will
+need to rename the file and update the `subdomain_base_suffix` accordingly:
+
+.secrets-sandbox1234.yml
+[source,yaml]
+----
+---
+# Request an AWS Open Environment on https://demo.redhat.com and fill in the values from that
+# environment below
+aws_access_key_id: <Your AWS Access Key ID here>
+aws_secret_access_key: <Your AWS Secret Access Key here>
+
+# Replace XXX with your sandbox number and rename this
+# file to secrets-sandboxXXX.yml where XXX is the number of
+# your assigned sandbox
+base_domain: sandbox1234.opentlc.com
+
+# Don't use capacity reservations when deploying locally
+agnosticd_aws_capacity_reservation_enable: false
+----
+
+Other platforms (IBM Cloud, CNV, ...) will have similar files. For example `secrets-ibmcloud.yml` or `secrets-cnv.yml`.
+
+=== The config vars file
+
+In order to deploy a configuration you will need to set up the variables for the configuration.
+An example config to deploy an OpenShift Cluster is copied into the `agnosticd-v2-vars` directory when running `agd setup`.
+This file works out of the box - but you can of course modify it to suit your needs. At a minimum you should update your e-mail address
+under `cloud_tags` and replace the `host_ssh_authorized_keys` variable with your public key hosted on Github
+
+.Example file created by `agd setup`:
+[source,yaml]
+----
+---
+# ===================================================================
+# Mandatory Variables
+# ===================================================================
+cloud_provider: aws
+config: openshift-cluster
+# ===================================================================
+# End Mandatory Variables
+# ===================================================================
+
+# ===================================================================
+# AWS Specific settings
+#     See ansible/configs/openshift-cluster/default_vars_aws.yml for
+#     available variables
+# ===================================================================
+aws_region: eu-central-1
+
+# Replace owner with your e-mail address
+cloud_tags:
+- owner: wkulhane@redhat.com
+- Purpose: development
+- config: openshift-cluster
+- guid: "{{ guid }}"
+
+# ===================================================================
+# OpenShift cluster specific settings
+#     See ansible/configs/openshift-cluster/default_vars.yml
+#     and ansible/configs/{{ cloud_provider }}/default_vars for
+#     available variables
+# ===================================================================
+
+# -------------------------------------------------------------------
+# Set authorized keys on all created instances
+# -------------------------------------------------------------------
+# Replace with your SSH key on Github
+host_ssh_authorized_keys:
+- key: https://github.com/wkulhanek.keys
+
+# -------------------------------------------------------------------
+# Bastion VM settings
+# -------------------------------------------------------------------
+# Create a student user on the bastion
+bastion_setup_student_user: true
+bastion_student_user_name: student
+
+# -------------------------------------------------------------------
+# OpenShift settings
+# -------------------------------------------------------------------
+cluster_name: ocp
+
+host_ocp4_installer_root_url: http://mirror.openshift.com/pub/openshift-v4/clients
+host_ocp4_installer_version: "4.18"
+
+# Save kubeadmin password in user data - only necessary if no authentication is set up for the cluster
+host_ocp4_installer_set_user_data_kubeadmin_password: true
+
+# -------------------------------------------------------------------
+# List of workloads to be deployed
+# -------------------------------------------------------------------
+workloads:
+- ocp4_workload_cert_manager
+
+# -------------------------------------------------------------------
+# Variables for specific workloads
+# -------------------------------------------------------------------
+
+# -------------------------------------------------------------------
+# Workload: ocp4_workload_cert_manager
+# -------------------------------------------------------------------
+ocp4_workload_cert_manager_channel: stable-v1.15
+
+ocp4_workload_cert_manager_aws_region: "{{ aws_region }}"
+ocp4_workload_cert_manager_aws_access_key_id: "{{ hostvars.localhost.route53user_access_key }}"
+ocp4_workload_cert_manager_aws_secret_access_key: "{{ hostvars.localhost.route53user_secret_access_key }}"
+
+ocp4_workload_cert_manager_use_catalog_snapshot: false
+
+ocp4_workload_cert_manager_install_ingress_certificates: true
+ocp4_workload_cert_manager_install_api_certificates: false
+----
+
+=== Running `agd provision`
+
+Now that everything has been set up (secrets and variables file) you can run the provision function of the `agd` script. The script takes 3 parameters in any order:
+
+* `--guid | -g`: The GUID for your deployed environment
+* `--config | -c`: Name of the vars file
+* `--account | -a`: Name of account secrets file (not including the `secrets-` prefix)
+
+For example if you want to deploy a configuration where the vars file is called `openshift-cluster`, the GUID you want to set for your deployment is `myocp` and the accounts secret file is `secrets-sandbox1234.yml` you would run the script like this:
+
+[source,sh]
+----
+./bin/agd provision --guid myocp --config openshift-cluster --account sandbox1234
+----
+
+or
+
+[source,sh]
+----
+./bin/agd provision -g myocp -c openshift-cluster -a sandbox1234
+----
+
+== Destroying a config
+
+To destroy a config you run the script the same way as during provision - except you use the `destroy` function:
+
+[source,sh]
+----
+./bin/agd destroy --guid myocp --config openshift-cluster --account sandbox1234
+----
+
+== Stopping a config
+
+To stop a config you run the script the same way as during provision - except you use the `stop` function:
+
+[source,sh]
+----
+./bin/agd stop --guid myocp --config openshift-cluster --account sandbox1234
+----
+
+== Starting a config
+
+To start a config you run the script the same way as during provision - except you use the `start` function:
+
+[source,sh]
+----
+./bin/agd start --guid myocp --config openshift-cluster --account sandbox1234
+----
+
+== Getting status of a config
+
+To get the status of a config you run the script the same way as during provision - except you use the `status` function:
+
+[source,sh]
+----
+./bin/agd status --guid myocp --config openshift-cluster --account sandbox1234
+----
+
+== Running post-install configuration
+
+[NOTE]
+====
+This section is pending further AgnosticD V2 development at this moment.
+====
