@@ -10,21 +10,31 @@ This is supposed to be a comprehensive list - but in case some variables have be
 * `ec2` cloud provider has been renamed to `aws` for consistency.
 * At the moment `aws` and `none` are the only supported (working) cloud providers. As more cloud providers are converted/updated/modernized this document will be updated.
 * Because cloud providers are now in a separate collection and not part of the core repository it is now possible to lock a version for the collection by specifying a branch or tag via the variable `cloud_provider_version`. If no `cloud_provider_version` is specified the default `main`is used.
+** Cloud Provider playbooks remain in AgdV2. But they have been moved to the `cloud_provider/{{ cloud_provider }}` directory. Valid playbooks are `infrastructure_deployment.yml`, `destroy_env.yml` and `lifecycle.yml`. All roles have been/should be refactored into a collection like the `aws` cloud provider.
+* All `AgnosticD` plugins have been consolidated into a collection. This collection is embedded into the AgnosticD V2 repository (`/ansible/collections/ansible_collections/agnosticd/core`). Therefore it is necessary to use the fully qualified plugin name in AgnosticD (or workload) code. Note that lookup plugins are also symlinked into `/ansible/lookup_plugins` for Babylon compability (Babylon sets variables from Vault using `unvault_string` and changing Babylon would break old deployments).
+** `agnosticd.core.agnosticd_user_info` (Action plugin/Module)
+** `agnosticd.core.agnosticd_odcr` (Action plugin)
+** `agnosticd.core.agnosticd_user_data` (Lookup plugin)
+** `agnosticd.core.bitwarden` (Lookup plugin)
+** `agnosticd.core.unvault_string` (Lookup plugins.)
 * `software_to_deploy` does no longer exist. It was only used by OpenShift anyway. It has been replaced by `host_ocp4_deploy_installation_method` for the `openshift-cluster` config.
+* Roles directory have been consolidated. `roles_infra`, `roles_studenvm` and `roles_ocp_workloads` no longer exist.
 * Collections and roles are now installed *before* the `ansible/main.yml` playbook is executed. It is necessary to use a new Execution Environment image for this mechanism to work. At time of writing the full execution environment image is `quay.io/agnosticd/ee-multicloud:chained-2025-06-24` (note the `chained` prefix before the build date).
+* There is no Python `virtualenv` installed on the bastion host anymore. The entire deployer runs in the execution environment container. If you *have* to run things on the bastion the tasks will to be pinned to the bastion using `delegate_to: "{{ groups['bastions'][0] }}"`
+** All k8s tasks should be able to run from within the execution environment.
 
-== OpenShift Cluster
+== OpenShift Cluster changes
 
 The `ocp4-cluster` config has been renamed to `openshift-cluster`.
 The term `master` has been replaced by `control_plane` where possible.
-`infra_workloads` has been renamed to `workloads`
+`infra_workloads` has been renamed to `workloads` and workloads now require the fully qualified role name
 `student_workloads` have been removed
 
-== DNS
+== DNS changes
 
 TBD
 
-== Common Roles
+== Common Role changes
 
 === Packages
 
@@ -39,7 +49,7 @@ install_common_packages: true
 # Run a full dnf update on the hosts
 host_common_packages_update_all: true
 
-=== Repositories
+=== Satellite Repositories
 
 install_satellite_repositories: true
 
@@ -49,13 +59,13 @@ install_satellite_repositories: true
 # host_satellite_repositories_org:
 # host_satellite_repositories_activationkey:
 
-== Bastion
+=== Bastion
 
 install_bastion: true
 bastion_student_user_name: lab-user
 bastion_install_ftl: false
 
-== Example: Convert OpenShift Cluster config from V1 to V2
+== Example: Convert OpenShift Cluster (Workshop) config from V1 to V2
 
 * Create a new directory in AgnosticV - the `agd_v2` directory already exists and the `account.yml` file already has a few default variable mappings that enable the config to be deployed via the current Babylon mechanism.
 * Copy `common.yaml` / `dev.yaml` / `description.adoc`
