@@ -45,7 +45,7 @@ class ActionModule(ActionBase):
     '''Print statements during execution and save user info to file'''
 
     TRANSFERS_FILES = False
-    _VALID_ARGS = frozenset(('msg','data','user','body'))
+    _VALID_ARGS = frozenset(('msg','data','data_prefix','user','body'))
 
     def run(self, tmp=None, task_vars=None):
         self._supports_check_mode = True
@@ -60,6 +60,7 @@ class ActionModule(ActionBase):
         msg = self._task.args.get('msg')
         body = self._task.args.get('body')
         data = self._task.args.get('data', {})
+        data_prefix = self._task.args.get('data_prefix')
         user = self._task.args.get('user')
 
         if msg and body:
@@ -89,6 +90,9 @@ class ActionModule(ActionBase):
                 result['failed'] = True
                 result['error'] = 'data must be a dictionary of name/value pairs'
                 return result
+            # Apply data prefix if provided.
+            if data_prefix:
+                data = {(data_prefix + key): value for key, value in data.items()}
 
         if user:
             result['user'] = user

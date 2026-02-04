@@ -49,6 +49,9 @@ options:
       - Dictionary of data to store.
       - Values may be of any type, deep data structures are discouraged.
       - Subsequent calls to agnosticd_user_info will add new keys and update existing keys.
+  data_prefix:
+    description:
+      - Prefix to add to all data item keys.
   user:
     description:
       - User name if data or message should be set for a particular user.
