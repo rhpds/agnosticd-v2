@@ -166,3 +166,7 @@ workloads: []
 # when deleting the software or infrastructure.
 # Workloads run on the controller (in the execution environment)
 remove_workloads: []
+
+# Remove mint-mode cloud credentials at end of provision
+# https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/authentication_and_authorization/managing-cloud-provider-credentials
+remove_mint_mode_cloud_provider_credentials: true

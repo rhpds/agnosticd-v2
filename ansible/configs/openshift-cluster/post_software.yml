@@ -66,3 +66,23 @@
 #     ansible.builtin.file:
 #       path: "{{ output_dir }}/google-cloud-sdk"
 #       state: absent
+
+- name: Step 005.5 - Remove mint-mode cloud provider credentials
+  hosts: localhost
+  gather_facts: false
+  become: false
+  environment:
+    KUBECONFIG: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+  tasks:
+  - name: Remove mint-mode cloud provider credentials
+    when: remove_mint_mode_cloud_provider_credentials | bool
+    kubernetes.core.k8s:
+      state: absent
+      api_version: v1
+      kind: Secret
+      name: "{{ item }}"
+      namespace: kube-system
+    loop:
+    - aws-creds
+    - azure-credentials
+    - gcp-credentials
