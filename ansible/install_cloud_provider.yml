@@ -11,7 +11,7 @@
     block: |
       # Cloud Provider Collection for {{ cloud_provider }}
       collections:
-      - name: https://github.com/agnosticd/cloud_provider_{{ cloud_provider }}.git
+      - name: {{ cloud_provider_repo | default('https://github.com/agnosticd/cloud_provider_' ~ cloud_provider ~ '.git') }}
         type: git
         version: {{ cloud_provider_version | default('main') }}
     marker: "# {mark} ANSIBLE MANAGED BLOCK - cloud provider collection"
