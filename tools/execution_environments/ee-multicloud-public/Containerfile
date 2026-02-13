@@ -84,10 +84,10 @@ LABEL ansible-execution-environment=true \
       summary="${DESCRIPTION}"
 
 COPY --from=galaxy /usr/share/ansible /usr/share/ansible
-# RUN pip install --no-cache-dir -r /usr/share/ansible/collections/ansible_collections/azure/azcollection/requirements.txt
 RUN pip install --no-cache-dir -r /usr/share/ansible/collections/ansible_collections/community/vmware/requirements.txt
-RUN pip install --no-cache-dir -r /usr/share/ansible/collections/ansible_collections/google/cloud/requirements.txt
 RUN pip install --no-cache-dir -r /usr/share/ansible/collections/ansible_collections/kubernetes/core/requirements.txt
+# RUN pip install --no-cache-dir -r /usr/share/ansible/collections/ansible_collections/azure/azcollection/requirements.txt
+# RUN pip install --no-cache-dir -r /usr/share/ansible/collections/ansible_collections/google/cloud/requirements.txt
 
 # AWS, Bitwarden, OC client
 COPY install_binaries.sh /tmp/install_binaries.sh
