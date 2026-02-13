@@ -51,8 +51,9 @@ collections:
 # - name: azure.azcollection
 
 # requirements.txt from the collection
-- name: google.cloud
+# - name: google.cloud
 
 # requirements.txt from the collection
 - name: community.vmware
 - name: vmware.vmware_rest
+
