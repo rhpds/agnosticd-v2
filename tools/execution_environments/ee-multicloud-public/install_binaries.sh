@@ -38,11 +38,7 @@ install -t /usr/bin bw
 rm bw bw.zip
 
 # AWS CLI
-# aws_version=2.4.23
-# curl -s -L "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m)-${aws_version}.zip" \
-#     -o "awscliv2.zip"
-curl -s -L "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" \
-    -o "awscliv2.zip"
+curl -s -L "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o awscliv2.zip
 
 unzip -q awscliv2.zip
 ./aws/install
@@ -51,9 +47,7 @@ rm awscliv2.zip
 rm -rf aws
 
 # helm
-curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
-chmod 700 get_helm.sh
-./get_helm.sh
+curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | sh
 
 # IBM Cloud binary
 curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
