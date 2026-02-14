@@ -46,8 +46,15 @@ unzip -q awscliv2.zip
 rm awscliv2.zip
 rm -rf aws
 
-# helm
-curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | sh
+# helm (manual install to avoid get-helm-3 script's tar -C extraction failing on overlay fs in buildah)
+HELM_TAG=$(curl -sL https://get.helm.sh/helm3-latest-version | grep -E '^v[0-9]' || true)
+HELM_TAG=${HELM_TAG:-v3.20.0}
+HELM_DIST="helm-${HELM_TAG}-linux-${ARCH}.tar.gz"
+curl -sSL "https://get.helm.sh/${HELM_DIST}" -o "/tmp/${HELM_DIST}"
+# Extract in /tmp without -C to avoid "tar: Cannot open: Invalid argument" in container overlay builds
+cd /tmp && tar xzf "${HELM_DIST}"
+install -t /usr/bin "/tmp/linux-${ARCH}/helm"
+rm -rf "/tmp/linux-${ARCH}" "/tmp/${HELM_DIST}"
 
 # IBM Cloud binary
 curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
