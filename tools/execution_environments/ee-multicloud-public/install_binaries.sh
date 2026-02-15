@@ -59,11 +59,30 @@ with tarfile.open('/tmp/${HELM_DIST}', 'r:gz') as tf:
 install -t /usr/bin "/tmp/linux-${ARCH}/helm"
 rm -rf "/tmp/linux-${ARCH}" "/tmp/${HELM_DIST}"
 
-# IBM Cloud binary
-curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
+# IBM Cloud CLI (extract with Python to avoid system tar "Cannot open: Invalid argument" on overlay fs in buildah)
+IBM_CLI_VERSION=$(curl -sL https://api.github.com/repos/IBM-Cloud/ibm-cloud-cli-release/releases/latest 2>/dev/null | jq -r '.tag_name // empty' | sed 's/^v//')
+IBM_CLI_VERSION=${IBM_CLI_VERSION:-2.41.1}
+# IBM uses amd64, arm64, 386, ppc64le, s390x - our ARCH already matches for main platforms
+IBM_ARCH="${ARCH}"
+case "${ARCH}" in
+    armv5|armv6|arm) IBM_ARCH="arm64";;  # no 32-bit arm, use arm64 as best effort
+esac
+IBM_TGZ="IBM_Cloud_CLI_${IBM_CLI_VERSION}_${IBM_ARCH}.tar.gz"
+curl -fsSL "https://download.clis.cloud.ibm.com/ibm-cloud-cli-dn/${IBM_CLI_VERSION}/${IBM_TGZ}" -o "/tmp/${IBM_TGZ}"
+python3 -c "
+import tarfile
+with tarfile.open('/tmp/${IBM_TGZ}', 'r:gz') as tf:
+    tf.extractall('/tmp')
+"
+IBM_DIR=$(find /tmp -maxdepth 1 -type d -name 'IBM_Cloud_CLI*' 2>/dev/null | head -1)
+if [ -n "${IBM_DIR}" ] && [ -f "${IBM_DIR}/bin/ibmcloud" ]; then
+    rm -rf /opt/ibmcloud
+    mv "${IBM_DIR}" /opt/ibmcloud
+    ln -sf /opt/ibmcloud/bin/ibmcloud /usr/bin/ibmcloud
+fi
+rm -f "/tmp/${IBM_TGZ}"
 
 # Install all plugins, best effort
 export IBMCLOUD_HOME=/opt/ibmcloud
-mkdir -p /opt/ibmcloud
 ibmcloud plugin install --all || true
 ibmcloud config --check-version=false
