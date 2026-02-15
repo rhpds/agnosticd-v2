@@ -52,9 +52,11 @@ HELM_TAG=${HELM_TAG:-v3.20.0}
 HELM_DIST="helm-${HELM_TAG}-linux-${ARCH}.tar.gz"
 curl -sSL "https://get.helm.sh/${HELM_DIST}" -o "/tmp/${HELM_DIST}"
 python3 -c "
-import tarfile
+import sys, tarfile, warnings
+warnings.filterwarnings('ignore', category=RuntimeWarning, module='tarfile')
 with tarfile.open('/tmp/${HELM_DIST}', 'r:gz') as tf:
-    tf.extractall('/tmp')
+    kwargs = {'filter': 'fully_trusted'} if sys.version_info >= (3, 12) else {}
+    tf.extractall('/tmp', **kwargs)
 "
 install -t /usr/bin "/tmp/linux-${ARCH}/helm"
 rm -rf "/tmp/linux-${ARCH}" "/tmp/${HELM_DIST}"
@@ -70,15 +72,22 @@ esac
 IBM_TGZ="IBM_Cloud_CLI_${IBM_CLI_VERSION}_${IBM_ARCH}.tar.gz"
 curl -fsSL "https://download.clis.cloud.ibm.com/ibm-cloud-cli-dn/${IBM_CLI_VERSION}/${IBM_TGZ}" -o "/tmp/${IBM_TGZ}"
 python3 -c "
-import tarfile
+import sys, tarfile, warnings
+warnings.filterwarnings('ignore', category=RuntimeWarning, module='tarfile')
 with tarfile.open('/tmp/${IBM_TGZ}', 'r:gz') as tf:
-    tf.extractall('/tmp')
+    kwargs = {'filter': 'fully_trusted'} if sys.version_info >= (3, 12) else {}
+    tf.extractall('/tmp', **kwargs)
 "
-IBM_DIR=$(find /tmp -maxdepth 1 -type d -name 'IBM_Cloud_CLI*' 2>/dev/null | head -1)
-if [ -n "${IBM_DIR}" ] && [ -f "${IBM_DIR}/bin/ibmcloud" ]; then
-    rm -rf /opt/ibmcloud
-    mv "${IBM_DIR}" /opt/ibmcloud
-    ln -sf /opt/ibmcloud/bin/ibmcloud /usr/bin/ibmcloud
+# Find bin/ibmcloud regardless of top-level directory name
+IBM_BIN=$(find /tmp -type f -path '*/bin/ibmcloud' 2>/dev/null | head -1)
+if [ -n "${IBM_BIN}" ]; then
+    IBM_DIR=$(dirname "$(dirname "$IBM_BIN")")
+    if [ "${IBM_DIR}" != "/tmp" ]; then
+        rm -rf /opt/ibmcloud
+        mv "${IBM_DIR}" /opt/ibmcloud
+        chmod 755 /opt/ibmcloud/bin/ibmcloud
+        ln -sf /opt/ibmcloud/bin/ibmcloud /usr/bin/ibmcloud
+    fi
 fi
 rm -f "/tmp/${IBM_TGZ}"
 
