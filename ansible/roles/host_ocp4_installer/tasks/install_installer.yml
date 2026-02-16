@@ -31,8 +31,8 @@
   - (host_ocp4_installer_version | string).split('.') | length == 2
   ansible.builtin.set_fact:
     _host_ocp4_installer_url: >-
-      {% if ansible_distribution_major_version is version_compare('9', '==') -%}
-      {%   if ansible_architecture == 'x86_64' %}
+      {% if ansible_facts['ansible_distribution_major_version'] is version_compare('9', '==') -%}
+      {%   if ansible_facts['ansible_architecture'] == 'x86_64' %}
       {{ '{0}/ocp/stable-{1}/openshift-install-rhel9-amd64.tar.gz'.format(
         host_ocp4_installer_root_url | default("https://mirror.openshift.com/pub/openshift-v4/clients"),
         host_ocp4_installer_version
@@ -41,11 +41,11 @@
       {{ '{0}/ocp/stable-{1}/openshift-install-linux-{2}.tar.gz'.format(
         host_ocp4_installer_root_url | default("https://mirror.openshift.com/pub/openshift-v4/clients"),
         host_ocp4_installer_version,
-        ansible_architecture
+        ansible_facts['ansible_architecture']
       ) }}
       {%    endif %}
       {%- else -%}
-      {%   if ansible_architecture == 'x86_64' %}
+      {%   if ansible_facts['ansible_architecture'] == 'x86_64' %}
       {{ '{0}/ocp/stable-{1}/openshift-install-linux.tar.gz'.format(
         host_ocp4_installer_root_url | default("https://mirror.openshift.com/pub/openshift-v4/clients"),
         host_ocp4_installer_version
@@ -54,29 +54,29 @@
       {{ '{0}/ocp/stable-{1}/openshift-install-linux-{2}.tar.gz'.format(
         host_ocp4_installer_root_url | default("https://mirror.openshift.com/pub/openshift-v4/clients"),
         host_ocp4_installer_version,
-        ansible_architecture
+        ansible_facts['ansible_architecture']
       ) }}
       {%   endif %}
       {%- endif %}
     _host_ocp4_installer_client_url: >-
-      {% if ansible_distribution_major_version is version_compare('9', '==') -%}
+      {% if ansible_facts['ansible_distribution_major_version'] is version_compare('9', '==') -%}
       {{ '{0}/ocp/stable-{1}/openshift-client-linux-{2}-rhel9.tar.gz'.format(
         host_ocp4_installer_root_url | default("https://mirror.openshift.com/pub/openshift-v4/clients"),
         host_ocp4_installer_version,
-        'amd64' if ansible_architecture == 'x86_64' else ansible_architecture
+        'amd64' if ansible_facts['ansible_architecture'] == 'x86_64' else ansible_facts['ansible_architecture']
       ) }}
       {% else %}
-      {%   if ansible_architecture == 'x86_64' %}
+      {%   if ansible_facts['ansible_architecture'] == 'x86_64' %}
       {{ '{0}/ocp/stable-{1}/openshift-client-linux.tar.gz'.format(
         host_ocp4_installer_root_url | default("https://mirror.openshift.com/pub/openshift-v4/clients"),
         host_ocp4_installer_version,
-        'amd64' if ansible_architecture == 'x86_64' else ansible_architecture
+        'amd64' if ansible_facts['ansible_architecture'] == 'x86_64' else ansible_facts['ansible_architecture']
       ) }}
       {%   else %}
       {{ '{0}/ocp/stable-{1}/openshift-client-linux-{2}.tar.gz'.format(
         host_ocp4_installer_root_url | default("https://mirror.openshift.com/pub/openshift-v4/clients"),
         host_ocp4_installer_version,
-        ansible_architecture
+        ansible_facts['ansible_architecture']
       ) }}
       {%   endif %}
       {% endif %}

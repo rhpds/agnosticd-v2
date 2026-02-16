@@ -60,13 +60,13 @@
 
 ######################## Install Basic Packages
 - name: Run setup if gather_facts hasn't been run
-  when: ansible_distribution_major_version is not defined
+  when: ansible_facts.get('ansible_distribution_major_version') is not defined
   ansible.builtin.setup:
     gather_subset: min
 
-- name: Install common packages for RHEL {{ ansible_distribution_major_version }}
-  when: ansible_distribution_major_version in ["9", "10"]
-  ansible.builtin.include_tasks: "packages_el{{ ansible_distribution_major_version }}.yml"
+- name: Install common packages for RHEL {{ ansible_facts['ansible_distribution_major_version'] }}
+  when: ansible_facts['ansible_distribution_major_version'] in ["9", "10"]
+  ansible.builtin.include_tasks: "packages_el{{ ansible_facts['ansible_distribution_major_version'] }}.yml"
 
 - name: Install extra packages
   when: host_common_packages_extra | default([]) | length > 0

@@ -92,9 +92,9 @@
   ansible.builtin.set_fact:
     _host_satellite_repositories_subscription_hostname: >-
       {%- if guid in inventory_hostname -%}
-      {{ inventory_hostname }}-{{ ansible_date_time.iso8601_basic | lower }}
+      {{ inventory_hostname }}-{{ ansible_facts['ansible_date_time']['iso8601_basic'] | lower }}
       {%- else -%}
-      {{ inventory_hostname }}.{{ guid }}.internal-{{ ansible_date_time.iso8601_basic | lower }}
+      {{ inventory_hostname }}.{{ guid }}.internal-{{ ansible_facts['ansible_date_time']['iso8601_basic'] | lower }}
       {%- endif -%}
 
 - name: Set network.fqdn in /etc/rhsm/facts/katello.facts
@@ -136,7 +136,7 @@
   ansible.builtin.command: subscription-manager config --rhsm.manage_repos=1
 
 - name: Lock RHEL 9 release to specific version
-  when: host_satellite_repositories_rhel9_lock_release is defined and ansible_os_family == 'RedHat' and ansible_distribution_major_version == "9"
+  when: host_satellite_repositories_rhel9_lock_release is defined and ansible_facts['ansible_os_family'] == 'RedHat' and ansible_facts['ansible_distribution_major_version'] == "9"
   ansible.builtin.command: subscription-manager release --set={{ host_satellite_repositories_rhel9_lock_release }}
   register: lock_result
   until: lock_result is succeeded

@@ -45,7 +45,6 @@
       - "api-int"
       - "api"
       - "*.apps"
-    when: cluster_dns_server is defined
     
   - name: Delete DNS records (Route53)
     when: route53_aws_access_key_id is defined
