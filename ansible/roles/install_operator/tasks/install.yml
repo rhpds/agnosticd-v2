@@ -153,7 +153,7 @@
       name: "{{ r_subscription.resources[0].status.currentCSV }}"
       namespace: "{{ install_operator_namespace }}"
     register: r_csv
-    retries: 30
+    retries: 60
     delay: 10
     until:
     - r_csv.resources[0].status.phase is defined
