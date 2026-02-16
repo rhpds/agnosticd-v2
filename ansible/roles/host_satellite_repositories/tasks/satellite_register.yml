@@ -92,9 +92,9 @@
   ansible.builtin.set_fact:
     _host_satellite_repositories_subscription_hostname: >-
       {%- if guid in inventory_hostname -%}
-      {{ inventory_hostname }}-{{ ansible_facts['ansible_date_time']['iso8601_basic'] | default(ansible_date_time.iso8601_basic) | lower }}
+      {{ inventory_hostname }}-{{ ansible_facts['ansible_date_time']['iso8601_basic'] | lower }}
       {%- else -%}
-      {{ inventory_hostname }}.{{ guid }}.internal-{{ ansible_facts['ansible_date_time']['iso8601_basic'] | default(ansible_date_time.iso8601_basic) | lower }}
+      {{ inventory_hostname }}.{{ guid }}.internal-{{ ansible_facts['ansible_date_time']['iso8601_basic'] | lower }}
       {%- endif -%}
 
 - name: Set network.fqdn in /etc/rhsm/facts/katello.facts
