@@ -55,11 +55,11 @@
   ansible.builtin.set_fact:
     _host_rhn_repositories_subscription_hostname: >-
       {%- if guid is defined and guid in inventory_hostname -%}
-      {{ inventory_hostname }}-{{ ansible_facts['ansible_date_time']['iso8601_basic'] | lower }}
+      {{ inventory_hostname }}-{{ ansible_facts['date_time']['iso8601_basic'] | lower }}
       {%- elif guid is defined -%}
-      {{ inventory_hostname }}.{{ guid }}.internal-{{ ansible_facts['ansible_date_time']['iso8601_basic'] | lower }}
+      {{ inventory_hostname }}.{{ guid }}.internal-{{ ansible_facts['date_time']['iso8601_basic'] | lower }}
       {%- else -%}
-      {{ inventory_hostname }}-{{ ansible_facts['ansible_date_time']['iso8601_basic'] | lower }}
+      {{ inventory_hostname }}-{{ ansible_facts['date_time']['iso8601_basic'] | lower }}
       {%- endif -%}
 
 - name: Register with username and password
@@ -101,7 +101,7 @@
 - name: Lock RHEL release to specific version
   when:
   - host_rhn_repositories_release is defined
-  - ansible_facts['ansible_os_family'] == 'RedHat'
+  - ansible_facts['os_family'] == 'RedHat'
   ansible.builtin.command: subscription-manager release --set={{ host_rhn_repositories_release }}
   register: lock_result
   until: lock_result is succeeded

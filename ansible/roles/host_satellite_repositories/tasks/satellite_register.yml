@@ -136,7 +136,7 @@
   ansible.builtin.command: subscription-manager config --rhsm.manage_repos=1
 
 - name: Lock RHEL 9 release to specific version
-  when: host_satellite_repositories_rhel9_lock_release is defined and ansible_facts['ansible_os_family'] == 'RedHat' and ansible_facts['distribution_major_version'] == "9"
+  when: host_satellite_repositories_rhel9_lock_release is defined and ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution_major_version'] == "9"
   ansible.builtin.command: subscription-manager release --set={{ host_satellite_repositories_rhel9_lock_release }}
   register: lock_result
   until: lock_result is succeeded

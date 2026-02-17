@@ -1,6 +1,6 @@
 ---
 - name: Run setup if gather_facts hasn't been run
-  when: ansible_facts.get('ansible_date_time') is not defined
+  when: ansible_facts.get('date_time') is not defined
   ansible.builtin.setup:
     gather_subset: min
 
