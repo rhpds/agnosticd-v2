@@ -19,6 +19,11 @@
       ACTION: "{{ ACTION | default('provision') }}"
     ansible.builtin.include_role:
       name: "{{ workload_loop_var }}"
+      apply:
+        environment:
+          K8S_AUTH_HOST: "{{ sandbox_openshift_api_url | default(omit) }}"
+          K8S_AUTH_API_KEY: "{{ cluster_admin_agnosticd_sa_token | default(omit) }}"
+          K8S_AUTH_VERIFY_SSL: "false"
     loop: "{{ workloads }}"
     loop_control:
       loop_var: workload_loop_var

@@ -10,6 +10,11 @@
     - name: Remove namespaced workload "{{ workload_loop_var | default('None') }}"
       ansible.builtin.include_role:
         name: "{{ workload_loop_var }}"
+        apply:
+          environment:
+            K8S_AUTH_HOST: "{{ sandbox_openshift_api_url | default(omit) }}"
+            K8S_AUTH_API_KEY: "{{ cluster_admin_agnosticd_sa_token | default(omit) }}"
+            K8S_AUTH_VERIFY_SSL: "false"
       vars:
         ACTION: destroy
       loop: "{{ workloads | reverse }}"
