@@ -19,10 +19,9 @@ esac
 echo "Detected architecture: ${ARCH}"
 
 # OC
-# Install rhel8 version of oc
-# https://access.redhat.com/solutions/7077895
 version=stable
-tarball=openshift-client-linux-${ARCH}-rhel8.tar.gz
+# tarball=openshift-client-linux-${ARCH}-rhel8.tar.gz
+tarball=openshift-client-linux-${ARCH}-rhel9.tar.gz
 url="https://mirror.openshift.com/pub/openshift-v4/${ARCH}/clients/ocp/${version}/${tarball}"
 curl -s -L "${url}" -o ${tarball}
 tar xzf ${tarball}
