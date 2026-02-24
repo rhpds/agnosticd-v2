@@ -1,0 +1,47 @@
+---
+# Playbook to update existing environment.
+# - First run start to make sure that the environment is started
+# - Then run any update playbook for the config if defined
+
+- name: Set ACTION to update
+  hosts: localhost
+  gather_facts: false
+  become: false
+  tasks:
+  - name: Set ACTION to update
+    ansible.builtin.set_fact:
+      ACTION: update
+
+- name: Setup runtime
+  ansible.builtin.import_playbook: setup_runtime.yml
+
+- name: Import start lifecycle playbook to start environment.
+  vars:
+    ACTION: start
+  ansible.builtin.import_playbook: >-
+    {{ lookup('first_found',
+        files=['start.yml', 'lifecycle.yml'],
+        paths=['configs/' + config, playbook_dir]
+    ) }}
+
+- name: Import lifecycle hook playbooks for start
+  vars:
+    ACTION: start
+  ansible.builtin.import_playbook: >-
+    {{ lookup('first_found',
+        files=['lifecycle_hook_post_start.yml', 'lifecycle_hook.yml'],
+        paths=['configs/' + config, playbook_dir]
+    ) }}
+
+- name: Import update playbook for the environment
+  ansible.builtin.import_playbook: >-
+    {{ lookup('first_found',
+        files=["configs/" ~ config ~ "/update.yml", "lifecycle_hook.yml"],
+        paths=[playbook_dir]
+    ) }}
+
+- name: Save output dir
+  ansible.builtin.import_playbook: save_output_dir.yml
+
+- name: Completion callback
+  ansible.builtin.import_playbook: completion_callback.yml
