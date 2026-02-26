@@ -1,77 +1,95 @@
 ---
-- name: Set masters as non-schedulable
-  kubernetes.core.k8s:
-    host: "{{ openshift_api_url }}"
-    api_key: "{{ openshift_cluster_admin_token }}"
-    validate_certs: false
-    api_version: config.openshift.io/v1
-    kind: Scheduler
-    name: cluster
-    state: patched
-    merge_type: merge
-    resource_definition:
-      spec:
-        mastersSchedulable: false
+- name: Set control-plane nodes as non-schedulable
+  module_defaults:
+    group/k8s:
+      host: "{{ openshift_api_url }}"
+      api_key: "{{ openshift_cluster_admin_token }}"
+      validate_certs: false
+  block:
+  - name: Get control-plane nodes
+    kubernetes.core.k8s_info:
+      api_version: v1
+      kind: Node
+      label_selectors:
+      - "node-role.kubernetes.io/control-plane"
+    register: r_control_plane_nodes
 
-- name: Get control-plane nodes
-  kubernetes.core.k8s_info:
-    host: "{{ openshift_api_url }}"
-    api_key: "{{ openshift_cluster_admin_token }}"
-    validate_certs: false
-    api_version: v1
-    kind: Node
-    label_selectors:
-      - node-role.kubernetes.io/master=
-  register: _r_control_plane_nodes
+  - name: Get master-labeled nodes
+    kubernetes.core.k8s_info:
+      api_version: v1
+      kind: Node
+      label_selectors:
+      - "node-role.kubernetes.io/master"
+    register: r_master_nodes
 
-- name: Remove worker label from control-plane nodes
-  ansible.builtin.uri:
-    url: "{{ openshift_api_url }}/api/v1/nodes/{{ item.metadata.name }}"
-    method: PATCH
-    headers:
-      Authorization: "Bearer {{ openshift_cluster_admin_token }}"
-      Content-Type: application/json-patch+json
-    body_format: json
-    body:
-      - op: remove
-        path: /metadata/labels/node-role.kubernetes.io~1worker
-    validate_certs: false
-    status_code:
-      - 200
-      - 422
-  loop: "{{ _r_control_plane_nodes.resources }}"
-  loop_control:
-    loop_var: item
-    label: "{{ item.metadata.name }}"
-  when: "'node-role.kubernetes.io/worker' in item.metadata.labels"
+  - name: Build list of control-plane nodes with worker label
+    ansible.builtin.set_fact:
+      control_plane_worker_nodes: >-
+        {%- set nodes = [] -%}
+        {%- set seen = [] -%}
+        {%- for node in (r_control_plane_nodes.resources + r_master_nodes.resources) -%}
+          {%- if node.metadata.name not in seen
+              and node.metadata.labels.get('node-role.kubernetes.io/worker') is defined -%}
+            {%- set _ = nodes.append(node.metadata.name) -%}
+            {%- set _ = seen.append(node.metadata.name) -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {{ nodes }}
 
-- name: Drain control-plane nodes
-  when: worker_drain_control_plane | default(false) | bool
-  ansible.builtin.command:
-    cmd: >-
-      oc adm drain {{ item.metadata.name }}
-      --ignore-daemonsets
-      --delete-emptydir-data
-      --force
-      --server={{ openshift_api_url }}
-      --token={{ openshift_cluster_admin_token }}
-      --insecure-skip-tls-verify=true
-  loop: "{{ _r_control_plane_nodes.resources }}"
-  loop_control:
-    loop_var: item
-    label: "{{ item.metadata.name }}"
-  changed_when: true
+  - name: Display control-plane nodes with worker label
+    ansible.builtin.debug:
+      msg: "Control-plane nodes with worker label: {{ control_plane_worker_nodes }}"
 
-- name: Uncordon control-plane nodes
-  when: worker_drain_control_plane | default(false) | bool
-  ansible.builtin.command:
-    cmd: >-
-      oc adm uncordon {{ item.metadata.name }}
-      --server={{ openshift_api_url }}
-      --token={{ openshift_cluster_admin_token }}
-      --insecure-skip-tls-verify=true
-  loop: "{{ _r_control_plane_nodes.resources }}"
-  loop_control:
-    loop_var: item
-    label: "{{ item.metadata.name }}"
-  changed_when: true
+  - name: Remove worker label from control-plane nodes
+    kubernetes.core.k8s:
+      api_version: v1
+      kind: Node
+      name: "{{ item }}"
+      state: present
+      definition:
+        metadata:
+          labels:
+            node-role.kubernetes.io/worker: null
+    loop: "{{ control_plane_worker_nodes }}"
+    when: control_plane_worker_nodes | length > 0
+
+  - name: Set mastersSchedulable to false
+    kubernetes.core.k8s:
+      api_version: config.openshift.io/v1
+      kind: Scheduler
+      name: cluster
+      state: present
+      definition:
+        spec:
+          mastersSchedulable: false
+
+  - name: Drain and uncordon control-plane nodes
+    when:
+    - worker_drain_control_plane | default(true) | bool
+    - control_plane_worker_nodes | length > 0
+    block:
+    - name: Drain control-plane node
+      kubernetes.core.k8s_drain:
+        name: "{{ item }}"
+        state: drain
+        delete_options:
+          ignore_daemonsets: true
+          delete_emptydir_data: true
+          force: true
+      loop: "{{ control_plane_worker_nodes }}"
+      # Ignore errors (e.g. apiserver PDB violation)
+      ignore_errors: true
+
+    - name: Uncordon control-plane node
+      kubernetes.core.k8s_drain:
+        name: "{{ item }}"
+        state: uncordon
+      loop: "{{ control_plane_worker_nodes }}"
+
+  - name: Display worker-only mode configuration results
+    ansible.builtin.debug:
+      msg:
+      - "Worker-only mode configured successfully"
+      - "Control-plane nodes with worker label removed: {{ control_plane_worker_nodes }}"
+      - "mastersSchedulable: false"
+      - "Control-plane nodes drained: {{ worker_drain_control_plane | default(true) | bool }}"
