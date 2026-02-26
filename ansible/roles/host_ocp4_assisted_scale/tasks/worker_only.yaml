@@ -1,0 +1,77 @@
+---
+- name: Set masters as non-schedulable
+  kubernetes.core.k8s:
+    host: "{{ openshift_api_url }}"
+    api_key: "{{ openshift_cluster_admin_token }}"
+    validate_certs: false
+    api_version: config.openshift.io/v1
+    kind: Scheduler
+    name: cluster
+    state: patched
+    merge_type: merge
+    resource_definition:
+      spec:
+        mastersSchedulable: false
+
+- name: Get control-plane nodes
+  kubernetes.core.k8s_info:
+    host: "{{ openshift_api_url }}"
+    api_key: "{{ openshift_cluster_admin_token }}"
+    validate_certs: false
+    api_version: v1
+    kind: Node
+    label_selectors:
+      - node-role.kubernetes.io/master=
+  register: _r_control_plane_nodes
+
+- name: Remove worker label from control-plane nodes
+  ansible.builtin.uri:
+    url: "{{ openshift_api_url }}/api/v1/nodes/{{ item.metadata.name }}"
+    method: PATCH
+    headers:
+      Authorization: "Bearer {{ openshift_cluster_admin_token }}"
+      Content-Type: application/json-patch+json
+    body_format: json
+    body:
+      - op: remove
+        path: /metadata/labels/node-role.kubernetes.io~1worker
+    validate_certs: false
+    status_code:
+      - 200
+      - 422
+  loop: "{{ _r_control_plane_nodes.resources }}"
+  loop_control:
+    loop_var: item
+    label: "{{ item.metadata.name }}"
+  when: "'node-role.kubernetes.io/worker' in item.metadata.labels"
+
+- name: Drain control-plane nodes
+  when: worker_drain_control_plane | default(false) | bool
+  ansible.builtin.command:
+    cmd: >-
+      oc adm drain {{ item.metadata.name }}
+      --ignore-daemonsets
+      --delete-emptydir-data
+      --force
+      --server={{ openshift_api_url }}
+      --token={{ openshift_cluster_admin_token }}
+      --insecure-skip-tls-verify=true
+  loop: "{{ _r_control_plane_nodes.resources }}"
+  loop_control:
+    loop_var: item
+    label: "{{ item.metadata.name }}"
+  changed_when: true
+
+- name: Uncordon control-plane nodes
+  when: worker_drain_control_plane | default(false) | bool
+  ansible.builtin.command:
+    cmd: >-
+      oc adm uncordon {{ item.metadata.name }}
+      --server={{ openshift_api_url }}
+      --token={{ openshift_cluster_admin_token }}
+      --insecure-skip-tls-verify=true
+  loop: "{{ _r_control_plane_nodes.resources }}"
+  loop_control:
+    loop_var: item
+    label: "{{ item.metadata.name }}"
+  changed_when: true

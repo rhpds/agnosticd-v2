@@ -15,3 +15,9 @@ ai_storage_class: ocs-storagecluster-ceph-rbd
 
 # This variable is used to configure the role and the installation disk
 ai_configure_hosts: []
+
+# When true, remove worker role from control-plane nodes and mark masters non-schedulable
+worker_only: false
+
+# When true (requires worker_only), drain existing workloads from control-plane nodes
+worker_drain_control_plane: false

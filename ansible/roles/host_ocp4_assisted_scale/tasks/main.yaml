@@ -157,3 +157,7 @@
 
 - name: Approve CSR
   ansible.builtin.include_tasks: approve_csr_nodes.yaml
+
+- name: Configure worker-only mode
+  when: worker_only | default(false) | bool
+  ansible.builtin.include_tasks: worker_only.yaml

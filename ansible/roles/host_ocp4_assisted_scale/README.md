@@ -15,6 +15,7 @@ The role performs the following operations:
 7. Waits for the new hosts to register with Assisted Installer
 8. Approves Certificate Signing Requests (CSRs) for the new nodes
 9. Scales the IngressController to match the new worker count
+10. Optionally configures worker-only mode (when `worker_only: true`)
 
 ## Requirements
 
@@ -69,6 +70,8 @@ The role performs the following operations:
 | `ai_attach_workers_macs` | MAC addresses for additional networks |
 | `ai_workers_extra_disks` | Extra disk definitions for workers |
 | `ai_install_use_network` | Override network name for installation |
+| `worker_only` | When `true`, remove worker role from control-plane nodes and mark masters non-schedulable (default: `false`) |
+| `worker_drain_control_plane` | When `true` (requires `worker_only`), drain existing workloads from control-plane nodes onto new workers (default: `false`) |
 
 ## Dependencies
 
@@ -115,6 +118,27 @@ None.
           - "storage-network"
 ```
 
+### Worker-Only Mode (Dedicated Workers)
+
+```yaml
+---
+- name: Scale OpenShift cluster with dedicated workers
+  hosts: localhost
+  roles:
+    - role: host_ocp4_assisted_scale
+      vars:
+        openshift_api_url: "https://api.cluster.example.com:6443"
+        openshift_cluster_admin_token: "{{ vault_cluster_token }}"
+        sandbox_openshift_api_url: "https://api.sandbox.example.com:6443"
+        sandbox_openshift_api_key: "{{ vault_sandbox_token }}"
+        ai_offline_token: "{{ vault_ai_token }}"
+        worker_instance_count: 2
+        worker_only: true
+        worker_drain_control_plane: true
+```
+
+This will add 2 worker nodes, mark control-plane nodes as non-schedulable, remove the worker label from them, drain existing workloads onto the new workers, and uncordon the control-plane nodes.
+
 ## Architecture
 
 ### Workflow
@@ -150,6 +174,10 @@ None.
                        ↓
 ┌─────────────────────────────────────────────────────────────┐
 │ 8. Scale IngressController to match worker count           │
+└──────────────────────┬──────────────────────────────────────┘
+                       ↓
+┌─────────────────────────────────────────────────────────────┐
+│ 9. Configure worker-only mode (optional)                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -176,6 +204,14 @@ None.
 - Monitors node readiness
 - Recursively approves additional CSRs as they appear
 - Scales IngressController replicas to match worker count
+
+### Worker-Only Mode (`tasks/worker_only.yaml`)
+
+- Sets `mastersSchedulable: false` on the Scheduler object
+- Retrieves control-plane nodes
+- Removes the `node-role.kubernetes.io/worker` label from control-plane nodes
+- Optionally drains workloads from control-plane nodes (when `worker_drain_control_plane: true`)
+- Uncordons control-plane nodes after drain (taint prevents new scheduling)
 
 ### Worker VM Creation (`tasks/kubevirt/create_workers.yaml`)
 
