@@ -4,19 +4,26 @@
   gather_facts: false
   become: false
   tasks:
-  - name: Remove namespaced workload in reverse order
-    when: workloads | default([]) | length > 0
-    block:
-    - name: Remove namespaced workload "{{ workload_loop_var | default('None') }}"
-      ansible.builtin.include_role:
-        name: "{{ workload_loop_var }}"
-        apply:
-          environment:
-            K8S_AUTH_HOST: "{{ sandbox_openshift_api_url | default(omit) }}"
-            K8S_AUTH_API_KEY: "{{ cluster_admin_agnosticd_sa_token | default('') | trim | default(omit, true) }}"
-            K8S_AUTH_VERIFY_SSL: "false"
-      vars:
-        ACTION: destroy
-      loop: "{{ workloads | reverse }}"
-      loop_control:
-        loop_var: workload_loop_var
+  # If remove_workloads is defined, use it as-is (developer controls order).
+  # Otherwise fall back to workloads in reverse order.
+  - name: Set destroy workload list
+    ansible.builtin.set_fact:
+      _destroy_workloads: >-
+        {{ remove_workloads
+           if (remove_workloads | default([]) | length > 0)
+           else (workloads | default([]) | reverse | list) }}
+
+  - name: Remove namespaced workload "{{ workload_loop_var | default('None') }}"
+    when: _destroy_workloads | length > 0
+    ansible.builtin.include_role:
+      name: "{{ workload_loop_var }}"
+      apply:
+        environment:
+          K8S_AUTH_HOST: "{{ sandbox_openshift_api_url | default(omit) }}"
+          K8S_AUTH_API_KEY: "{{ cluster_admin_agnosticd_sa_token | default('') | trim | default(omit, true) }}"
+          K8S_AUTH_VERIFY_SSL: "false"
+    vars:
+      ACTION: remove
+    loop: "{{ _destroy_workloads }}"
+    loop_control:
+      loop_var: workload_loop_var
