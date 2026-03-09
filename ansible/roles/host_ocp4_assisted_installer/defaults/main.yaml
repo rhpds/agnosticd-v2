@@ -54,3 +54,17 @@ ai_machineconfigs: []
 #   spec:
 #     kernelArguments:
 #     - psi=1
+
+# Specifies where the control planes should be running
+ai_control_plane_node_selector: {}
+# Example:
+# ai_control_plane_node_selector:
+#   key: "cpu-vendor.node.kubevirt.io/Intel"
+#   value: "true"
+
+# Specifies where the worker should be running
+ai_workers_node_selector: {}
+# Example:
+# ai_workers_node_selector:
+#   key: "cpu-vendor.node.kubevirt.io/Intel"
+#   value: "true"
