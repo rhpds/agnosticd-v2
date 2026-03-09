@@ -121,6 +121,10 @@
                 storage: 100Gi
             storageClassName: "{{ storageclass }}"
     _spec: |
+      {% if ai_workers_node_selector | default("") | length > 0 %}
+      nodeSelector:
+          {{ ai_workers_node_selector.key }}: "{{ ai_workers_node_selector.value }}"
+      {% endif %}
       domain:
         cpu:
           cores: {{ ai_workers_cores | int }}
