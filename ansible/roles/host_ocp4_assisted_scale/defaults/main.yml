@@ -21,3 +21,10 @@ worker_only: false
 
 # When true (requires worker_only), drain existing workloads from control-plane nodes
 worker_drain_control_plane: false
+
+# Specifies where the worker should be running
+ai_workers_node_selector: {}
+# Example:
+# ai_workers_node_selector:
+#   key: "cpu-vendor.node.kubevirt.io/Intel"
+#   value: "true"
