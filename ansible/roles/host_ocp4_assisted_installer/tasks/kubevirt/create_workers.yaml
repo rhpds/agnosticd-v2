@@ -121,6 +121,10 @@
                 storage: "{{ ai_workers_root_disk_size }}"
             storageClassName: "{{ ai_storage_class }}"
     _spec: |
+      {% if ai_workers_node_selector | default("") | length > 0 %}
+      nodeSelector:
+          {{ ai_workers_node_selector.key }}: "{{ ai_workers_node_selector.value }}"
+      {% endif %}
       domain:
         cpu:
           cores: {{ ai_workers_cores | int }}
