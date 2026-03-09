@@ -140,6 +140,10 @@
             storageClassName: "{{ ai_local_storageclass }}"
             volumeMode: Filesystem
     _spec: |
+      {% if ai_control_plane_node_selector | default("") | length > 0 %}
+      nodeSelector:
+          {{ ai_control_plane_selector.key }}: "{{ ai_control_plane_selector.value }}"
+      {% endif %}
       domain:
         cpu:
           cores: {{ ai_control_plane_cores | int }}
