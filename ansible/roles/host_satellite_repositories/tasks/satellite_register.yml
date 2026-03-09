@@ -86,6 +86,7 @@
   when: host_satellite_repositories_subscription_hostname | default("") | length > 0
   ansible.builtin.set_fact:
     _host_satellite_repositories_subscription_hostname: "{{ host_satellite_repositories_subscription_hostname }}"
+    cacheable: false 
 
 - name: Set host_satellite_repositories_subscription_hostname with randomization
   when: host_satellite_repositories_subscription_hostname | default("") | length== 0
