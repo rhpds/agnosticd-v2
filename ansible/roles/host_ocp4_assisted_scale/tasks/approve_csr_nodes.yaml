@@ -89,8 +89,7 @@
 
   - name: Prepare IngressController definition with integer replicas
     ansible.builtin.set_fact:
-      ingress_definition: >-
-        {{ {} | combine({'spec': {'replicas': ([2, ((current_instance_workers | int + worker_instance_count | int) + (current_instance_control_planes | int if current_instance_workers | int == 0 else 0))] | min)}}) }}
+      ingress_definition: "{{ {} | combine({'spec': {'replicas': ((current_instance_workers | int + worker_instance_count | int) + current_instance_control_planes | int if current_instance_workers | int == 0 else 0)}}) }}"
 
   - name: Scale IngressController to the number of workers
     kubernetes.core.k8s:
