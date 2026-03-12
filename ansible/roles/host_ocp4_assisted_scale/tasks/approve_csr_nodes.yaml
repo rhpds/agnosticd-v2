@@ -46,12 +46,27 @@
         }
     loop: "{{ pending_csrs }}"
 
-  - name: Get the current nodes
+  - name: Get nodes with worker label
     kubernetes.core.k8s_info:
       api_version: v1
       kind: Node
-      label_selectors: "node-role.kubernetes.io/worker=,!node-role.kubernetes.io/control-plane,!node-role.kubernetes.io/master"
-    register: r_worker_nodes
+      label_selectors:
+        - "node-role.kubernetes.io/worker="
+    register: r_nodes_with_worker
+
+  - name: Filter to worker-only nodes (exclude control-plane and master)
+    ansible.builtin.set_fact:
+      r_worker_nodes:
+        resources: >-
+          {%- set nodes = [] -%}
+          {%- for node in r_nodes_with_worker.resources -%}
+            {%- set labels = node.metadata.labels | default({}) -%}
+            {%- if 'node-role.kubernetes.io/control-plane' not in labels
+                and 'node-role.kubernetes.io/master' not in labels -%}
+              {%- set _ = nodes.append(node) -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ nodes }}
 
   - name: Count Ready nodes
     ansible.builtin.set_fact:
@@ -74,7 +89,8 @@
 
   - name: Prepare IngressController definition with integer replicas
     ansible.builtin.set_fact:
-      ingress_definition: "{{ {} | combine({'spec': {'replicas': ((current_instance_workers | int + worker_instance_count | int) + current_instance_control_planes | int if current_instance_workers | int == 0 else 0)}}) }}"
+      ingress_definition: >-
+        {{ {} | combine({'spec': {'replicas': ([2, ((current_instance_workers | int + worker_instance_count | int) + (current_instance_control_planes | int if current_instance_workers | int == 0 else 0))] | min)}}) }}
 
   - name: Scale IngressController to the number of workers
     kubernetes.core.k8s:
