@@ -63,6 +63,19 @@
         spec:
           mastersSchedulable: false
 
+  - name: Wait for worker node count to match expected count
+    kubernetes.core.k8s_info:
+      api_version: v1
+      kind: Node
+      label_selectors:
+      - "node-role.kubernetes.io/worker="
+      - "!node-role.kubernetes.io/control-plane"
+      - "!node-role.kubernetes.io/master"
+    register: r_current_workers
+    until: r_current_workers.resources | length == (current_instance_workers | int + worker_instance_count | int)
+    retries: 30
+    delay: 10
+
   - name: Drain and uncordon control-plane nodes
     when:
     - worker_drain_control_plane | default(true) | bool
