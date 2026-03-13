@@ -123,7 +123,7 @@
       pvcname: scale-iso
 
   - name: Create {{ worker_instance_count }} worker VMs for full cluster
-    ansible.builtin.include_tasks: kubevirt/create_workers.yaml
+    ansible.builtin.include_tasks: create_workers.yaml
     vars:
       pvcinstall: scale-iso
       vmname: "{{ ai_ocp_vmname_worker_prefix }}-{{ _index + current_instance_workers | int }}"

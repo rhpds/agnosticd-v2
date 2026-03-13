@@ -77,33 +77,9 @@
     retries: 30
     delay: 10
 
-  - name: Drain and uncordon control-plane nodes
-    when:
-    - worker_drain_control_plane | default(true) | bool
-    - control_plane_worker_nodes | length > 0
-    block:
-    - name: Drain control-plane node
-      kubernetes.core.k8s_drain:
-        name: "{{ item }}"
-        state: drain
-        delete_options:
-          ignore_daemonsets: true
-          delete_emptydir_data: true
-          force: true
-      loop: "{{ control_plane_worker_nodes }}"
-      # Ignore errors (e.g. apiserver PDB violation)
-      ignore_errors: true
-
-    - name: Uncordon control-plane node
-      kubernetes.core.k8s_drain:
-        name: "{{ item }}"
-        state: uncordon
-      loop: "{{ control_plane_worker_nodes }}"
-
   - name: Display worker-only mode configuration results
     ansible.builtin.debug:
       msg:
       - "Worker-only mode configured successfully"
       - "Control-plane nodes with worker label removed: {{ control_plane_worker_nodes }}"
       - "mastersSchedulable: {{ current_instance_control_planes | int == 1 | bool }}"
-      - "Control-plane nodes drained: {{ worker_drain_control_plane | default(true) | bool }}"

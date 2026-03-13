@@ -213,7 +213,7 @@ This will add 2 worker nodes, mark control-plane nodes as non-schedulable, remov
 - Optionally drains workloads from control-plane nodes (when `worker_drain_control_plane: true`)
 - Uncordons control-plane nodes after drain (taint prevents new scheduling)
 
-### Worker VM Creation (`tasks/kubevirt/create_workers.yaml`)
+### Worker VM Creation (`tasks/create_workers.yaml`)
 
 - Configures VM network interfaces and MAC addresses
 - Adds additional networks if specified
