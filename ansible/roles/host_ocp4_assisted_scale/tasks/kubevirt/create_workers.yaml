@@ -145,17 +145,3 @@
       networks: {{ _instance_networks }}
       terminationGracePeriodSeconds: 180
       volumes: {{ _instance_volumes | replace('INSTANCENAME', vmname) }}
-
-- name: Wait till VM is running
-  kubernetes.core.k8s_info:
-    api_version: kubevirt.io/v1
-    host: "{{ sandbox_openshift_api_url }}"
-    api_key: "{{ k8s_auth_results.k8s_auth.api_key | default(sandbox_openshift_api_key) }}"
-    validate_certs: false
-    kind: VirtualMachine
-    name: "{{ vmname }}"
-    namespace: "{{ sandbox_namespace }}"
-  register: r_vm_status
-  until: r_vm_status.resources[0].status.printableStatus|default('') == "Running"
-  retries: 30
-  delay: 10
