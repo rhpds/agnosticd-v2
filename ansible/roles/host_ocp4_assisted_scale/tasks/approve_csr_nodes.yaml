@@ -46,27 +46,15 @@
         }
     loop: "{{ pending_csrs }}"
 
-  - name: Get nodes with worker label
+  - name: Get worker-only nodes (exclude control-plane/master)
     kubernetes.core.k8s_info:
       api_version: v1
       kind: Node
       label_selectors:
-        - "node-role.kubernetes.io/worker="
-    register: r_nodes_with_worker
-
-  - name: Filter to worker-only nodes (exclude control-plane and master)
-    ansible.builtin.set_fact:
-      r_worker_nodes:
-        resources: >-
-          {%- set nodes = [] -%}
-          {%- for node in r_nodes_with_worker.resources -%}
-            {%- set labels = node.metadata.labels | default({}) -%}
-            {%- if 'node-role.kubernetes.io/control-plane' not in labels
-                and 'node-role.kubernetes.io/master' not in labels -%}
-              {%- set _ = nodes.append(node) -%}
-            {%- endif -%}
-          {%- endfor -%}
-          {{ nodes }}
+      - "node-role.kubernetes.io/worker="
+      - "!node-role.kubernetes.io/control-plane"
+      - "!node-role.kubernetes.io/master"
+    register: r_worker_nodes
 
   - name: Count Ready nodes
     ansible.builtin.set_fact:
@@ -79,23 +67,23 @@
           | length
         }}
 
-  - name: Include this tasks again if nodes doesn't appear
+  - name: CSR approval retry {{ approve_csr_iteration }}/{{ approve_csr_retries }}
     when: (current_instance_workers | int + worker_instance_count | int) != ready_nodes_count | int
     block:
+    - name: Fail if CSR approval retries exhausted
+      when: approve_csr_iteration | int > approve_csr_retries | int
+      ansible.builtin.fail:
+        msg: >-
+          CSR approval retries exhausted ({{ approve_csr_retries }} attempts).
+          Expected {{ current_instance_workers | int + worker_instance_count | int }} ready worker nodes,
+          but only {{ ready_nodes_count }} are ready.
+
     - name: Wait for additional CertificateSigningRequests to appear
       ansible.builtin.pause:
-        seconds: "10"
+        seconds: "{{ approve_csr_delay }}"
+
+    - name: Increment CSR approval iteration counter
+      ansible.builtin.set_fact:
+        approve_csr_iteration: "{{ approve_csr_iteration | int + 1 }}"
+
     - ansible.builtin.include_tasks: approve_csr_nodes.yaml
-
-  - name: Prepare IngressController definition with integer replicas
-    ansible.builtin.set_fact:
-      ingress_definition: "{{ {} | combine({'spec': {'replicas': ((current_instance_workers | int + worker_instance_count | int) + current_instance_control_planes | int if current_instance_workers | int == 0 else 0)}}) }}"
-
-  - name: Scale IngressController to the number of workers
-    kubernetes.core.k8s:
-      state: present
-      api_version: operator.openshift.io/v1
-      kind: IngressController
-      name: default
-      namespace: openshift-ingress-operator
-      definition: "{{ ingress_definition }}"

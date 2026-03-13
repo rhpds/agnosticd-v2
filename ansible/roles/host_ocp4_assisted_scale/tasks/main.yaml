@@ -6,8 +6,10 @@
     api_key: "{{ openshift_cluster_admin_token }}"
     validate_certs: false
     kind: Node
-    label_selectors: "node-role.kubernetes.io/worker=,!node-role.kubernetes.io/control-plane,!node-role.kubernetes.io/master"
-
+    label_selectors:
+    - "node-role.kubernetes.io/worker="
+    - "!node-role.kubernetes.io/control-plane"
+    - "!node-role.kubernetes.io/master"
   register: _r_node_status
 
 - name: Set variable with the current number of workers
@@ -35,7 +37,6 @@
       api_key: "{{ sandbox_openshift_api_key }}"
       validate_certs: false
   block:
-
   - name: Update worker SVC to point role worker
     when: current_instance_workers | int == 0 
     kubernetes.core.k8s:
@@ -121,7 +122,7 @@
       sandbox_namespace: "{{ ai_ocp_namespace }}"
       pvcname: scale-iso
 
-  - name: Create a {{ worker_instance_count }} worker VMs for full cluster
+  - name: Create {{ worker_instance_count }} worker VMs for full cluster
     ansible.builtin.include_tasks: kubevirt/create_workers.yaml
     vars:
       pvcinstall: scale-iso
@@ -155,9 +156,62 @@
       configure_hosts: "{{ ai_configure_hosts }}"
       wait_timeout: 600
 
+- name: Initialize CSR approval iteration counter
+  ansible.builtin.set_fact:
+    approve_csr_iteration: 1
+
 - name: Approve CSR
   ansible.builtin.include_tasks: approve_csr_nodes.yaml
 
 - name: Configure worker-only mode
   when: worker_only | default(false) | bool
   ansible.builtin.include_tasks: worker_only.yaml
+
+- name: Scale IngressController to match worker-labeled nodes
+  module_defaults:
+    group/k8s:
+      host: "{{ openshift_api_url }}"
+      api_key: "{{ openshift_cluster_admin_token }}"
+      validate_certs: false
+  block:
+  - name: Get all nodes with worker label
+    kubernetes.core.k8s_info:
+      api_version: v1
+      kind: Node
+      label_selectors:
+      - "node-role.kubernetes.io/worker="
+    register: r_worker_labeled_nodes
+
+  - name: Scale IngressController replicas to worker node count
+    kubernetes.core.k8s:
+      state: present
+      api_version: operator.openshift.io/v1
+      kind: IngressController
+      name: default
+      namespace: openshift-ingress-operator
+      definition:
+        spec:
+          replicas: "{{ r_worker_labeled_nodes.resources | length }}"
+
+  - name: Delete all router pods to force reschedule
+    kubernetes.core.k8s:
+      state: absent
+      api_version: v1
+      kind: Pod
+      namespace: openshift-ingress
+      label_selectors:
+      - "ingresscontroller.operator.openshift.io/deployment-ingresscontroller=default"
+
+  - name: Wait for IngressController pods to reach desired replica count
+    kubernetes.core.k8s_info:
+      api_version: v1
+      kind: Pod
+      namespace: openshift-ingress
+      label_selectors:
+      - "ingresscontroller.operator.openshift.io/deployment-ingresscontroller=default"
+      field_selectors:
+      - "status.phase=Running"
+    register: r_ingress_pods
+    retries: 30
+    delay: 10
+    until: r_ingress_pods.resources | length == r_worker_labeled_nodes.resources | length
