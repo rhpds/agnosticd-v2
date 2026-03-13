@@ -53,7 +53,8 @@
     loop: "{{ control_plane_worker_nodes }}"
     when: control_plane_worker_nodes | length > 0
 
-  - name: Set mastersSchedulable to false
+  - name: Set mastersSchedulable to false for multinode control planes
+    when: current_instance_control_planes | int > 1
     kubernetes.core.k8s:
       api_version: config.openshift.io/v1
       kind: Scheduler
