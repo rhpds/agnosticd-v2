@@ -105,5 +105,5 @@
       msg:
       - "Worker-only mode configured successfully"
       - "Control-plane nodes with worker label removed: {{ control_plane_worker_nodes }}"
-      - "mastersSchedulable: false"
+      - "mastersSchedulable: {{ current_instance_control_planes | int == 1 | bool }}"
       - "Control-plane nodes drained: {{ worker_drain_control_plane | default(true) | bool }}"
