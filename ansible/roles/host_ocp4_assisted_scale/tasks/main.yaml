@@ -203,9 +203,9 @@
       kind: IngressController
       name: default
       namespace: openshift-ingress-operator
-      definition:
+      resource_definition: |
         spec:
-          replicas: "{{ r_worker_labeled_nodes.resources | length }}"
+          replicas: {{ r_worker_labeled_nodes.resources | length }}
 
   - name: Delete all router pods to force reschedule
     kubernetes.core.k8s:
