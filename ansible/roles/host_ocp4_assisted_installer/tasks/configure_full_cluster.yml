@@ -30,8 +30,8 @@
     type: A
   register: r_route53_add_record
   until: r_route53_add_record is success
-  retries: 5
-  delay: 10
+  retries: 20
+  delay: 30
 
 - name: Add the service (type LoadBalancer) for full clusters - workers
   vars:
@@ -65,5 +65,5 @@
     type: A
   register: r_route53_add_record
   until: r_route53_add_record is success
-  retries: 10
+  retries: 20
   delay: 30
