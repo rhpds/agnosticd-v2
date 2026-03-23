@@ -11,7 +11,7 @@
 
 - name: Step 003.1 Configure all hosts with repositories and common packages
   hosts:
-  - all:!windows
+  - all:!windows:!isolated
   become: true
   gather_facts: false
   roles:
