@@ -177,10 +177,56 @@ export ORIGINAL_ARGUMENTS=("$@")
 # Convert arguments to array for safe indexing
 args=("$@")
 
-# Detect AAP environment (-u root pattern - look for two parameters after each other: "-u" "root")
+# Detect AAP container group environment (ansible-runner worker).
+# When AAP runs jobs via container groups on OCP/k8s, the pod is started with:
+#   ansible-runner worker --private-data-dir=/runner
+# In this mode there is no inventory or extravars available yet (they arrive via
+# the receptor stdin stream), so we cannot run the dynamic dependency install now.
+# Instead, we install an ansible-playbook wrapper that will run the install after
+# ansible-runner unpacks the job data but before the actual playbook is parsed.
+if [[ "${args[0]:-}" == "ansible-runner" && "${args[1]:-}" == "worker" ]]; then
+  log_debug "AAP container group detected (ansible-runner worker). Installing ansible-playbook wrapper."
+
+  WRAPPER_DIR="/runner/.ep-wrapper/bin"
+  mkdir -p "${WRAPPER_DIR}"
+
+  cat > "${WRAPPER_DIR}/ansible-playbook" <<'WRAPPER'
+#!/usr/bin/env bash
+# Wrapper installed by entrypoint for AAP container group mode.
+# Runs dynamic dependency install before the real ansible-playbook so that
+# collections are available at playbook parse time.
+set -eu
+
+# Remove wrapper dir from PATH to find the real ansible-playbook
+REAL_PATH=$(echo "$PATH" | tr ':' '\n' | grep -v '.ep-wrapper' | tr '\n' ':' | sed 's/:$//')
+REAL=$(PATH="$REAL_PATH" command -v ansible-playbook)
+
+INSTALL_PLAYBOOK="./ansible/install_dynamic_dependencies.yml"
+
+# Only run the install on the first invocation (not recursively) and only
+# if the job data has been unpacked and the install playbook exists.
+if [ -z "${_EP_DEPS_INSTALLED:-}" ] && [ -f /runner/env/extravars ] && [ -f "${INSTALL_PLAYBOOK}" ]; then
+  export _EP_DEPS_INSTALLED=1
+  "${REAL}" "${INSTALL_PLAYBOOK}" \
+    -i /runner/inventory/hosts \
+    -e @/runner/env/extravars \
+    2>&1 || true
+fi
+
+exec "${REAL}" "$@"
+WRAPPER
+  chmod +x "${WRAPPER_DIR}/ansible-playbook"
+
+  # Prepend wrapper dir to PATH so it shadows the real ansible-playbook
+  export PATH="${WRAPPER_DIR}:${PATH}"
+
+  exec "${ORIGINAL_ARGUMENTS[@]}"
+fi
+
+# Detect AAP execution node environment (-u root pattern)
 AAP=0
 for ((i = 1; i < ${#args[@]}; i++)); do
-    if [[ "${args[i]}" == "-u" && "${args[i+1]}" == "root" ]]; then
+    if [[ "${args[i]}" == "-u" && "${args[i+1]:-}" == "root" ]]; then
         AAP=1
         break
     fi
