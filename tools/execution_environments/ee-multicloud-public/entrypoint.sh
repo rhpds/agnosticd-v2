@@ -177,15 +177,16 @@ export ORIGINAL_ARGUMENTS=("$@")
 # Convert arguments to array for safe indexing
 args=("$@")
 
-# Detect AAP container group environment (ansible-runner worker).
-# When AAP runs jobs via container groups on OCP/k8s, the pod is started with:
-#   ansible-runner worker --private-data-dir=/runner
-# In this mode there is no inventory or extravars available yet (they arrive via
-# the receptor stdin stream), so we cannot run the dynamic dependency install now.
-# Instead, we install an ansible-playbook wrapper that will run the install after
-# ansible-runner unpacks the job data but before the actual playbook is parsed.
-if [[ "${args[0]:-}" == "ansible-runner" && "${args[1]:-}" == "worker" ]]; then
-  log_debug "AAP container group detected (ansible-runner worker). Installing ansible-playbook wrapper."
+# Detect Kubernetes environment (container group on OCP/k8s).
+# KUBERNETES_SERVICE_HOST is injected by k8s into every pod. If set, we know
+# we're running in a container group, not on a bare-metal execution node.
+# In this mode, job data (inventory, extravars) arrives via the receptor stdin
+# stream after ansible-runner worker starts — it is NOT on disk when the
+# entrypoint runs. We install an ansible-playbook wrapper that runs the dynamic
+# dependency install after ansible-runner unpacks the job data but before the
+# actual playbook is parsed.
+if [[ -n "${KUBERNETES_SERVICE_HOST:-}" ]]; then
+  log_debug "Kubernetes environment detected. Installing ansible-playbook wrapper."
 
   WRAPPER_DIR="/runner/.ep-wrapper/bin"
   mkdir -p "${WRAPPER_DIR}"
