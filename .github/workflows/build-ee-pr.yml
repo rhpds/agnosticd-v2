@@ -1,8 +1,13 @@
 ---
 name: build-ee-pr
 
+# Use pull_request_target so that secrets are available for fork PRs.
+# The workflow YAML always comes from the base branch (safe), and the
+# 'ee-build' environment requires maintainer approval before running,
+# giving reviewers a chance to inspect the PR diff for any malicious
+# changes (e.g. Containerfile echoing secrets).
 on:
-  pull_request:
+  pull_request_target:
     paths:
     - tools/execution_environments/ee-multicloud-public/**
 
@@ -19,11 +24,13 @@ jobs:
       aap_certified_token: ${{ secrets.AAP_CERTIFIED_TOKEN }}
       aap_validated_token: ${{ secrets.AAP_VALIDATED_TOKEN }}
     with:
+      ref: ${{ github.event.pull_request.head.sha }}
+      environment: ee-build
       tag: chained-temporary-pr-${{ github.event.number }}
       labels: |-
         quay.expires-after=7d
         org.opencontainers.image.source=${{ github.event.repository.html_url }}
-        org.opencontainers.image.revision=${{ github.sha }}
+        org.opencontainers.image.revision=${{ github.event.pull_request.head.sha }}
 
   get-stats-and-comment:
     name: Get stats and diff for the new image

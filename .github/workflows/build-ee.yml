@@ -13,6 +13,16 @@ on:
         default: ''
         required: false
         type: string
+      ref:
+        description: 'Git ref to checkout (default: triggering ref)'
+        default: ''
+        required: false
+        type: string
+      environment:
+        description: 'GitHub Environment for deployment protection rules'
+        default: ''
+        required: false
+        type: string
 
     secrets:
       registry_username:
@@ -31,10 +41,13 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || null }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - uses: actions/setup-python@v4
 
