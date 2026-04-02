@@ -13,8 +13,37 @@
            if (remove_workloads | default([]) | length > 0)
            else (workloads | default([]) | reverse | list) }}
 
+  # Pre-flight DNS check: if the cluster API hostname returns NXDOMAIN,
+  # the cluster has been decommissioned and all tenant resources are gone.
+  # Skip workload removal entirely and let the destroy succeed.
+  - name: Extract cluster API hostname for DNS check
+    when: sandbox_openshift_api_url is defined
+    ansible.builtin.set_fact:
+      _cluster_api_hostname: "{{ sandbox_openshift_api_url | urlsplit('hostname') }}"
+
+  - name: Check DNS resolution for cluster API
+    when: _cluster_api_hostname | default('') | length > 0
+    ansible.builtin.command:
+      cmd: "getent hosts {{ _cluster_api_hostname }}"
+    register: _dns_check
+    failed_when: false
+    changed_when: false
+
+  - name: Skip destroy - cluster DNS does not resolve (NXDOMAIN)
+    when:
+    - _dns_check is defined
+    - _dns_check.rc is defined
+    - _dns_check.rc != 0
+    ansible.builtin.debug:
+      msg: >-
+        Cluster API {{ _cluster_api_hostname }} does not resolve (NXDOMAIN).
+        The cluster has been decommissioned and all tenant resources are gone.
+        Skipping workload removal.
+
   - name: Remove namespaced workload "{{ workload_loop_var | default('None') }}"
-    when: _destroy_workloads | length > 0
+    when:
+    - _destroy_workloads | length > 0
+    - _dns_check is not defined or _dns_check.rc is not defined or _dns_check.rc == 0
     ansible.builtin.include_role:
       name: "{{ workload_loop_var }}"
       apply:
