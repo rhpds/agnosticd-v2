@@ -43,6 +43,28 @@
   retries: 20
   delay: 30
 
+- name: Add A dns record - API (nsupdate)
+  when: cluster_dns_server is defined
+  community.general.nsupdate:
+    server: >-
+      {{ cluster_dns_server
+      | ansible.utils.ipaddr
+      | ternary(cluster_dns_server, lookup('community.general.dig', cluster_dns_server))
+      }}
+    zone: "{{ cluster_dns_zone }}"
+    record: "api.{{ cluster_name}}"
+    type: A
+    ttl: 30
+    port: "{{ cluster_dns_port | d('53') }}"
+    value: "{{ r_svc_control_plane.resources[0].status.loadBalancer.ingress[0].ip }}"
+    key_name: "{{ ddns_key_name }}"
+    key_secret: "{{ ddns_key_secret }}"
+    key_algorithm: "hmac-sha256"
+  register: r_nsupdate_add_record
+  until: r_nsupdate_add_record is success
+  retries: 20
+  delay: 30
+
 - name: Add A DNS record - api-int (Route53)
   when: route53_aws_access_key_id is defined
   amazon.aws.route53:
@@ -56,6 +78,28 @@
     type: A
   register: r_route53_add_record
   until: r_route53_add_record is success
+  retries: 20
+  delay: 30
+
+- name:  Add A DNS record - api-int (nsupdate)
+  when: cluster_dns_server is defined
+  community.general.nsupdate:
+    server: >-
+      {{ cluster_dns_server
+      | ansible.utils.ipaddr
+      | ternary(cluster_dns_server, lookup('community.general.dig', cluster_dns_server))
+      }}
+    zone: "{{ cluster_dns_zone }}"
+    record: "api-int.{{ cluster_name}}"
+    type: A
+    ttl: 30
+    port: "{{ cluster_dns_port | d('53') }}"
+    value: "{{ ai_network_prefix + '.100' if control_plane_instance_count | int > 1 else ai_network_prefix + '.10' }}"
+    key_name: "{{ ddns_key_name }}"
+    key_secret: "{{ ddns_key_secret }}"
+    key_algorithm: "hmac-sha256"
+  register: r_nsupdate_add_record
+  until: r_nsupdate_add_record is success
   retries: 20
   delay: 30
 
@@ -75,43 +119,7 @@
   retries: 20
   delay: 30
 
-- name: Add A dns record - masters
-  when: cluster_dns_server is defined
-  community.general.nsupdate:
-    server: >-
-      {{ cluster_dns_server
-      | ansible.utils.ipaddr
-      | ternary(cluster_dns_server, lookup('community.general.dig', cluster_dns_server))
-      }}
-    zone: "{{ cluster_dns_zone }}"
-    record: "api.{{ cluster_name}}"
-    type: A
-    ttl: 30
-    port: "{{ cluster_dns_port | d('53') }}"
-    value: "{{ r_svc_control_plane.resources[0].status.loadBalancer.ingress[0].ip }}"
-    key_name: "{{ ddns_key_name }}"
-    key_secret: "{{ ddns_key_secret }}"
-    key_algorithm: "hmac-sha256"
-
-- name: Add A dns record - masters
-  when: cluster_dns_server is defined
-  community.general.nsupdate:
-    server: >-
-      {{ cluster_dns_server
-      | ansible.utils.ipaddr
-      | ternary(cluster_dns_server, lookup('community.general.dig', cluster_dns_server))
-      }}
-    zone: "{{ cluster_dns_zone }}"
-    record: "api-int.{{ cluster_name}}"
-    type: A
-    ttl: 30
-    port: "{{ cluster_dns_port | d('53') }}"
-    value: "{{ ai_network_prefix + '.100' if control_plane_instance_count | int > 1 else ai_network_prefix + '.10' }}"
-    key_name: "{{ ddns_key_name }}"
-    key_secret: "{{ ddns_key_secret }}"
-    key_algorithm: "hmac-sha256"
-
-- name: Add A dns record - workers
+- name: Add A DNS record - apps (nsupdate)
   when: cluster_dns_server is defined
   community.general.nsupdate:
     server: >-
@@ -128,3 +136,7 @@
     key_name: "{{ ddns_key_name }}"
     key_secret: "{{ ddns_key_secret }}"
     key_algorithm: "hmac-sha256"
+  register: r_nsupdate_add_record
+  until: r_nsupdate_add_record is success
+  retries: 20
+  delay: 30
