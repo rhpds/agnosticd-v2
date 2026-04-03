@@ -53,8 +53,8 @@
     key_algorithm: "hmac-sha256"
   register: r_nsupdate_add_record
   until: r_nsupdate_add_record is success
-  retries: 5
-  delay: 10
+  retries: 20
+  delay: 30
 
 - name: Add the service (type LoadBalancer) for full clusters - workers
   vars:
