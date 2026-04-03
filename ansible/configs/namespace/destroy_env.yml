@@ -21,19 +21,25 @@
     ansible.builtin.set_fact:
       _cluster_api_hostname: "{{ sandbox_openshift_api_url | urlsplit('hostname') }}"
 
-  - name: Check DNS resolution for cluster API
+  - name: Check cluster API reachability
     when: _cluster_api_hostname | default('') | length > 0
-    ansible.builtin.command:
-      cmd: "getent hosts {{ _cluster_api_hostname }}"
-    register: _dns_check
+    ansible.builtin.uri:
+      url: "https://{{ _cluster_api_hostname }}:6443/healthz"
+      validate_certs: false
+      timeout: 10
+    register: _cluster_check
     failed_when: false
-    changed_when: false
+
+  - name: Set cluster reachable flag
+    ansible.builtin.set_fact:
+      _cluster_unreachable: >-
+        {{ _cluster_check is defined
+           and _cluster_check is not skipped
+           and (_cluster_check.status | default(-1) | int) == -1
+           and 'Name or service not known' in (_cluster_check.msg | default('')) }}
 
   - name: Skip destroy - cluster DNS does not resolve (NXDOMAIN)
-    when:
-    - _dns_check is defined
-    - _dns_check.rc is defined
-    - _dns_check.rc != 0
+    when: _cluster_unreachable | bool
     ansible.builtin.debug:
       msg: >-
         Cluster API {{ _cluster_api_hostname }} does not resolve (NXDOMAIN).
@@ -43,7 +49,7 @@
   - name: Remove namespaced workload "{{ workload_loop_var | default('None') }}"
     when:
     - _destroy_workloads | length > 0
-    - _dns_check is not defined or _dns_check.rc is not defined or _dns_check.rc == 0
+    - not (_cluster_unreachable | default(false) | bool)
     ansible.builtin.include_role:
       name: "{{ workload_loop_var }}"
       apply:
