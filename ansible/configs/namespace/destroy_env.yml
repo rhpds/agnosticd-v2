@@ -46,10 +46,45 @@
         The cluster has been decommissioned and all tenant resources are gone.
         Skipping workload removal.
 
+  # Pre-flight credential check: if the SA token is expired or invalid,
+  # the sandbox placement was likely reclaimed and tenant resources are gone.
+  # Skip workload removal and let the destroy succeed, same as NXDOMAIN.
+  - name: Check cluster API authentication
+    when:
+    - not (_cluster_unreachable | default(false) | bool)
+    - _cluster_api_hostname | default('') | length > 0
+    - cluster_admin_agnosticd_sa_token | default('') | trim | length > 0
+    ansible.builtin.uri:
+      url: "https://{{ _cluster_api_hostname }}:6443/apis"
+      validate_certs: false
+      timeout: 10
+      headers:
+        Authorization: "Bearer {{ cluster_admin_agnosticd_sa_token | trim }}"
+    register: _auth_check
+    failed_when: false
+
+  - name: Set credentials expired flag
+    ansible.builtin.set_fact:
+      _credentials_expired: >-
+        {{ _auth_check is defined
+           and _auth_check is not skipped
+           and (_auth_check.status | default(200) | int) == 401 }}
+
+  - name: Skip destroy - cluster credentials expired (sandbox reclaimed)
+    when: _credentials_expired | bool
+    ansible.builtin.debug:
+      msg: >-
+        Cluster API {{ _cluster_api_hostname }} returned 401 Unauthorized.
+        The deployer SA token has expired and the sandbox placement is no
+        longer available for credential refresh. The sandbox has likely been
+        reclaimed and tenant resources are gone.
+        Skipping workload removal.
+
   - name: Remove namespaced workload "{{ workload_loop_var | default('None') }}"
     when:
     - _destroy_workloads | length > 0
     - not (_cluster_unreachable | default(false) | bool)
+    - not (_credentials_expired | default(false) | bool)
     ansible.builtin.include_role:
       name: "{{ workload_loop_var }}"
       apply:
