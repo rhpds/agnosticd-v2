@@ -49,6 +49,15 @@
   # Pre-flight credential check: if the SA token is expired or invalid,
   # the sandbox placement was likely reclaimed and tenant resources are gone.
   # Skip workload removal and let the destroy succeed, same as NXDOMAIN.
+  #
+  # WARNING: This may leave orphaned resources on the shared cluster if the
+  # token expired for a reason other than sandbox reclamation (e.g. placement
+  # deleted prematurely, token rotation failure). Orphaned resources include:
+  # - Keycloak users in the shared keycloak namespace
+  # - Gitea users in the shared gitea namespace
+  # - Tenant namespaces (user-{guid}-*)
+  # - ClusterRoleBindings for the tenant user
+  # These will be cleaned up when the parent cluster is destroyed.
   - name: Check cluster API authentication
     when:
     - not (_cluster_unreachable | default(false) | bool)
@@ -70,15 +79,16 @@
            and _auth_check is not skipped
            and (_auth_check.status | default(200) | int) == 401 }}
 
-  - name: Skip destroy - cluster credentials expired (sandbox reclaimed)
+  - name: Skip destroy - cluster credentials expired
     when: _credentials_expired | bool
     ansible.builtin.debug:
       msg: >-
-        Cluster API {{ _cluster_api_hostname }} returned 401 Unauthorized.
-        The deployer SA token has expired and the sandbox placement is no
-        longer available for credential refresh. The sandbox has likely been
-        reclaimed and tenant resources are gone.
-        Skipping workload removal.
+        WARNING: Cluster API {{ _cluster_api_hostname }} returned 401
+        Unauthorized. The deployer SA token has expired and the sandbox
+        placement is no longer available for credential refresh.
+        Skipping workload removal. Orphaned resources may remain on the
+        shared cluster and will be cleaned up when the parent cluster
+        is destroyed.
 
   - name: Remove namespaced workload "{{ workload_loop_var | default('None') }}"
     when:
