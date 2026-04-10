@@ -286,8 +286,18 @@
         group: root
         mode: u=rw,go=
 
-    - name: Set up student user
+    - name: Check if student user exists
       when: bastion_setup_student_user | bool
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ bastion_student_user_name }}"
+      register: r_student_user
+      ignore_errors: true
+
+    - name: Set up student user
+      when:
+      - bastion_setup_student_user | bool
+      - r_student_user is succeeded
       block:
       - name: Make sure .kube directory exists in ~{{ bastion_student_user_name }}
         ansible.builtin.file:
