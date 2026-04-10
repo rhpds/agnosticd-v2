@@ -1,4 +1,8 @@
-ansible-core
+# Pin ansible-core to 2.18.x — ansible-core 2.19+ enforces native Jinja mode
+# which breaks string-to-dict coercion used in cloud provider collections.
+# See: https://docs.ansible.com/projects/ansible/latest/porting_guides/porting_guide_core_2.19.html
+# TODO: unpin after cloud provider collections are updated for native Jinja.
+ansible-core>=2.18,<2.19
 ansible-runner
 ansible-specdoc
 boto3>=1.18.0
