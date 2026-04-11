@@ -11,7 +11,7 @@
     - ipv4:
         address:
         - ip: {{ ai_network_prefix }}.1{{ index }}
-          prefix-length: 24
+          prefix-length: {{ ai_network_prefix_length }}
         dhcp: false
         enabled: true
       name: enp2s0
@@ -42,7 +42,7 @@
     - ipv4:
         address:
         - ip: {{ ai_network_prefix }}.2{{ index }}
-          prefix-length: 24
+          prefix-length: {{ ai_network_prefix_length }}
         dhcp: false
         enabled: true
       name: enp2s0

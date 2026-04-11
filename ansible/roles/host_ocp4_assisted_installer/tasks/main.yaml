@@ -60,6 +60,7 @@
       loop_var: extra_sno_cluster
     vars:
       clustername: "cluster-{{ guid }}-{{ extra_sno_cluster.name }}"
+      ai_network_prefix: "{{ extra_sno_cluster.ai_network_prefix }}"
 
   - name: Configure a SNO/Compact cluster
     when: worker_instance_count | int == 0
@@ -94,7 +95,7 @@
       service_networks:
       - cidr: "{{ ai_service_network_cidr }}"
       machine_networks:
-      - cidr: "{{ ai_network_prefix }}.0/24"
+      - cidr: "{{ ai_network_prefix }}.0/{{ ai_network_prefix_length }}"
       cluster_networks:
       - cidr: "{{ ai_cluster_network_cidr }}"
         host_prefix: 23

@@ -11,6 +11,7 @@ ai_ocp_namespace: "{{ sandbox_openshift_namespace | default(config + '-' + guid)
 ai_storage_class: ocs-storagecluster-ceph-rbd
 ai_local_storageclass: hostpath-csi
 ai_network_prefix: "10.10.10"
+ai_network_prefix_length: 24
 ai_service_network_cidr: "172.31.0.0/16"
 ai_cluster_network_cidr: "10.132.0.0/14"
 ai_network_mtu: 1500
