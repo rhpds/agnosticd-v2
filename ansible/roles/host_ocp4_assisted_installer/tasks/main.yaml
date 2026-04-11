@@ -59,7 +59,7 @@
     loop_control:
       loop_var: extra_sno_cluster
     vars:
-      clustername: "cluster-{{ guid }}-{{ extra_sno_cluster.name }}"
+      _cluster_name: "cluster-{{ guid }}-{{ extra_sno_cluster.name }}"
       ai_network_prefix: "{{ extra_sno_cluster.ai_network_prefix }}"
 
   - name: Configure a SNO/Compact cluster
