@@ -13,5 +13,5 @@ spec:
     protocol: TCP
     targetPort: 6443
   selector:
-    role: control-plane
+    role: "control-plane-{{ cluster_name }}"
   type: LoadBalancer

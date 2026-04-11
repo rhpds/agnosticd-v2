@@ -51,9 +51,22 @@
   - name: Check if the quota in the namespace allows install OCP
     ansible.builtin.include_tasks: check_namespace_quota.yaml
       
+
+  - name: Configure extra SNO clusters
+    when: ai_extra_sno_clusters | default([]) | length > 0
+    ansible.builtin.include_tasks: configure_sno_compact_cluster.yml
+    loop: "{{ ai_extra_sno_clusters }}"
+    loop_control:
+      loop_var: extra_sno_cluster
+    vars:
+      clustername: "cluster-{{ guid }}-{{ extra_sno_cluster.name }}"
+
   - name: Configure a SNO/Compact cluster
     when: worker_instance_count | int == 0
     ansible.builtin.include_tasks: configure_sno_compact_cluster.yml
+
+  - fail:
+
 
   - name: Configure a full cluster
     when: worker_instance_count | int > 0

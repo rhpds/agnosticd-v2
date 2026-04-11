@@ -101,7 +101,7 @@
       vm.kubevirt.io/os: rhel8
     labels:
       kubevirt.io/domain: "{{ vmname }}"
-      role: control-plane
+      role: "control-plane-{{ cluster_name }}"
     spec: "{{ _spec | from_yaml }}"
   vars:
     _datavolume:

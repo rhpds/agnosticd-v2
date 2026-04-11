@@ -94,7 +94,7 @@
       vm.kubevirt.io/os: rhel8
     labels:
       kubevirt.io/domain: "{{ vmname }}"
-      role: worker
+      role: "worker-{{ cluster_name }}"
     spec: "{{ _spec | from_yaml }}"
   vars:
     _datavolume:
