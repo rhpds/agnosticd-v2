@@ -66,9 +66,6 @@
     when: worker_instance_count | int == 0
     ansible.builtin.include_tasks: configure_sno_compact_cluster.yml
 
-  - fail:
-
-
   - name: Configure a full cluster
     when: worker_instance_count | int > 0
     ansible.builtin.include_tasks: configure_full_cluster.yml
@@ -81,6 +78,16 @@
       template: net_attach_def.yaml.j2
       wait: true
       wait_timeout: 300
+
+  - name: Configure extra SNO clusters
+    when: ai_extra_sno_clusters | default([]) | length > 0
+    ansible.builtin.include_tasks: create_sno_extra_sno_clusters.yaml
+    loop: "{{ ai_extra_sno_clusters }}"
+    loop_control:
+      loop_var: extra_sno_cluster
+    vars:
+      _cluster_name: "cluster-{{ guid }}-{{ extra_sno_cluster.name }}"
+      ai_network_prefix: "{{ extra_sno_cluster.ai_network_prefix }}"
 
   - name: Create OpenShift cluster using Assisted Installer
     rhpds.assisted_installer.create_cluster:
