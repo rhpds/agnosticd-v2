@@ -19,6 +19,7 @@
     - ip: "{{ ai_network_prefix }}.100"
     ingress_vips:
     - ip: "{{ ai_network_prefix }}.101"
+  register: newcluster
 
 - name: Add etcd manifest
   rhpds.assisted_installer.create_manifest:
