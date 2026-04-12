@@ -74,6 +74,12 @@
   loop_control:
     label: "{{ item.metadata.name }}"                   # Clean logging output using the MachineConfig name
 
+
+- name: Reset mac addresses
+  ansible.builtin.set_fact:
+    ai_control_plane_macs: []
+    ai_control_plane_macs2: []
+
 - name: Setup infrastructure
   ansible.builtin.include_tasks: setup_infrastructure.yml
 
