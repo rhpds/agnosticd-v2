@@ -75,13 +75,14 @@
     label: "{{ item.metadata.name }}"                   # Clean logging output using the MachineConfig name
 
 
+- name: Setup infrastructure
+  ansible.builtin.include_tasks: setup_infrastructure.yml
+
 - name: Reset mac addresses
   ansible.builtin.set_fact:
     ai_control_plane_macs: []
     ai_control_plane_macs2: []
 
-- name: Setup infrastructure
-  ansible.builtin.include_tasks: setup_infrastructure.yml
 
 - name: Run installation on the bastion
   delegate_to: "{{ groups['bastions'][0] }}"
