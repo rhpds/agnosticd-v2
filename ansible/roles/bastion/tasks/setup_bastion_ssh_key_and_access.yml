@@ -57,30 +57,3 @@
   loop_control:
     loop_var: l_inventory_name
   delegate_to: "{{ l_inventory_name }}"
-
-- name: Add bastion access to isolated hosts
-  when:
-  - groups.isolated | default([]) | length > 0
-  ansible.posix.authorized_key:
-    user: "{{ hostvars[l_inventory_name].ansible_user | default(ansible_user) }}"
-    state: present
-    key: "{{ hostvars[groups.bastions | first].bastion_ssh_pubkey_content }}"
-    comment: "bastion"
-  loop: "{{ groups.isolated | default([]) }}"
-  loop_control:
-    loop_var: l_inventory_name
-  delegate_to: "{{ l_inventory_name }}"
-
-- name: Add bastion root access to isolated hosts
-  when:
-  - groups.isolated | default([]) | length > 0
-  become: true
-  ansible.posix.authorized_key:
-    user: root
-    state: present
-    key: "{{ hostvars[groups.bastions | first].bastion_ssh_pubkey_content }}"
-    comment: "bastion"
-  loop: "{{ groups.isolated | default([]) }}"
-  loop_control:
-    loop_var: l_inventory_name
-  delegate_to: "{{ l_inventory_name }}"
