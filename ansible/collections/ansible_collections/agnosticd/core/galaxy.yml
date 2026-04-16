@@ -1,0 +1,19 @@
+---
+namespace: agnosticd
+name: core
+version: 1.0.0
+readme: README.md
+authors:
+- AgnosticD Team
+description: >-
+  Core plugins for AgnosticD — agnosticd_user_info module and
+  agnosticd_user_data lookup used across AgnosticD workloads.
+license:
+- GPL-2.0-or-later
+tags:
+- infrastructure
+repository: https://github.com/agnosticd/agnosticd-v2
+homepage: https://github.com/agnosticd/agnosticd-v2
+issues: https://github.com/agnosticd/agnosticd-v2/issues
+dependencies: {}
+build_ignore: []
