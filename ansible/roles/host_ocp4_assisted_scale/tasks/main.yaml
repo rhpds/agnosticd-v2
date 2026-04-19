@@ -11,6 +11,9 @@
     - "!node-role.kubernetes.io/control-plane"
     - "!node-role.kubernetes.io/master"
   register: _r_node_status
+  retries: 5
+  delay: 10
+  until: _r_node_status is not failed
 
 - name: Set variable with the current number of workers
   ansible.builtin.set_fact:
@@ -25,6 +28,9 @@
     kind: Node
     label_selectors: "node-role.kubernetes.io/master="
   register: _r_node_status
+  retries: 5
+  delay: 10
+  until: _r_node_status is not failed
 
 - name: Set variable with the current number of control planes
   ansible.builtin.set_fact:
@@ -38,7 +44,7 @@
       validate_certs: false
   block:
   - name: Update worker SVC to point role worker
-    when: current_instance_workers | int == 0 
+    when: current_instance_workers | int == 0
     kubernetes.core.k8s:
       state: patched
       kind: Service
@@ -50,6 +56,10 @@
         spec:
           selector:
             role: worker
+    register: _r_update_svc
+    retries: 5
+    delay: 10
+    until: _r_update_svc is not failed
 
   - name: Get a list of clusters
     rhpds.assisted_installer.list_clusters:
@@ -121,6 +131,10 @@
       image_url: "{{ newinfraenv.result.download_url }}"
       sandbox_namespace: "{{ ai_ocp_namespace }}"
       pvcname: scale-iso
+    register: _r_create_pvc
+    retries: 3
+    delay: 10
+    until: _r_create_pvc is not failed
 
   - name: Create {{ worker_instance_count }} worker VMs for full cluster
     ansible.builtin.include_tasks: create_workers.yaml
@@ -195,6 +209,9 @@
       label_selectors:
       - "node-role.kubernetes.io/worker="
     register: r_worker_labeled_nodes
+    retries: 5
+    delay: 10
+    until: r_worker_labeled_nodes is not failed
 
   - name: Scale IngressController replicas to worker node count
     kubernetes.core.k8s:
@@ -206,6 +223,10 @@
       resource_definition: |
         spec:
           replicas: {{ r_worker_labeled_nodes.resources | length }}
+    register: _r_scale_ingress
+    retries: 3
+    delay: 10
+    until: _r_scale_ingress is not failed
 
   - name: Delete all router pods to force reschedule
     kubernetes.core.k8s:
@@ -215,6 +236,10 @@
       namespace: openshift-ingress
       label_selectors:
       - "ingresscontroller.operator.openshift.io/deployment-ingresscontroller=default"
+    register: _r_delete_router
+    retries: 3
+    delay: 10
+    until: _r_delete_router is not failed
 
   - name: Wait for IngressController pods to reach desired replica count
     kubernetes.core.k8s_info:
