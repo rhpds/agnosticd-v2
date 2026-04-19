@@ -142,7 +142,7 @@
     _spec: |
       domain:
         cpu:
-          cores: {{ _ai_control_plane_cores | default(ai_control_plane_cores | int }}
+          cores: {{ _ai_control_plane_cores | default(ai_control_plane_cores) | int }}
           sockets: {{ ai_control_plane_sockets | default(1) | int }}
           threads: {{ ai_control_plane_threads | default(1) | int }}
           maxSockets: {{ ai_control_plane_max_sockets | default(2) | int }}
