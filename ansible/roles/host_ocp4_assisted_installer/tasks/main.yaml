@@ -88,6 +88,9 @@
     vars:
       _cluster_name: "cluster-{{ guid }}-{{ extra_sno_cluster.name }}"
       ai_network_prefix: "{{ extra_sno_cluster.ai_network_prefix }}"
+      _ai_control_plane_cores: "{{ extra_sno.ai_control_plane_cores | default(ai_control_plane_cores) }}"
+      _ai_control_plane_memory: "{{ extra_sno.ai_control_plane_memory | default(ai_control_plane_memory) }}"
+      _ai_control_plane_extra_disks: "{{ extra_sno.ai_control_plane_extra_disks | default(ai_control_plane_extra_disks) }}"
 
   - name: Create OpenShift cluster using Assisted Installer
     rhpds.assisted_installer.create_cluster:

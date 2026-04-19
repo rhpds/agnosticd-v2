@@ -82,7 +82,7 @@
             'dataVolume': {'name': _disk.metadata.name}
         }
     ] }}"
-  loop: "{{ ai_control_plane_extra_disks | default([]) | list }}"
+  loop: "{{ _ai_control_plane_extra_disks | default(ai_control_plane_extra_disks) | default([]) | list }}"
   loop_control:
     loop_var: _disk
 
@@ -94,7 +94,7 @@
     validate_certs: false
     name: "{{ vmname }}"
     namespace: "{{ ai_ocp_namespace }}"
-    data_volume_templates: "{{ _datavolume + (ai_control_plane_extra_disks | default([]) | to_json | replace('INSTANCENAME', vmname) | from_json ) }}"
+    data_volume_templates: "{{ _datavolume + (_ai_control_plane_extra_disks | default(ai_control_plane_extra_disks) | default([]) | to_json | replace('INSTANCENAME', vmname) | from_json ) }}"
     running: true
     wait: false
     annotations:
@@ -142,7 +142,7 @@
     _spec: |
       domain:
         cpu:
-          cores: {{ ai_control_plane_cores | int }}
+          cores: {{ _ai_control_plane_cores | default(ai_control_plane_cores | int }}
           sockets: {{ ai_control_plane_sockets | default(1) | int }}
           threads: {{ ai_control_plane_threads | default(1) | int }}
           maxSockets: {{ ai_control_plane_max_sockets | default(2) | int }}
@@ -154,7 +154,7 @@
         machine:
           type: pc-q35-rhel9.2.0
         memory:
-          guest: "{{ ai_control_plane_memory }}"
+          guest: "{{ _ai_control_plane_memory | default(ai_control_plane_memory) }}"
       readinessProbe:
         httpGet:
           path: /healthz
