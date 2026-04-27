@@ -44,6 +44,9 @@
             ]
           }
         }
+      status_code: [200, 201]
+    register: _r_approve_csr
+    failed_when: _r_approve_csr.status >= 500
     loop: "{{ pending_csrs }}"
 
   - name: Get worker-only nodes (exclude control-plane/master)
