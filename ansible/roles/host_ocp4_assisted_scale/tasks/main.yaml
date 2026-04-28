@@ -175,25 +175,6 @@
     loop_control:
       loop_var: _index
 
-# Approve CSRs BEFORE wait_for_hosts to avoid deadlock.
-# The machine-approver rejects CSRs for assisted-installer workers
-# (no Machine API objects), so we must approve them manually.
-# Workers install OCP, reboot, then generate CSRs — approving them
-# here lets nodes join the cluster so the AI can mark hosts ready.
-- name: Initialize CSR approval iteration counter
-  ansible.builtin.set_fact:
-    approve_csr_iteration: 1
-
-- name: Approve CSR
-  ansible.builtin.include_tasks: approve_csr_nodes.yaml
-
-- name: Wait for the hosts to be ready
-  module_defaults:
-    group/k8s:
-      host: "{{ sandbox_openshift_api_url }}"
-      api_key: "{{ sandbox_openshift_api_key }}"
-      validate_certs: false
-  block:
   - name: Wait for the hosts to be ready
     rhpds.assisted_installer.wait_for_hosts:
       cluster_id: "{{ r_import_cluster.result.id }}"
@@ -202,6 +183,13 @@
       infra_env_id: "{{ newinfraenv.result.id }}"
       configure_hosts: "{{ ai_configure_hosts }}"
       wait_timeout: 600
+
+- name: Initialize CSR approval iteration counter
+  ansible.builtin.set_fact:
+    approve_csr_iteration: 1
+
+- name: Approve CSR
+  ansible.builtin.include_tasks: approve_csr_nodes.yaml
 
 - name: Configure worker-only mode
   when: worker_only | default(false) | bool

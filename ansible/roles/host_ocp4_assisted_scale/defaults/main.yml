@@ -19,6 +19,6 @@ ai_configure_hosts: []
 # When true, remove worker role from control-plane nodes and mark masters non-schedulable
 worker_only: false
 
-# CSR approval retry settings — must cover install + reboot + kubelet startup
-approve_csr_retries: 180
+# CSR approval retry settings
+approve_csr_retries: 90
 approve_csr_delay: 10
