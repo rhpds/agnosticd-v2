@@ -11,6 +11,9 @@
       api_version: certificates.k8s.io/v1
       kind: CertificateSigningRequest
     register: all_csrs
+    until: all_csrs is successful
+    retries: 30
+    delay: 5
 
   - name: Filter for pending CSRs
     ansible.builtin.set_fact:
@@ -45,6 +48,10 @@
           }
         }
     loop: "{{ pending_csrs }}"
+    register: r_approve_pending_csrs
+    until: r_approve_pending_csrs is successful
+    retries: 30
+    delay: 5
 
   - name: Get worker-only nodes (exclude control-plane/master)
     kubernetes.core.k8s_info:
@@ -55,6 +62,9 @@
       - "!node-role.kubernetes.io/control-plane"
       - "!node-role.kubernetes.io/master"
     register: r_worker_nodes
+    until: r_worker_nodes successful
+    retries: 30
+    delay: 5
 
   - name: Count Ready nodes
     ansible.builtin.set_fact:
