@@ -2,6 +2,13 @@ For release cycle, see link:release_cycle.adoc[release_cycle]
 
 == Changelog ==
 
+=== chained-2026-05-04 ===
+
+* Add missing `netaddr>=0.8.0` Python library to requirements.txt
+** Required by `ansible.utils.ipaddr` filter plugin
+** Absence caused `ModuleNotFoundError` on Python 3.12 in `chained-2026-04-20`
+** Affected roles: `host_ocp4_assisted_installer` (and any other that uses `ipaddr`)
+
 === v0.1.2 ===
 
 * size: +37MiB -- 724.9 MiB total
@@ -41,7 +48,7 @@ For release cycle, see link:release_cycle.adoc[release_cycle]
 
 * Add `passlib` python module, needed for htpasswd
 * size +32M
-* link:https://gist.github.com/fridim/4cd6787ea0f8d27cc46fd9fc74573b15[ee-report diff with v0.0.16]
+* link:https://gist.github.com/fridim/4cd6787ea0f8d27cc46fd9fc74573b15[ee-report diff with v0.0.17]
 * link:https://gist.github.com/fridim/c89614dfec5609f56ae881ddc5fc0f90[full ee-report]
 
 === v0.0.16 ===
