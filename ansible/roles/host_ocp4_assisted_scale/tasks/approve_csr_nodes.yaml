@@ -62,7 +62,7 @@
       - "!node-role.kubernetes.io/control-plane"
       - "!node-role.kubernetes.io/master"
     register: r_worker_nodes
-    until: r_worker_nodes successful
+    until: r_worker_nodes is successful
     retries: 30
     delay: 5
 
