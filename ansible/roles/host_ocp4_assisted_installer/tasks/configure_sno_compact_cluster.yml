@@ -1,7 +1,7 @@
 ---
 - name: Add the service (type LoadBalancer) for control plane
   vars:
-    svcname: "{{ ai_ocp_vmname_control_plane_prefix }}-svc"
+    svcname: "{{ ai_ocp_vmname_control_plane_prefix }}-svc-{{ _cluster_name }}"
   kubernetes.core.k8s:
     definition: "{{ lookup('ansible.builtin.template', 'control_plane_svc.yaml.j2') | from_yaml }}"
     wait: true
@@ -9,7 +9,7 @@
 
 - name: Add the service (type LoadBalancer) for workers
   vars:
-    svcname: "{{ ai_ocp_vmname_worker_prefix }}-svc"
+    svcname: "{{ ai_ocp_vmname_worker_prefix }}-svc-{{ _cluster_name }}"
     role: "control-plane"
   kubernetes.core.k8s:
     definition: "{{ lookup('ansible.builtin.template', 'workers_svc.yaml.j2') | from_yaml }}"
@@ -20,7 +20,7 @@
   kubernetes.core.k8s_info:
     api_version: v1
     kind: Service
-    name: "{{ ai_ocp_vmname_control_plane_prefix }}-svc"
+    name: "{{ ai_ocp_vmname_control_plane_prefix }}-svc-{{ _cluster_name }}"
     namespace: "{{ ai_ocp_namespace }}"
   register: r_svc_control_plane
   until: r_svc_control_plane.resources[0].status.loadBalancer.ingress[0].ip | default('') != ''
@@ -34,7 +34,7 @@
     aws_access_key_id: "{{ route53_aws_access_key_id }}"
     aws_secret_access_key: "{{ route53_aws_secret_access_key }}"
     hosted_zone_id: "{{ route53_aws_zone_id }}"
-    record: "api.{{ cluster_name}}.{{ cluster_dns_zone }}"
+    record: "api.{{ _cluster_name }}.{{ cluster_dns_zone }}"
     zone: "{{ cluster_dns_zone  }}"
     value: "{{ r_svc_control_plane.resources[0].status.loadBalancer.ingress[0].ip }}"
     type: A
@@ -50,7 +50,7 @@
     aws_access_key_id: "{{ route53_aws_access_key_id }}"
     aws_secret_access_key: "{{ route53_aws_secret_access_key }}"
     hosted_zone_id: "{{ route53_aws_zone_id }}"
-    record: "api-int.{{ cluster_name}}.{{ cluster_dns_zone }}"
+    record: "api-int.{{ _cluster_name }}.{{ cluster_dns_zone }}"
     zone: "{{ cluster_dns_zone  }}"
     value: "{{ ai_network_prefix + '.100' if control_plane_instance_count | int > 1 else ai_network_prefix + '.10' }}"
     type: A
@@ -66,7 +66,7 @@
     aws_access_key_id: "{{ route53_aws_access_key_id }}"
     aws_secret_access_key: "{{ route53_aws_secret_access_key }}"
     hosted_zone_id: "{{ route53_aws_zone_id }}"
-    record: "*.apps.{{ cluster_name}}.{{ cluster_dns_zone }}"
+    record: "*.apps.{{ _cluster_name }}.{{ cluster_dns_zone }}"
     zone: "{{ cluster_dns_zone  }}"
     value: "{{ r_svc_control_plane.resources[0].status.loadBalancer.ingress[0].ip }}"
     type: A
@@ -84,7 +84,7 @@
       | ternary(cluster_dns_server, lookup('community.general.dig', cluster_dns_server))
       }}
     zone: "{{ cluster_dns_zone }}"
-    record: "api.{{ cluster_name}}"
+    record: "api.{{ _cluster_name }}"
     type: A
     ttl: 30
     port: "{{ cluster_dns_port | d('53') }}"
@@ -102,7 +102,7 @@
       | ternary(cluster_dns_server, lookup('community.general.dig', cluster_dns_server))
       }}
     zone: "{{ cluster_dns_zone }}"
-    record: "api-int.{{ cluster_name}}"
+    record: "api-int.{{ _cluster_name }}"
     type: A
     ttl: 30
     port: "{{ cluster_dns_port | d('53') }}"
@@ -120,7 +120,7 @@
       | ternary(cluster_dns_server, lookup('community.general.dig', cluster_dns_server))
       }}
     zone: "{{ cluster_dns_zone }}"
-    record: "*.apps.{{ cluster_name}}"
+    record: "*.apps.{{ _cluster_name }}"
     type: A
     ttl: 30
     port: "{{ cluster_dns_port | d('53') }}"

@@ -7,6 +7,15 @@
     host: "{{ sandbox_openshift_api_url }}"
   register: k8s_auth_results
 
+- name: Delete extra SNO clusters
+  when: ai_extra_sno_clusters | default([]) | length > 0
+  ansible.builtin.include_tasks: delete_extra_sno_cluster.yml
+  loop: "{{ ai_extra_sno_clusters }}"
+  loop_control:
+    loop_var: extra_sno_cluster
+  vars:
+    _cluster_name: "cluster-{{ guid }}-{{ extra_sno_cluster.name }}"
+
 - name: Destroy OpenShift using Assisted Installer
   module_defaults:
     group/k8s:
@@ -90,3 +99,5 @@
       rhpds.assisted_installer.delete_cluster:
         cluster_id: "{{ cluster_id }}"
         offline_token: "{{ ai_offline_token }}"
+
+

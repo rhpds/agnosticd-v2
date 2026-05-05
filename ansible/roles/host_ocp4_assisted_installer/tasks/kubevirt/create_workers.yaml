@@ -94,7 +94,7 @@
       vm.kubevirt.io/os: rhel8
     labels:
       kubevirt.io/domain: "{{ vmname }}"
-      role: worker
+      role: "worker-{{ _cluster_name }}"
     spec: "{{ _spec | from_yaml }}"
   vars:
     _datavolume:
@@ -103,7 +103,7 @@
         spec:
           source:
             pvc:
-              name: installation-iso
+              name: "installation-iso-{{ _cluster_name }}"
               namespace: "{{ ai_ocp_namespace }}"
           storage:
             resources:

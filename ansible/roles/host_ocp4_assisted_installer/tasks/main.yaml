@@ -51,6 +51,17 @@
   - name: Check if the quota in the namespace allows install OCP
     ansible.builtin.include_tasks: check_namespace_quota.yaml
       
+
+  - name: Configure extra SNO clusters
+    when: ai_extra_sno_clusters | default([]) | length > 0
+    ansible.builtin.include_tasks: configure_sno_compact_cluster.yml
+    loop: "{{ ai_extra_sno_clusters }}"
+    loop_control:
+      loop_var: extra_sno_cluster
+    vars:
+      _cluster_name: "cluster-{{ guid }}-{{ extra_sno_cluster.name }}"
+      ai_network_prefix: "{{ extra_sno_cluster.ai_network_prefix }}"
+
   - name: Configure a SNO/Compact cluster
     when: worker_instance_count | int == 0
     ansible.builtin.include_tasks: configure_sno_compact_cluster.yml
@@ -68,6 +79,19 @@
       wait: true
       wait_timeout: 300
 
+  - name: Configure extra SNO clusters
+    when: ai_extra_sno_clusters | default([]) | length > 0
+    ansible.builtin.include_tasks: create_sno_extra_sno_clusters.yaml
+    loop: "{{ ai_extra_sno_clusters }}"
+    loop_control:
+      loop_var: extra_sno_cluster
+    vars:
+      _cluster_name: "cluster-{{ guid }}-{{ extra_sno_cluster.name }}"
+      ai_network_prefix: "{{ extra_sno_cluster.ai_network_prefix }}"
+      _ai_control_plane_cores: "{{ extra_sno.ai_control_plane_cores | default(ai_control_plane_cores) }}"
+      _ai_control_plane_memory: "{{ extra_sno.ai_control_plane_memory | default(ai_control_plane_memory) }}"
+      _ai_control_plane_extra_disks: "{{ extra_sno.ai_control_plane_extra_disks | default(ai_control_plane_extra_disks) }}"
+
   - name: Create OpenShift cluster using Assisted Installer
     rhpds.assisted_installer.create_cluster:
       name: "{{ cluster_name }}"
@@ -81,7 +105,7 @@
       service_networks:
       - cidr: "{{ ai_service_network_cidr }}"
       machine_networks:
-      - cidr: "{{ ai_network_prefix }}.0/24"
+      - cidr: "{{ ai_network_prefix }}.0/{{ ai_network_prefix_length }}"
       cluster_networks:
       - cidr: "{{ ai_cluster_network_cidr }}"
         host_prefix: 23

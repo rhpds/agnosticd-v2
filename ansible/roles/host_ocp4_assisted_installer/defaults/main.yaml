@@ -1,4 +1,5 @@
 ---
+_cluster_name: "{{ cluster_name }}"
 ai_pull_secret: "{{ ocp4_ai_pull_secret | to_json | to_json if ocp4_ai_pull_secret is mapping else ocp4_ai_pull_secret | to_json }}"
 ai_offline_token: "{{ ocp4_ai_offline_token }}"
 
@@ -11,6 +12,7 @@ ai_ocp_namespace: "{{ sandbox_openshift_namespace | default(config + '-' + guid)
 ai_storage_class: ocs-storagecluster-ceph-rbd
 ai_local_storageclass: hostpath-csi
 ai_network_prefix: "10.10.10"
+ai_network_prefix_length: 24
 ai_service_network_cidr: "172.31.0.0/16"
 ai_cluster_network_cidr: "10.132.0.0/14"
 ai_network_mtu: 1500
@@ -27,7 +29,7 @@ ai_control_plane_macs: []
 ai_control_plane_macs2: []
 ai_attach_control_plane_macs: {}
 ai_attach_control_plane_networks: []
-ai_ocp_vmname_control_plane_prefix: "control-plane-{{ cluster_name }}"
+ai_ocp_vmname_control_plane_prefix: "control-plane-{{ _cluster_name }}"
 
 # Workers
 ai_workers_cores: 16
@@ -38,9 +40,9 @@ ai_workers_macs: []
 ai_workers_macs2: []
 ai_attach_workers_macs: {}
 ai_attach_workers_networks: []
-ai_ocp_vmname_worker_prefix: "worker-{{ cluster_name }}"
+ai_ocp_vmname_worker_prefix: "worker-{{ _cluster_name }}"
 
-ai_ocp_vmname_sno: "sno-{{ cluster_name }}"
+ai_ocp_vmname_sno: "sno-{{ _cluster_name }}"
 
 # Additional MachineConfigs to be added to the cluster
 ai_machineconfigs: []

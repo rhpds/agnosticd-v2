@@ -1,0 +1,66 @@
+- name: Delete dns records (DDNS)
+  when: cluster_dns_server is defined
+  ansible.builtin.nsupdate:
+    server: >-
+      {{ cluster_dns_server
+      | ansible.utils.ipaddr
+      | ternary(cluster_dns_server, lookup('community.general.dig', cluster_dns_server))
+      }}
+    zone: "{{ cluster_dns_zone }}"
+    record: "{{ item }}.{{ _cluster_name}}"
+    type: A
+    ttl: 30
+    port: "{{ cluster_dns_port | d('53') }}"
+    key_name: "{{ ddns_key_name }}"
+    key_secret: "{{ ddns_key_secret }}"
+    key_algorithm: hmac-sha256
+    state: absent
+  loop:
+    - "api-int"
+    - "api"
+    - "*.apps"
+
+- name: Delete DNS records (Route53)
+  when: route53_aws_access_key_id is defined
+  amazon.aws.route53:
+    state: absent
+    aws_access_key_id: "{{ route53_aws_access_key_id }}"
+    aws_secret_access_key: "{{ route53_aws_secret_access_key }}"
+    hosted_zone_id: "{{ route53_aws_zone_id }}"
+    record: "{{ item }}.{{ _cluster_name }}.{{ cluster_dns_zone }}"
+    zone: "{{ cluster_dns_zone  }}"
+    type: A
+  loop:
+  - "api-int"
+  - "api"
+  - "*.apps"
+  retries: 6
+  delay: 30
+  register: r_dns_cleanup
+  until: r_dns_cleanup is success
+
+- name: Get a list of clusters
+  rhpds.assisted_installer.list_clusters:
+    offline_token: "{{ ai_offline_token }}"
+    owner: true
+  register: listclusters
+
+- name: Filter the created clusters
+  when: item.name == _cluster_name
+  ansible.builtin.set_fact:
+    cluster_id: "{{ item.id }}"
+  loop: "{{ listclusters.result }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Remove Assisted Installer Cluster
+  when: cluster_id | default("") | length > 0
+  block:
+  - name: Debug cluster id and name
+    ansible.builtin.debug:
+      msg: "Cluster to be removed: Cluster ID={{ cluster_id }}, Cluster Name={{ _cluster_name }}"
+
+  - name: Delete cluster in Red Hat Console
+    rhpds.assisted_installer.delete_cluster:
+      cluster_id: "{{ cluster_id }}"
+      offline_token: "{{ ai_offline_token }}"

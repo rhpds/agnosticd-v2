@@ -1,0 +1,191 @@
+- name: Create OpenShift cluster using Assisted Installer
+  rhpds.assisted_installer.create_cluster:
+    name: "{{ _cluster_name }}"
+    openshift_version: "{{ ai_cluster_version }}"
+    base_dns_domain: "{{ cluster_dns_zone }}"
+    offline_token: "{{ ai_offline_token }}"
+    pull_secret: "{{ ai_pull_secret }}"
+    high_availability_mode: "{{ 'Full' if control_plane_instance_count | int > 1 else 'None' }}"
+    schedulable_masters: false
+    olm_operators: []
+    service_networks:
+    - cidr: "{{ ai_service_network_cidr }}"
+    machine_networks:
+    - cidr: "{{ ai_network_prefix }}.0/{{ ai_network_prefix_length }}"
+    cluster_networks:
+    - cidr: "{{ ai_cluster_network_cidr }}"
+      host_prefix: 23
+    api_vips:
+    - ip: "{{ ai_network_prefix }}.100"
+    ingress_vips:
+    - ip: "{{ ai_network_prefix }}.101"
+  register: newcluster
+
+- name: Add etcd manifest
+  rhpds.assisted_installer.create_manifest:
+    cluster_id: "{{ newcluster.result.id }}"
+    offline_token: "{{ ai_offline_token }}"
+    content: "{{lookup('ansible.builtin.file', 'etcd_disk.yaml') | b64encode }}"
+    file_name: 10-control-plane-etcd-config.yaml
+    folder: openshift
+
+- name: Add routers replicas manifest
+  rhpds.assisted_installer.create_manifest:
+    cluster_id: "{{ newcluster.result.id }}"
+    offline_token: "{{ ai_offline_token }}"
+    content: "{{lookup('ansible.builtin.template', 'router_replicas.yaml.j2') | b64encode }}"
+    file_name: 99_router-replicas.yaml
+    folder: openshift
+
+- name: Add OVN-Kubernetes to switch to local gateway mode manifest
+  rhpds.assisted_installer.create_manifest:
+    cluster_id: "{{ newcluster.result.id }}"
+    offline_token: "{{ ai_offline_token }}"
+    content: "{{lookup('ansible.builtin.file', 'network_config.yaml') | b64encode }}"
+    file_name: cluster-network-03-config.yml
+    folder: openshift
+
+- name: Enable ip_forwarding for control plane
+  rhpds.assisted_installer.create_manifest:
+    cluster_id: "{{ newcluster.result.id }}"
+    offline_token: "{{ ai_offline_token }}"
+    content: "{{lookup('ansible.builtin.file', 'sysctl_control_plane.yaml') | b64encode }}"
+    file_name: 98_sysctl-control-plane.yaml
+    folder: openshift
+
+- name: Add node hint manifest for SNO
+  when: control_plane_instance_count | int == 1
+  rhpds.assisted_installer.create_manifest:
+    cluster_id: "{{ newcluster.result.id }}"
+    offline_token: "{{ ai_offline_token }}"
+    content: "{{lookup('ansible.builtin.file', 'node_hint.yaml') | b64encode }}"
+    file_name: 98_node-hint.yaml
+    folder: openshift
+
+- name: Add MachineConfig manifests to Assisted Installer
+  when: ai_machineconfigs | default([]) | length > 0
+  rhpds.assisted_installer.create_manifest:
+    cluster_id: "{{ newcluster.result.id }}"
+    offline_token: "{{ ai_offline_token }}"
+    content: "{{ item | to_yaml | b64encode }}"         # Convert MachineConfig to YAML string
+    file_name: "{{ item.metadata.name }}.yaml"          # Use the MachineConfig name as filename
+    folder: openshift                                   # Target folder in Assisted Installer
+  loop: "{{ ai_machineconfigs }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"                   # Clean logging output using the MachineConfig name
+
+
+- name: Setup infrastructure
+  ansible.builtin.include_tasks: setup_infrastructure.yml
+
+- name: Reset mac addresses
+  ansible.builtin.set_fact:
+    ai_control_plane_macs: []
+    ai_control_plane_macs2: []
+
+
+- name: Run installation on the bastion
+  delegate_to: "{{ groups['bastions'][0] }}"
+  block:
+  # Need to specify python interpreter for the async task - otherwise it will try to use the same version
+  # as the one in the Execution Environment - which may or may not exist on the bastion.
+  - name: Start cluster installation
+    vars:
+      ansible_python_interpreter: /usr/bin/python3
+    rhpds.assisted_installer.install_cluster:
+      cluster_id: "{{ newcluster.result.id }}"
+      offline_token: "{{ ai_offline_token }}"
+      wait_timeout: 5400
+    async: 5400
+    poll: 60
+    register: cluster_install_job
+
+  - name: Display cluster_install_job for debugging purpose
+    ansible.builtin.debug:
+      var: cluster_install_job
+      verbosity: 2
+
+  - name: Wait for cluster installation to be completed
+    when:
+    - not cluster_install_job.finished | default(false) | bool
+    - not cluster_install_job.result.status | default('') | lower() == 'installed'
+    - cluster_install_job.ansible_job_id is defined
+    ansible.builtin.async_status:
+      jid: "{{ cluster_install_job.ansible_job_id }}"
+    register: cluster_install_result
+    until: cluster_install_result.finished
+    retries: 90
+    delay: 60
+
+  - name: Get OpenShift cluster credentials
+    rhpds.assisted_installer.get_credentials:
+      cluster_id: "{{ newcluster.result.id }}"
+      offline_token: "{{ ai_offline_token }}"
+    register: ai_credentials
+
+  - name: Display credentials for debugging purpose
+    ansible.builtin.debug:
+      var: ai_credentials.result
+
+  #TODO
+  #- name: Save credentials in variables
+  #  ansible.builtin.set_fact:
+  #    openshift_console_url: "{{ ai_credentials.result.console_url }}"
+  #    openshift_kubeadmin_password: "{{ ai_credentials.result.password }}"
+
+- name: Downloads OpenShift cluster credentials
+  rhpds.assisted_installer.download_credentials:
+    cluster_id: "{{ newcluster.result.id }}"
+    offline_token: "{{ ai_offline_token }}"
+    file_name: "{{ item }}"
+    dest: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_{{ item }}_{{ _cluster_name }}"
+  loop:
+  - kubeadmin-password
+  - kubeconfig
+  - kubeconfig-noingress
+
+- name: Make directory to store cluster files
+  ansible.builtin.file:
+    state: directory
+    path: "{{ hostvars.localhost.output_dir }}/cluster_files"
+    mode: ug=rwx,o=rx
+    recurse: true
+
+- name: Downloads OpenShift cluster files
+  rhpds.assisted_installer.download_files:
+    cluster_id: "{{ newcluster.result.id }}"
+    offline_token: "{{ ai_offline_token }}"
+    file_name: "{{ item }}"
+    dest: "{{ hostvars.localhost.output_dir }}/cluster_files/{{ item }}_{{ _cluster_name }}"
+  loop:
+  - bootstrap.ign
+  - master.ign
+  - metadata.json
+  - worker.ign
+  - install-config.yaml
+  - custom_manifests.json
+  - custom_manifests.yaml
+
+- name: Set up bastion
+  delegate_to: "{{ groups['bastions'][0] }}"
+  become: true
+  block:
+  - name: Create directory for downloaded credential files
+    ansible.builtin.file:
+      state: directory
+      path: "~{{ ansible_user }}/{{ _cluster_name }}/auth"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: ug=rwx,o=rx
+      recurse: true
+
+  - name: Copy kube config and kubeadmin password to bastion
+    ansible.builtin.copy:
+      src: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_{{ item }}_{{ _cluster_name }}"
+      dest: "~{{ ansible_user }}/{{ _cluster_name }}/auth/{{ item }}"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: u=rw,go=
+    loop:
+    - kubeconfig
+    - kubeadmin-password

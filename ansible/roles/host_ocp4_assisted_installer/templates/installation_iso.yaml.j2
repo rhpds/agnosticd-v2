@@ -2,7 +2,7 @@
 apiVersion: cdi.kubevirt.io/v1beta1
 kind: DataVolume
 metadata:
-  name: installation-iso
+  name: installation-iso-{{ _cluster_name }}
   namespace: {{ ai_ocp_namespace }}
   annotations:
     cdi.kubevirt.io/storage.deleteAfterCompletion: "false"
