@@ -128,9 +128,25 @@
         aws_secret_access_key = {{ aws_secret_access_key }}
 
   - name: Call role to destroy the OpenShift cluster
-    when: bwait is successful
+    when:
+    - bwait is successful
+    - host_ocp4_deploy_installation_method != 'rosa'
     ansible.builtin.include_role:
       name: host_ocp4_destroy
+
+- name: Destroy ROSA cluster
+  hosts: bastions
+  gather_facts: false
+  become: false
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ aws_access_key_id }}"
+    AWS_SECRET_ACCESS_KEY: "{{ aws_secret_access_key }}"
+    AWS_DEFAULT_REGION: "{{ aws_region_final | default(aws_region) }}"
+  tasks:
+  - name: Destroy ROSA cluster
+    when: host_ocp4_deploy_installation_method == 'rosa'
+    ansible.builtin.include_role:
+      name: host_ocp4_rosa_destroy
 
 - name: Import default aws destroy playbook
   ansible.builtin.import_playbook: "../../../cloud_providers/aws/destroy_env.yml"

@@ -1,0 +1,29 @@
+---
+- name: Download OpenShift client
+  ansible.builtin.get_url:
+    url: >-
+      {{ ocp4_tools_root_url }}/ocp/stable-{{ _rosa_ocp_cli_version
+        | regex_replace('^(\d+\.\d+).*$', '\1') }}/openshift-client-linux.tar.gz
+    dest: /tmp/openshift-client-linux.tar.gz
+
+- name: Install OpenShift client
+  become: true
+  ansible.builtin.unarchive:
+    src: /tmp/openshift-client-linux.tar.gz
+    dest: /usr/local/bin
+    remote_src: true
+    owner: root
+    mode: u=rwx,go=rx
+    extra_opts:
+    - --no-same-owner
+
+- name: Cleanup OpenShift client archive
+  ansible.builtin.file:
+    path: /tmp/openshift-client-linux.tar.gz
+    state: absent
+
+- name: Create oc bash completion
+  become: true
+  ansible.builtin.shell:
+    cmd: /usr/local/bin/oc completion bash >/etc/bash_completion.d/oc
+  changed_when: true

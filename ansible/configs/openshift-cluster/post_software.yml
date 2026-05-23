@@ -11,7 +11,9 @@
       msg: "Post-Software Steps starting"
 
   - name: Remove AWS Credentials from bastion
-    when: cloud_provider == 'aws'
+    when:
+    - cloud_provider == 'aws'
+    - host_ocp4_deploy_installation_method != 'rosa'
     ansible.builtin.file:
       path: "/home/{{ ansible_user }}/.aws/credentials"
       state: absent
@@ -48,6 +50,16 @@
   environment:
     KUBECONFIG: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
   tasks:
+  - name: Wait for OpenShift API to be reachable
+    kubernetes.core.k8s_info:
+      api_version: config.openshift.io/v1
+      kind: Infrastructure
+      name: cluster
+    register: r_api_check
+    retries: 30
+    delay: 10
+    until: r_api_check is success
+
   - name: Setup cluster-admin service account
     when: openshift_cluster_admin_service_account_enable | bool
     ansible.builtin.include_role:
@@ -75,7 +87,9 @@
     KUBECONFIG: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
   tasks:
   - name: Remove mint-mode cloud provider credentials
-    when: remove_mint_mode_cloud_provider_credentials | bool
+    when:
+    - remove_mint_mode_cloud_provider_credentials | bool
+    - host_ocp4_deploy_installation_method != 'rosa'
     kubernetes.core.k8s:
       state: absent
       api_version: v1

@@ -1,0 +1,128 @@
+---
+- name: Install AWS CLI
+  ansible.builtin.include_tasks: install_aws_cli.yml
+
+- name: Install Terraform
+  ansible.builtin.include_tasks: install_terraform.yml
+
+- name: Install ROSA CLI
+  ansible.builtin.include_tasks: install_rosa_cli.yml
+
+- name: Login to ROSA
+  ansible.builtin.command: >-
+    {{ rosa_binary_path }}/rosa login --token {{ rosa_token }}
+
+- name: List ROSA clusters in organization
+  ansible.builtin.command: >-
+    {{ rosa_binary_path }}/rosa list clusters --output json
+  register: r_rosa_list_clusters
+  changed_when: false
+
+- name: Check if ROSA cluster already exists
+  vars:
+    _matching: >-
+      {{ r_rosa_list_clusters.stdout | from_json
+        | selectattr('name', 'equalto', rosa_cluster_name) | list }}
+    _cluster_state: >-
+      {{ _matching[0].status.state | default('') if _matching | length > 0 else '' }}
+  ansible.builtin.set_fact:
+    _rosa_cluster_exists: "{{ _matching | length > 0 }}"
+    _rosa_cluster_ready: "{{ _cluster_state == 'ready' }}"
+    _rosa_cluster_state: "{{ _cluster_state }}"
+
+- name: Print cluster status
+  ansible.builtin.debug:
+    msg: "ROSA cluster {{ rosa_cluster_name }}: exists={{ _rosa_cluster_exists }}, state={{ _rosa_cluster_state | default('not found') }}"
+
+- name: Create ROSA cluster
+  when: not _rosa_cluster_exists | bool
+  block:
+  - name: Run ROSA pre-install tasks
+    ansible.builtin.include_tasks: rosa_pre_install.yml
+
+  - name: Create ROSA networking with Terraform
+    ansible.builtin.include_tasks: rosa_terraform.yml
+
+  - name: Create ROSA cluster
+    ansible.builtin.include_tasks: rosa_create_cluster.yml
+
+  - name: Run ROSA post-install tasks
+    ansible.builtin.include_tasks: rosa_post_install.yml
+
+- name: Resume existing ROSA cluster install
+  when:
+  - _rosa_cluster_exists | bool
+  - not _rosa_cluster_ready | bool
+  block:
+  - name: Run ROSA pre-install tasks for version resolution
+    ansible.builtin.include_tasks: rosa_pre_install.yml
+
+  - name: Wait for ROSA cluster to be ready
+    ansible.builtin.include_tasks: rosa_create_cluster_wait.yml
+
+  - name: Run ROSA post-install tasks
+    ansible.builtin.include_tasks: rosa_post_install.yml
+
+- name: Reconnect to existing ready cluster
+  when:
+  - _rosa_cluster_exists | bool
+  - _rosa_cluster_ready | bool
+  block:
+  - name: Run ROSA pre-install tasks for version resolution
+    ansible.builtin.include_tasks: rosa_pre_install.yml
+
+  - name: Run ROSA post-install tasks for URL extraction
+    ansible.builtin.include_tasks: rosa_post_install.yml
+
+- name: Install OpenShift CLI
+  ansible.builtin.include_tasks: install_ocp_cli.yml
+
+- name: Create ROSA admin user for cluster access
+  ansible.builtin.include_tasks: rosa_post_install_admin.yml
+
+- name: Log cluster admin into OpenShift and fetch kubeconfig
+  ansible.builtin.include_tasks: rosa_cluster_login.yml
+
+- name: Get OpenShift cluster information
+  ansible.builtin.include_tasks: rosa_cluster_info.yml
+
+- name: Save ROSA install log
+  block:
+  - name: Get ROSA install log
+    ansible.builtin.shell:
+      cmd: >-
+        {{ rosa_binary_path }}/rosa logs install
+        --cluster {{ rosa_cluster_name }} > /home/{{ ansible_user }}/rosa_install.log
+    changed_when: false
+
+  - name: Archive ROSA install log
+    ansible.builtin.archive:
+      path: /home/{{ ansible_user }}/rosa_install.log
+      dest: /home/{{ ansible_user }}/rosa_install.log.gz
+      format: gz
+
+  - name: Transfer install log to output dir
+    ansible.builtin.fetch:
+      src: /home/{{ ansible_user }}/rosa_install.log.gz
+      dest: "{{ output_dir }}/{{ config }}_{{ guid }}_log/"
+      flat: true
+  ignore_errors: true
+
+- name: Save ROSA user data
+  delegate_to: localhost
+  agnosticd.core.agnosticd_user_info:
+    data:
+      rosa_openshift_console_url: "{{ rosa_openshift_console_url }}"
+      rosa_openshift_api_url: "{{ rosa_openshift_api_url }}"
+      rosa_version: "{{ _rosa_version_to_install }}"
+      rosa_cluster_name: "{{ rosa_cluster_name }}"
+
+- name: Save ROSA admin credentials
+  when:
+  - rosa_setup_cluster_admin | bool
+  - _rosa_cluster_admin_password | length > 0
+  delegate_to: localhost
+  agnosticd.core.agnosticd_user_info:
+    data:
+      rosa_openshift_admin_user: cluster-admin
+      rosa_openshift_admin_password: "{{ _rosa_cluster_admin_password }}"

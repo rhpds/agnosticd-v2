@@ -1,0 +1,36 @@
+---
+- name: Delete ROSA cluster {{ item.name }}
+  ansible.builtin.command: >-
+    {{ rosa_binary_path }}/rosa delete cluster
+    --cluster {{ item.name }}
+    --yes
+  register: r_rosa_delete
+  failed_when: >-
+    r_rosa_delete.rc != 0
+    and 'ERR: There is no cluster with identifier or name' not in r_rosa_delete.stderr
+
+- name: Wait for ROSA cluster {{ item.name }} deletion
+  ansible.builtin.shell: |
+    for i in $(seq 1 30); do
+      {{ rosa_binary_path }}/rosa describe cluster --cluster {{ item.name }} 2>&1
+      if [ $? -ne 0 ]; then
+        echo "Cluster {{ item.name }} has been deleted"
+        exit 0
+      fi
+      echo "Attempt $i: cluster still exists, waiting..."
+      sleep 60
+    done
+    echo "Timed out waiting for cluster deletion"
+    exit 1
+  register: r_rosa_cluster_status
+  changed_when: false
+  async: 2400
+  poll: 30
+
+- name: Force ROSA cluster {{ item.name }} removal
+  when: r_rosa_cluster_status.rc != 0
+  ansible.builtin.command: >-
+    {{ rosa_binary_path }}/rosa delete cluster
+    --cluster {{ item.name }}
+    --yes
+    --best-effort=true

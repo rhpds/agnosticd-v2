@@ -1,0 +1,13 @@
+---
+- name: Install Terraform
+  become: true
+  ansible.builtin.unarchive:
+    src: "{{ rosa_terraform_url }}"
+    remote_src: true
+    dest: /usr/local/bin
+    mode: ug=rwx,o=rx
+    owner: root
+  retries: 10
+  register: r_terraform
+  until: r_terraform is success
+  delay: 30

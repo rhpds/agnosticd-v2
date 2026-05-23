@@ -1,0 +1,108 @@
+---
+- name: Create ROSA account roles
+  ansible.builtin.command: >-
+    {{ rosa_binary_path }}/rosa create account-roles
+    --hosted-cp
+    --region {{ aws_region }}
+    --force-policy-creation
+    --mode auto
+    --yes
+
+- name: Create ROSA OIDC config
+  ansible.builtin.command: >-
+    {{ rosa_binary_path }}/rosa create oidc-config
+    --region {{ aws_region }}
+    --mode auto
+    --yes
+    --output json
+  register: r_oidc_config
+
+- name: Save OIDC config ID
+  ansible.builtin.set_fact:
+    _rosa_oidc_id: "{{ (r_oidc_config.stdout | from_json).id }}"
+
+- name: Clean up stale operator roles for {{ rosa_cluster_name }}
+  ansible.builtin.command: >-
+    {{ rosa_binary_path }}/rosa delete operator-roles
+    --prefix {{ rosa_cluster_name }}
+    --mode auto
+    --yes
+  register: r_delete_operator_roles
+  changed_when: r_delete_operator_roles.rc == 0
+  failed_when: false
+
+- name: Find stale operator IAM roles for {{ rosa_cluster_name }}
+  ansible.builtin.command: >-
+    aws iam list-roles
+    --query "Roles[?starts_with(RoleName, '{{ rosa_cluster_name }}-')].RoleName"
+    --output json
+  register: r_stale_iam_roles
+  changed_when: false
+  failed_when: false
+
+- name: Remove stale operator IAM roles for {{ rosa_cluster_name }}
+  when: r_stale_iam_roles.rc == 0 and (r_stale_iam_roles.stdout | from_json | length > 0)
+  ansible.builtin.shell: |
+    role="{{ item }}"
+    for policy in $(aws iam list-role-policies --role-name "$role" --output text --query 'PolicyNames'); do
+      aws iam delete-role-policy --role-name "$role" --policy-name "$policy"
+    done
+    for arn in $(aws iam list-attached-role-policies --role-name "$role" --output text --query 'AttachedPolicies[].PolicyArn'); do
+      aws iam detach-role-policy --role-name "$role" --policy-arn "$arn"
+    done
+    aws iam delete-role --role-name "$role"
+  loop: "{{ r_stale_iam_roles.stdout | from_json }}"
+  failed_when: false
+
+- name: Create ROSA operator roles
+  ansible.builtin.command: >-
+    {{ rosa_binary_path }}/rosa create operator-roles
+    --hosted-cp
+    --mode auto
+    --yes
+    --prefix {{ rosa_cluster_name }}
+    --oidc-config-id {{ _rosa_oidc_id }}
+    --installer-role-arn arn:aws:iam::{{ aws_billing_account_id }}:role/ManagedOpenShift-HCP-ROSA-Installer-Role
+
+- name: Print cluster creation parameters
+  ansible.builtin.debug:
+    msg: >-
+      Creating ROSA cluster '{{ rosa_cluster_name }}'
+      in region {{ aws_region }}
+      with subnets {{ _rosa_subnets }}
+      and OIDC config {{ _rosa_oidc_id }}
+
+- name: Create ROSA cluster
+  ansible.builtin.command: >-
+    {{ rosa_binary_path }}/rosa create cluster
+    --cluster-name {{ rosa_cluster_name }}
+    --billing-account {{ aws_billing_account_id }}
+    --sts
+    --mode auto
+    --yes
+    --hosted-cp
+    --region {{ aws_region }}
+    --operator-roles-prefix {{ rosa_cluster_name }}
+    --oidc-config-id {{ _rosa_oidc_id }}
+    --subnet-ids {{ _rosa_subnets }}
+    --tags "{{ cloud_tags_list }}"
+    {% if _rosa_version_to_install | default("") | length > 0 %}--version {{ _rosa_version_to_install }}{% endif %}
+    {% if rosa_compute_machine_type is defined %}--compute-machine-type {{ rosa_compute_machine_type }}{% endif %}
+    {% if rosa_compute_worker_disk_size is defined %}--worker-disk-size {{ rosa_compute_worker_disk_size }}{% endif %}
+    {% if rosa_compute_replicas is defined %}--replicas {{ rosa_compute_replicas | int }}{% endif %}
+    {% if rosa_machine_cidr | default("") | length > 0 %}--machine-cidr {{ rosa_machine_cidr }}{% endif %}
+    {% if rosa_service_cidr | default("") | length > 0 %}--service-cidr {{ rosa_service_cidr }}{% endif %}
+    {% if rosa_pod_cidr | default("") | length > 0 %}--pod-cidr {{ rosa_pod_cidr }}{% endif %}
+    {% if rosa_host_prefix | default("") | length > 0 %}--host-prefix {{ rosa_host_prefix | int }}{% endif %}
+  register: r_rosa_create_status
+  until: r_rosa_create_status.rc == 0 or 'Duplicate cluster name' in r_rosa_create_status.stderr | default('')
+  retries: 3
+  delay: 10
+
+- name: Cluster already exists in organization
+  when: r_rosa_create_status.rc != 0 and 'Duplicate cluster name' in r_rosa_create_status.stderr | default('')
+  ansible.builtin.debug:
+    msg: "Cluster '{{ rosa_cluster_name }}' already exists in organization, waiting for it to become ready"
+
+- name: Wait for ROSA cluster to become ready
+  ansible.builtin.include_tasks: rosa_create_cluster_wait.yml

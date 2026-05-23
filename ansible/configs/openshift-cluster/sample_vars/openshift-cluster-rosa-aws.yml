@@ -1,0 +1,81 @@
+---
+# ===================================================================
+# Mandatory Variables
+# ===================================================================
+cloud_provider: aws
+config: openshift-cluster
+host_ocp4_deploy_installation_method: rosa
+# ===================================================================
+# End Mandatory Variables
+# ===================================================================
+
+# ===================================================================
+# AWS Specific settings
+# ===================================================================
+aws_region: us-east-2
+
+cloud_tags:
+- owner: wkulhane@redhat.com
+- Purpose: development
+- config: "{{ config }}"
+- guid: "{{ guid }}"
+
+# -------------------------------------------------------------------
+# Set authorized keys on all created instances
+# -------------------------------------------------------------------
+host_ssh_authorized_keys:
+- key: https://github.com/wkulhanek.keys
+
+# ===================================================================
+# ROSA settings
+# ===================================================================
+
+# ROSA token from cloud.redhat.com/openshift/token/rosa
+# Must be provided via secrets
+# rosa_token: ""
+
+# AWS billing account ID - required for ROSA
+# Must be provided via secrets or sandbox
+# aws_billing_account_id: ""
+
+# ROSA version: default, latest, latest-upgrade, or specific
+rosa_version: default
+rosa_version_base: "openshift-v4.20"
+
+# Set up cluster-admin and log in on bastion
+rosa_setup_cluster_admin: true
+rosa_setup_cluster_admin_login: true
+
+# -------------------------------------------------------------------
+# Bastion VM settings
+# -------------------------------------------------------------------
+bastion_setup_student_user: true
+bastion_student_user_name: rosa
+
+# ROSA only needs a bastion - no control plane or worker instances
+agnosticd_aws_capacity_reservation_enable: false
+control_plane_instance_count: 0
+worker_instance_count: 0
+
+# Simplified instances list - bastion only
+instances:
+- name: bastion
+  count: 1
+  unique: true
+  public_dns: true
+  image: "{{ bastion_instance_image }}"
+  flavor:
+    ec2: t3a.small
+  tags:
+  - key: AnsibleGroup
+    value: bastions
+  - key: Purpose
+    value: "{{ purpose }}"
+  rootfs_size: 30
+  security_groups:
+  - BastionSG
+
+# -------------------------------------------------------------------
+# Workloads
+# -------------------------------------------------------------------
+workloads: []

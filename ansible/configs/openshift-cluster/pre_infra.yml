@@ -9,18 +9,29 @@
     ansible.builtin.debug:
       msg: "Step 000 Pre Infrastructure"
 
-  - name: Ensure variables are set
+  - name: Ensure pull secret is set
+    when: host_ocp4_deploy_installation_method != 'rosa'
     ansible.builtin.assert:
       that: ocp4_pull_secret | default("") | length > 0
       fail_msg: ocp4_pull_secret variable must be defined
       success_msg: ocp4_pull_secret variable is defined
       quiet: true
 
+  - name: Ensure ROSA token is set
+    when: host_ocp4_deploy_installation_method == 'rosa'
+    ansible.builtin.assert:
+      that: rosa_token | default("") | length > 0
+      fail_msg: rosa_token variable must be defined for ROSA deployments
+      success_msg: rosa_token variable is defined
+      quiet: true
+
   - name: AWS Pre Infrastructure tasks
     when: cloud_provider == "aws"
     block:
     - name: Set availability zones for Cloudformation and install-config.yml
-      when: agnosticd_aws_capacity_reservation_results.reservations | default({}) | length > 0
+      when:
+      - agnosticd_aws_capacity_reservation_results.reservations | default({}) | length > 0
+      - host_ocp4_deploy_installation_method != 'rosa'
       block:
       - name: Set availability zone for bastion, control_plane, and worker nodes
         vars:

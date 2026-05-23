@@ -1,0 +1,55 @@
+---
+# ROSA cluster name
+rosa_cluster_name: "rosa-{{ guid }}"
+
+# ROSA token - must come from secrets
+# rosa_token: ""
+
+# Version of ROSA to deploy
+# Options: default, latest, latest-upgrade, or specific (e.g. 4.17.4)
+rosa_version: default
+
+# Base version string for latest/latest-upgrade resolution
+rosa_version_base: "openshift-v4.20"
+
+# ROSA CLI version and download URL
+rosa_installer_version: latest
+# rosa_installer_version: "1.2.53"
+rosa_installer_url: >-
+  https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/rosa/{{ rosa_installer_version }}/rosa-linux.tar.gz
+rosa_binary_path: /usr/local/bin
+
+# OpenShift client download root URL
+ocp4_tools_root_url: >-
+  https://mirror.openshift.com/pub/openshift-v4/clients
+
+# Compute settings (undefined = use ROSA defaults)
+# rosa_compute_machine_type: m5.xlarge
+# rosa_compute_worker_disk_size: 200GiB
+# rosa_compute_replicas: 2
+
+# Networking CIDRs (empty = use ROSA defaults)
+rosa_machine_cidr: ""
+rosa_service_cidr: ""
+rosa_pod_cidr: ""
+rosa_host_prefix: ""
+
+# Set up cluster-admin user
+rosa_setup_cluster_admin: true
+rosa_setup_cluster_admin_login: false
+
+# Terraform for ROSA networking
+rosa_terraform_version: "1.15.3"
+rosa_terraform_url: >-
+  https://releases.hashicorp.com/terraform/{{ rosa_terraform_version }}/terraform_{{ rosa_terraform_version }}_linux_amd64.zip
+rosa_terraform_repo: https://github.com/openshift-cs/terraform-vpc-example
+rosa_terraform_repo_branch: main
+
+# AWS billing account ID (required for ROSA)
+# aws_billing_account_id: ""
+
+# Internal state variables
+_rosa_cluster_admin_password: ""
+_rosa_supported_regions: ""
+_rosa_version_to_install: ""
+_rosa_ocp_cli_version: ""
