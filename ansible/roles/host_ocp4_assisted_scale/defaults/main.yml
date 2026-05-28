@@ -1,5 +1,6 @@
 ---
 cluster_name: "cluster-{{ guid.split('-')[0] if '-' in guid else guid }}"
+_cluster_name: "{{ cluster_name }}"
 ocp4_pull_secret: "{{ ocp4_ai_pull_secret }}"
 
 ai_pull_secret: "{{ ocp4_pull_secret | to_json | to_json if ocp4_pull_secret is mapping else ocp4_pull_secret | to_json }}"

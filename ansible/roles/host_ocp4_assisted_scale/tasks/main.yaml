@@ -48,7 +48,7 @@
     kubernetes.core.k8s:
       state: patched
       kind: Service
-      name: "{{ ai_ocp_vmname_worker_prefix }}-svc"
+      name: "{{ ai_ocp_vmname_worker_prefix }}-svc-{{ _cluster_name }}"
       namespace: "{{ ai_ocp_namespace }}"
       api_version: v1
       merge_type: merge
