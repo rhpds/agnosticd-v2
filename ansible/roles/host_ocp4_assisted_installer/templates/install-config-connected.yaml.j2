@@ -40,4 +40,4 @@ platform:
       - {{ ai_network_prefix }}.101
 
 publish: External
-pullSecret: {{ ai_pull_secret | from_json }}
+pullSecret: '{{ ai_pull_secret | from_json }}'
