@@ -70,7 +70,7 @@
     become: true
     ansible.builtin.command: |
       /usr/bin/oc adm release extract --registry-config=/tmp/pull-secret.json --command=openshift-install --to /usr/bin/openshift-install
-      quay.io/openshift-release-dev/ocp-release:{{ host_ocp4_installer_version }}-x86_64
+      quay.io/openshift-release-dev/ocp-release:$(oc version -o json|jq -r ".releaseClientVersion")-x86_64
 
   - name: Remove /tmp/pull-secret.json
     ansible.builtin.file:
