@@ -5,7 +5,7 @@ metadata:
 
 # The rendezvous IP is the IP address of one of the nodes to be installed. It
 # will act as the node that will coordinate the installation
-rendezvousIP:  {{ rendezvousIP }}
+rendezvousIP: {{ ai_network_prefix }}.10
 
 # If defaultNtpServers are defined, add it to the configuration
 {% if defaultNtpServers | default("") | length > 0  %}
