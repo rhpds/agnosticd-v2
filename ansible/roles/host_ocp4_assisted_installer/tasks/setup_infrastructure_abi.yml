@@ -64,7 +64,7 @@
   - name: Create /tmp/pull-secret.json
     ansible.builtin.copy:
       dest: "/tmp/pull-secret.json"
-      content: "{{ ai_pull_secret | from_json | to_json }}"
+      content: "{{ ai_pull_secret | from_json }}"
 
   - name: Extract openshift-install binary
     become: true
