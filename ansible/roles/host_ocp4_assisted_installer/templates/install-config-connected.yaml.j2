@@ -32,12 +32,17 @@ networking:
   - {{ ai_service_network_cidr }}
 
 # Here we set up VIPs
+{% if control_plane_instance_count == 1 and worker_instance_count == 0 %}
+platform:
+  none: {}
+{% else %}
 platform:
   baremetal:
     apiVIPs:
       - {{ ai_network_prefix }}.100
     ingressVIPs:
       - {{ ai_network_prefix }}.101
+{% endif %}
 
 publish: External
 pullSecret: '{{ ai_pull_secret | from_json }}'
