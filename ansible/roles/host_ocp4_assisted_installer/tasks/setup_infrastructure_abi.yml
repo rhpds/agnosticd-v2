@@ -104,7 +104,7 @@
 
   - name: Generate the ISO image
     ansible.builtin.command:
-      cmd: "{{ ansible_user }}/{{ cluster_name }}/bin/openshift-install agent create image --dir {{ ansible_user }}/{{ cluster_name }}/ocp-cluster/"
+      cmd: "/usr/bin/openshift-install agent create image --dir {{ ansible_user }}/{{ cluster_name }}/ocp-cluster/"
 
   # TODO: fix
   - name: Download virtctl
@@ -112,6 +112,8 @@
       url: https://github.com/kubevirt/kubevirt/releases/download/v1.7.3/virtctl-v1.7.3-linux-amd64
       dest: /usr/bin/virtctl
       mode: '0755'
+
+  - fail:
 
   - name: Create three control plane VMs for full cluster
     vars:
