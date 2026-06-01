@@ -1,0 +1,179 @@
+---
+- name: Generate mac addresses for control plane
+  ansible.builtin.set_fact:
+    ai_control_plane_macs: >
+      {{ ai_control_plane_macs + ['f6' |
+          community.general.random_mac(ai_ocp_namespace + _cluster_name + 'm1' + _index|string)] }}
+    ai_control_plane_macs2: >
+      {{ ai_control_plane_macs2 + ['f6' |
+          community.general.random_mac(ai_ocp_namespace + _cluster_name + 'm2' + _index|string)] }}
+  loop: "{{ range(1,control_plane_instance_count|int+1)|list }}"
+  loop_control:
+    loop_var: _index
+
+- name: Generate MAC addresses for control plane for attached networks
+  ansible.builtin.set_fact:
+    ai_attach_control_plane_macs: >-
+      {{
+        ai_attach_control_plane_macs | combine({
+          item.1: (ai_attach_control_plane_macs[item.1] | default([])) + [
+            'f6' | community.general.random_mac(
+              ai_ocp_namespace + _cluster_name + item.0|string + item.1
+            )
+          ]
+        })
+      }}
+  loop: "{{ range(1, control_plane_instance_count | int + 1) | list | product(ai_attach_control_plane_networks) | list }}"
+  loop_control:
+    loop_var: item
+
+- name: Generate mac addresses for workers
+  ansible.builtin.set_fact:
+    ai_workers_macs: >
+        {{ ai_workers_macs + ['f6' |
+            community.general.random_mac(ai_ocp_namespace + _cluster_name + 'w1' + _index|string)] }}
+    ai_workers_macs2: >
+        {{ ai_workers_macs2 + ['f6' |
+            community.general.random_mac(ai_ocp_namespace + _cluster_name + 'w2' + _index|string)] }}
+  loop: "{{ range(1,worker_instance_count|int+1)|list }}"
+  loop_control:
+    loop_var: _index
+
+- name: Generate MAC addresses for workers for attached networks
+  ansible.builtin.set_fact:
+    ai_attach_workers_macs: >-
+      {{
+        ai_attach_workers_macs | combine({
+          item.1: (ai_attach_workers_macs[item.1] | default([])) + [
+            'f6' | community.general.random_mac(
+              ai_ocp_namespace + _cluster_name + item.0|string + item.1
+            )
+          ]
+        })
+      }}
+  loop: "{{ range(1, worker_instance_count | int + 1) | list | product(ai_attach_workers_networks) | list }}"
+  loop_control:
+    loop_var: item
+
+- name: Set static_network_config variable
+  ansible.builtin.set_fact:
+    static_network_config: "{{ lookup('template','static_network_config_full.yaml.j2') | from_yaml }}"
+
+- name: Create /tmp/pull-secret.json
+  ansible.builtin.copy:
+    dest: "/tmp/pull-secret.json"
+    content: "{{ ai_pull_secret }}"
+
+- name: Extract openshift-install binary
+  delegate_to: "{{ groups['bastions'][0] }}"
+  become: true
+  ansible.builtin.command: |
+    /usr/bin/oc adm release extract --registry-config=/tmp/pull-secret.json --command=openshift-install --to /usr/bin/
+    quay.io/openshift-release-dev/ocp-release:{{ host_ocp4_installer_version }}-x86_64
+
+- name: Remove /tmp/pull-secret.json
+  ansible.builtin.file:
+    path: "/tmp/pull-secret.json"
+    state: absent
+
+
+- name: Ensure {{ ansible_user }}/{{ cluster_name }}/ocp-cluster/ exists
+  ansible.builtin.file:
+    path: "~{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/"
+    state: directory
+
+- name: Ensure {{ ansible_user }}/{{ cluster_name }}/ocp-cluster/openshift/ exists
+  ansible.builtin.file:
+    path: "{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/openshift/"
+    state: directory
+
+- name: Generate the install-config.yaml from mode-specific template
+  ansible.builtin.template:
+    src: "../../templates/install-config-connected.yaml.j2"
+    dest: "{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/install-config.yaml"
+
+- name: Generate the agent-config.yaml from template
+  ansible.builtin.template:
+    src: "../../templates/agent-config.yaml.j2"
+    dest: "{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/agent-config.yaml"
+
+- name: Generate the ISO image
+  ansible.builtin.command:
+    cmd: "{{ ansible_user }}/{{ cluster_name }}/bin/openshift-install agent create image --dir {{ ansible_user }}/{{ cluster_name }}/ocp-cluster/"
+
+# TODO: fix
+- name: Download virtctl
+  ansible.builtin.get_url:
+    url: https://github.com/kubevirt/kubevirt/releases/download/v1.7.3/virtctl-v1.7.3-linux-amd64
+    dest: /usr/bin/virtctl
+    mode: '0755'
+
+- name: Create three control plane VMs for full cluster
+  vars:
+    vmname: "{{ ai_ocp_vmname_control_plane_prefix }}-{{ _index }}"
+    network: "{{ cluster_name }}-openshift"
+    network_name: "{{ ai_install_use_network | default(cluster_name + '-openshift') }}"
+    pod_network: "192.168.{{ _index }}.0/24"
+  ansible.builtin.include_tasks: kubevirt/create_control_plane_etcd.yaml
+  loop: "{{ range(1,control_plane_instance_count | int+1) | list }}"
+  loop_control:
+    loop_var: _index
+
+- name: Create {{ worker_instance_count }} worker VMs for full cluster
+  vars:
+    vmname: "{{ ai_ocp_vmname_worker_prefix }}-{{ _index }}"
+    network: "{{ cluster_name}}-openshift"
+    network_name: "{{ ai_install_use_network | default(cluster_name + '-openshift') }}"
+    pod_network: "192.168.1{{ _index }}.0/24"
+  ansible.builtin.include_tasks: kubevirt/create_workers.yaml
+  loop: "{{ range(1,worker_instance_count | int+1) | list }}"
+  loop_control:
+    loop_var: _index
+
+- name: Wait for three control plane VMs to be running
+  vars:
+    vmname: "{{ ai_ocp_vmname_control_plane_prefix }}-{{ _index }}"
+  ansible.builtin.include_tasks: kubevirt/wait_control_plane_etcd.yaml
+  loop: "{{ range(1,control_plane_instance_count | int+1) | list }}"
+  loop_control:
+    loop_var: _index
+
+- name: Wait for {{ worker_instance_count }} worker VMs to be running
+  vars:
+    vmname: "{{ ai_ocp_vmname_worker_prefix }}-{{ _index }}"
+  ansible.builtin.include_tasks: kubevirt/wait_workers.yaml
+  loop: "{{ range(1,worker_instance_count | int+1) | list }}"
+  loop_control:
+    loop_var: _index
+
+# Don't change role - AI collection won't find the node if the role is not 'master'
+- name: Set the variable ai_configure_hosts for control-plane
+  ansible.builtin.set_fact:
+    ai_configure_hosts: >-
+      {{ ai_configure_hosts + [
+        {'hostname': ai_ocp_vmname_control_plane_prefix + "-" + _index|string,
+      'role': 'master',
+      'installation_disk': '/dev/vda'}] }}
+  loop: "{{ range(1,control_plane_instance_count | int+1) | list }}"
+  loop_control:
+    loop_var: _index
+
+- name: Set the variable ai_configure_hosts for workers
+  ansible.builtin.set_fact:
+    ai_configure_hosts: >-
+      {{ ai_configure_hosts + [
+      {'hostname': ai_ocp_vmname_worker_prefix + "-" + _index|string,
+      'role': 'worker',
+      'installation_disk': '/dev/vda'}] }}
+  loop: "{{ range(1,worker_instance_count | int+1) | list }}"
+  loop_control:
+    loop_var: _index
+
+- name: Wait for the hosts to be ready
+  rhpds.assisted_installer.wait_for_hosts:
+    cluster_id: "{{ newcluster.result.id }}"
+    offline_token: "{{ ai_offline_token }}"
+    expected_hosts: "{{ control_plane_instance_count | int + worker_instance_count | int }}"
+    infra_env_id: "{{ newinfraenv.result.id }}"
+    configure_hosts: "{{ ai_configure_hosts }}"
+    wait_timeout: 600

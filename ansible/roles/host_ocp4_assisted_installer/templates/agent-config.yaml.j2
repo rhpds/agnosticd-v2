@@ -1,0 +1,80 @@
+apiVersion: v1beta1
+kind: AgentConfig
+metadata:
+  name: {{ clusterName }}
+
+# The rendezvous IP is the IP address of one of the nodes to be installed. It
+# will act as the node that will coordinate the installation
+rendezvousIP:  {{ rendezvousIP }}
+
+# If defaultNtpServers are defined, add it to the configuration
+{% if defaultNtpServers | default("") | length > 0  %}
+additionalNTPSources:
+{{ defaultNtpServers | to_nice_yaml }}
+{% endif %}
+
+hosts:
+{% for index in range(0, control_plane_instance_count | int) %} 
+{% set control_plane_loop = loop %}
+- hostname: control-{{ index }}
+  networkConfig:
+    interfaces:
+    - ipv4:
+        dhcp: true
+        enabled: true
+      name: enp1s0
+      state: up
+      type: ethernet
+    - ipv4:
+        address:
+        - ip: {{ ai_network_prefix }}.1{{ index }}
+          prefix-length: {{ ai_network_prefix_length }}
+        dhcp: false
+        enabled: true
+      name: enp2s0
+      state: up
+      type: ethernet
+    routes:
+      config:
+      - destination: 0.0.0.0/0
+        next-hop-address: {{ ai_network_prefix }}.1
+        next-hop-interface: enp2s0
+        metric: 200
+  interfaces:
+    - macAddress: "{{ ai_control_plane_macs[index] }}"
+      name: "enp1s0"
+    - macAddress: "{{ ai_control_plane_macs2[index] }}"
+      name: "enp2s0"
+{% endfor %}
+{% for index in range(0, worker_instance_count | int) %}
+{% set worker_loop = loop %}
+- hostname: worker-{{ index }}
+  networkConfig:
+    interfaces:
+    - ipv4:
+        dhcp: true
+        enabled: true
+      name: enp1s0
+      state: up
+      type: ethernet
+    - ipv4:
+        address:
+        - ip: {{ ai_network_prefix }}.2{{ index }}
+          prefix-length: {{ ai_network_prefix_length }}
+        dhcp: false
+        enabled: true
+      name: enp2s0
+      state: up
+      type: ethernet
+    routes:
+      config:
+      - destination: 0.0.0.0/0
+        next-hop-address: {{ ai_network_prefix }}.1
+        next-hop-interface: enp2s0
+        metric: 200
+  interfaces:
+    - macAddress: "{{ ai_workers_macs[index] }}" 
+      name: "enp1s0"
+    - macAddress: "{{ ai_workers_macs2[index] }}"
+      name: "enp2s0"
+{% endfor %}

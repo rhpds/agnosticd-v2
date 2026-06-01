@@ -1,5 +1,6 @@
 ---
 _cluster_name: "{{ cluster_name }}"
+ai_use_abi: true
 ai_pull_secret: "{{ ocp4_ai_pull_secret | to_json | to_json if ocp4_ai_pull_secret is mapping else ocp4_ai_pull_secret | to_json }}"
 ai_offline_token: "{{ ocp4_ai_offline_token }}"
 

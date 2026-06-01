@@ -41,7 +41,9 @@
     host: "{{ sandbox_openshift_api_url }}"
   register: k8s_auth_results
 
-- name: Install OpenShift using Assisted Installer
+
+- name: Install OpenShift using Agent-based Installer
+  when: ai_use_abi | default(false) == false
   module_defaults:
     group/k8s:
       host: "{{ sandbox_openshift_api_url }}"
@@ -50,7 +52,35 @@
   block:
   - name: Check if the quota in the namespace allows install OCP
     ansible.builtin.include_tasks: check_namespace_quota.yaml
-      
+
+  - name: Configure a SNO/Compact cluster
+    when: worker_instance_count | int == 0
+    ansible.builtin.include_tasks: configure_sno_compact_cluster.yml
+
+  - name: Configure a full cluster
+    when: worker_instance_count | int > 0
+    ansible.builtin.include_tasks: configure_full_cluster.yml
+
+  - name: Create OVN secondary network
+    when: ai_install_use_network is not defined
+    vars:
+      network_name: "{{ cluster_name }}-openshift"
+    kubernetes.core.k8s:
+      template: net_attach_def.yaml.j2
+      wait: true
+      wait_timeout: 300
+
+
+- name: Install OpenShift using Assisted Installer
+  when: ai_use_abi | default(false) == false
+  module_defaults:
+    group/k8s:
+      host: "{{ sandbox_openshift_api_url }}"
+      api_key: "{{ k8s_auth_results.k8s_auth.api_key | default(sandbox_openshift_api_key) }}"
+      validate_certs: false
+  block:
+  - name: Check if the quota in the namespace allows install OCP
+    ansible.builtin.include_tasks: check_namespace_quota.yaml
 
   - name: Configure extra SNO clusters
     when: ai_extra_sno_clusters | default([]) | length > 0

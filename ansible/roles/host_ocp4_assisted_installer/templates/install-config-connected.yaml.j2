@@ -1,0 +1,43 @@
+apiVersion: v1
+baseDomain: {{ cluster_dns_zone }}
+metadata:
+  creationTimestamp: null
+  name: {{ cluster_name }}
+
+# It will be a compact cluster, so we specify 0 replicas
+compute:
+- architecture: amd64
+  hyperthreading: Enabled
+  name: worker
+  platform: {}
+  replicas: {{ worker_instance_count }}
+
+# And 3 control plane nodes
+controlPlane:
+  architecture: amd64
+  hyperthreading: Enabled
+  name: master
+  platform: {}
+  replicas: {{ control_plane_instance_count }}
+
+# Cluster networking
+networking:
+  clusterNetwork:
+  - cidr: {{ ai_cluster_network_cidr }}
+    hostPrefix: 23
+  machineNetwork:
+  - cidr: {{ ai_network_prefix }}.0/{{ ai_network_prefix_length }
+  networkType: OVNKubernetes
+  serviceNetwork:
+  - {{ ai_service_network_cidr }}
+
+# Here we set up VIPs
+platform:
+  baremetal:
+    apiVIPs:
+      - {{ ai_network_prefix }}.100
+    ingressVIPs:
+      - {{ ai_network_prefix }}.101
+
+publish: External
+pullSecret: "{{ ai_pull_secret }}" 
