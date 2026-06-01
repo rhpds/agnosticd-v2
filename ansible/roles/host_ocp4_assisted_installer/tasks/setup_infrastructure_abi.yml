@@ -61,6 +61,10 @@
 - name: Extract openshift-install and generate ISO
   delegate_to: "{{ groups['bastions'][0] }}"
   block:
+  - name: Install required nmstate package
+    ansible.builtin.yum:
+      name: nmstatectl
+
   - name: Create /tmp/pull-secret.json
     ansible.builtin.copy:
       dest: "/tmp/pull-secret.json"
