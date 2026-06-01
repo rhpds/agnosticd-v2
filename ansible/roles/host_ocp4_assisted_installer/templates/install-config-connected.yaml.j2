@@ -26,7 +26,7 @@ networking:
   - cidr: {{ ai_cluster_network_cidr }}
     hostPrefix: 23
   machineNetwork:
-  - cidr: {{ ai_network_prefix }}.0/{{ ai_network_prefix_length }
+  - cidr: {{ ai_network_prefix }}.0/{{ ai_network_prefix_length }}
   networkType: OVNKubernetes
   serviceNetwork:
   - {{ ai_service_network_cidr }}
