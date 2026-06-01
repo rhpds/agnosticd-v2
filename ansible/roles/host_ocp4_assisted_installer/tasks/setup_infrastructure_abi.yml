@@ -62,6 +62,7 @@
   delegate_to: "{{ groups['bastions'][0] }}"
   block:
   - name: Install required nmstate package
+    become: true
     ansible.builtin.yum:
       name: nmstatectl
 
