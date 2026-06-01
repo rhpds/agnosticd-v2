@@ -64,7 +64,7 @@
   - name: Install required nmstate package
     become: true
     ansible.builtin.yum:
-      name: nmstatectl
+      name: nmstate
 
   - name: Create /tmp/pull-secret.json
     ansible.builtin.copy:
