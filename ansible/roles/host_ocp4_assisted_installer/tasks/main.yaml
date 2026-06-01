@@ -43,7 +43,7 @@
 
 
 - name: Install OpenShift using Agent-based Installer
-  when: ai_use_abi | default(false) == false
+  when: ai_use_abi | default(false) == true
   module_defaults:
     group/k8s:
       host: "{{ sandbox_openshift_api_url }}"
@@ -70,6 +70,8 @@
       wait: true
       wait_timeout: 300
 
+  - name: Setup infrastructure
+    ansible.builtin.include_tasks: setup_infrastructure_abi.yml
 
 - name: Install OpenShift using Assisted Installer
   when: ai_use_abi | default(false) == false
