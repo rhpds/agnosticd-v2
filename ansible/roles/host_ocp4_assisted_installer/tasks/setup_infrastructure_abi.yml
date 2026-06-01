@@ -94,12 +94,12 @@
 
   - name: Generate the install-config.yaml from mode-specific template
     ansible.builtin.template:
-      src: "../../templates/install-config-connected.yaml.j2"
+      src: "install-config-connected.yaml.j2"
       dest: "{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/install-config.yaml"
 
   - name: Generate the agent-config.yaml from template
     ansible.builtin.template:
-      src: "../../templates/agent-config.yaml.j2"
+      src: "agent-config.yaml.j2"
       dest: "{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/agent-config.yaml"
 
   - name: Generate the ISO image
