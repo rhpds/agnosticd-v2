@@ -89,22 +89,22 @@
 
   - name: Ensure {{ ansible_user }}/{{ cluster_name }}/ocp-cluster/openshift/ exists
     ansible.builtin.file:
-      path: "{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/openshift/"
+      path: "~{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/openshift/"
       state: directory
 
   - name: Generate the install-config.yaml from mode-specific template
     ansible.builtin.template:
       src: "install-config-connected.yaml.j2"
-      dest: "{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/install-config.yaml"
+      dest: "~{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/install-config.yaml"
 
   - name: Generate the agent-config.yaml from template
     ansible.builtin.template:
       src: "agent-config.yaml.j2"
-      dest: "{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/agent-config.yaml"
+      dest: "~{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/agent-config.yaml"
 
   - name: Generate the ISO image
     ansible.builtin.command:
-      cmd: "/usr/bin/openshift-install agent create image --dir {{ ansible_user }}/{{ cluster_name }}/ocp-cluster/"
+      cmd: "/usr/bin/openshift-install agent create image --dir ~{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/"
 
   # TODO: fix
   - name: Download virtctl
