@@ -32,7 +32,7 @@ networking:
   - {{ ai_service_network_cidr }}
 
 # Here we set up VIPs
-{% if control_plane_instance_count == 1 and worker_instance_count == 0 %}
+{% if control_plane_instance_count | int == 1 and worker_instance_count | int == 0 %}
 platform:
   none: {}
 {% else %}
