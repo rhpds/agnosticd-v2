@@ -122,7 +122,7 @@
   - name: Create a DataVolume
     ansible.builtin.command: |
       virtctl --server {{ sandbox_openshift_api_url }} --token {{ sandbox_openshift_api_token }}
-      --namespace {{ sandbox_openshift_namespace }} image-upload dv installation-iso --size=2Gi
+      --namespace {{ sandbox_openshift_namespace }} image-upload dv installation-iso-{{ cluster_name }} --size=2Gi
       --image-path=/home/{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/agent.x86_64.iso
 
 - name: Create three control plane VMs for full cluster
