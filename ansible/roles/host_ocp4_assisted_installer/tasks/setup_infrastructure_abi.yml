@@ -58,6 +58,7 @@
 - name: Set static_network_config variable
   ansible.builtin.set_fact:
     static_network_config: "{{ lookup('template','static_network_config_full.yaml.j2') | from_yaml }}"
+
 - name: Extract openshift-install and generate ISO
   delegate_to: "{{ groups['bastions'][0] }}"
   block:
@@ -162,4 +163,16 @@
   loop: "{{ range(1,worker_instance_count | int+1) | list }}"
   loop_control:
     loop_var: _index
+
+- name: Wait for complete installation
+  delegate_to: "{{ groups['bastions'][0] }}"
+  block:
+    - name: Wait for bootstrap to be completed
+      ansible.builtin.command: |
+        /usr/bin/openshift-install --dir /home/{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/ agent wait-for bootstrap-complete --log-level=debug
+
+    - name: Wait for installation to be completed
+      ansible.builtin.command: |
+        /usr/bin/openshift-install --dir /home/{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/ agent wait-for install-complete  --log-level=debug
+
 - ansible.builtin.fail:
