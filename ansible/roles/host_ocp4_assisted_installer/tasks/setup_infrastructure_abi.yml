@@ -112,13 +112,30 @@
     ansible.builtin.command:
       cmd: "/usr/bin/openshift-install agent create image --dir ~{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/"
 
-  # TODO: fix
   - name: Download virtctl
-    become: true
     ansible.builtin.get_url:
       url: https://github.com/kubevirt/kubevirt/releases/download/v1.7.3/virtctl-v1.7.3-linux-amd64
+      dest: /tmp/virtctl
+      mode: '0644'
+    register: r_virtctl
+    until: r_virtctl is success
+    retries: 5
+    delay: 10
+
+  - name: Install virtctl to /usr/bin
+    become: true
+    ansible.builtin.copy:
+      src: /tmp/virtctl
+      remote_src: true
       dest: /usr/bin/virtctl
       mode: '0755'
+      owner: root
+      group: root
+
+  - name: Remove downloaded virtctl temp file
+    ansible.builtin.file:
+      state: absent
+      path: /tmp/virtctl
 
   - name: Create a DataVolume
     ansible.builtin.command: |
