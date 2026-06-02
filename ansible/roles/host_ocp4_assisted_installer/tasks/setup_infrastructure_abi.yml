@@ -122,10 +122,8 @@
   - name: Create a DataVolume
     ansible.builtin.command: |
       virtctl --server {{ sandbox_openshift_api_url }} --token {{ sandbox_openshift_api_token }}
-      --namespace {{ sandbox_openshift_namespace }} image-upload dv installation-iso --size=1Gi
+      --namespace {{ sandbox_openshift_namespace }} image-upload dv installation-iso --size=2Gi
       --image-path=/home/{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/agent.x86_64.iso
-
-  - fail:
 
   - name: Create three control plane VMs for full cluster
     vars:
@@ -164,26 +162,4 @@
     loop: "{{ range(1,worker_instance_count | int+1) | list }}"
     loop_control:
       loop_var: _index
-
-  # Don't change role - AI collection won't find the node if the role is not 'master'
-  - name: Set the variable ai_configure_hosts for control-plane
-    ansible.builtin.set_fact:
-      ai_configure_hosts: >-
-        {{ ai_configure_hosts + [
-          {'hostname': ai_ocp_vmname_control_plane_prefix + "-" + _index|string,
-        'role': 'master',
-        'installation_disk': '/dev/vda'}] }}
-    loop: "{{ range(1,control_plane_instance_count | int+1) | list }}"
-    loop_control:
-      loop_var: _index
-
-  - name: Set the variable ai_configure_hosts for workers
-    ansible.builtin.set_fact:
-      ai_configure_hosts: >-
-        {{ ai_configure_hosts + [
-        {'hostname': ai_ocp_vmname_worker_prefix + "-" + _index|string,
-        'role': 'worker',
-        'installation_disk': '/dev/vda'}] }}
-    loop: "{{ range(1,worker_instance_count | int+1) | list }}"
-    loop_control:
-      loop_var: _index
+  - ansible.builtin.fail:
