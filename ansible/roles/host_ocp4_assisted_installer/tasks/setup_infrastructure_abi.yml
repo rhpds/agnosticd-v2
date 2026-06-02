@@ -125,41 +125,41 @@
       --namespace {{ sandbox_openshift_namespace }} image-upload dv installation-iso --size=2Gi
       --image-path=/home/{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/agent.x86_64.iso
 
-  - name: Create three control plane VMs for full cluster
-    vars:
-      vmname: "{{ ai_ocp_vmname_control_plane_prefix }}-{{ _index }}"
-      network: "{{ cluster_name }}-openshift"
-      network_name: "{{ ai_install_use_network | default(cluster_name + '-openshift') }}"
-      pod_network: "192.168.{{ _index }}.0/24"
-    ansible.builtin.include_tasks: kubevirt/create_control_plane_etcd.yaml
-    loop: "{{ range(1,control_plane_instance_count | int+1) | list }}"
-    loop_control:
-      loop_var: _index
+- name: Create three control plane VMs for full cluster
+  vars:
+    vmname: "{{ ai_ocp_vmname_control_plane_prefix }}-{{ _index }}"
+    network: "{{ cluster_name }}-openshift"
+    network_name: "{{ ai_install_use_network | default(cluster_name + '-openshift') }}"
+    pod_network: "192.168.{{ _index }}.0/24"
+  ansible.builtin.include_tasks: kubevirt/create_control_plane_etcd.yaml
+  loop: "{{ range(1,control_plane_instance_count | int+1) | list }}"
+  loop_control:
+    loop_var: _index
 
-  - name: Create {{ worker_instance_count }} worker VMs for full cluster
-    vars:
-      vmname: "{{ ai_ocp_vmname_worker_prefix }}-{{ _index }}"
-      network: "{{ cluster_name}}-openshift"
-      network_name: "{{ ai_install_use_network | default(cluster_name + '-openshift') }}"
-      pod_network: "192.168.1{{ _index }}.0/24"
-    ansible.builtin.include_tasks: kubevirt/create_workers.yaml
-    loop: "{{ range(1,worker_instance_count | int+1) | list }}"
-    loop_control:
-      loop_var: _index
+- name: Create {{ worker_instance_count }} worker VMs for full cluster
+  vars:
+    vmname: "{{ ai_ocp_vmname_worker_prefix }}-{{ _index }}"
+    network: "{{ cluster_name}}-openshift"
+    network_name: "{{ ai_install_use_network | default(cluster_name + '-openshift') }}"
+    pod_network: "192.168.1{{ _index }}.0/24"
+  ansible.builtin.include_tasks: kubevirt/create_workers.yaml
+  loop: "{{ range(1,worker_instance_count | int+1) | list }}"
+  loop_control:
+    loop_var: _index
 
-  - name: Wait for three control plane VMs to be running
-    vars:
-      vmname: "{{ ai_ocp_vmname_control_plane_prefix }}-{{ _index }}"
-    ansible.builtin.include_tasks: kubevirt/wait_control_plane_etcd.yaml
-    loop: "{{ range(1,control_plane_instance_count | int+1) | list }}"
-    loop_control:
-      loop_var: _index
+- name: Wait for three control plane VMs to be running
+  vars:
+    vmname: "{{ ai_ocp_vmname_control_plane_prefix }}-{{ _index }}"
+  ansible.builtin.include_tasks: kubevirt/wait_control_plane_etcd.yaml
+  loop: "{{ range(1,control_plane_instance_count | int+1) | list }}"
+  loop_control:
+    loop_var: _index
 
-  - name: Wait for {{ worker_instance_count }} worker VMs to be running
-    vars:
-      vmname: "{{ ai_ocp_vmname_worker_prefix }}-{{ _index }}"
-    ansible.builtin.include_tasks: kubevirt/wait_workers.yaml
-    loop: "{{ range(1,worker_instance_count | int+1) | list }}"
-    loop_control:
-      loop_var: _index
-  - ansible.builtin.fail:
+- name: Wait for {{ worker_instance_count }} worker VMs to be running
+  vars:
+    vmname: "{{ ai_ocp_vmname_worker_prefix }}-{{ _index }}"
+  ansible.builtin.include_tasks: kubevirt/wait_workers.yaml
+  loop: "{{ range(1,worker_instance_count | int+1) | list }}"
+  loop_control:
+    loop_var: _index
+- ansible.builtin.fail:
