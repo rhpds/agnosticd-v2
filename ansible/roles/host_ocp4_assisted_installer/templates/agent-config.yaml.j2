@@ -17,6 +17,7 @@ hosts:
 {% for index in range(0, control_plane_instance_count | int) %} 
 {% set control_plane_loop = loop %}
 - hostname: control-{{ index }}
+  role: master
   networkConfig:
     interfaces:
     - ipv4:
@@ -49,6 +50,7 @@ hosts:
 {% for index in range(0, worker_instance_count | int) %}
 {% set worker_loop = loop %}
 - hostname: worker-{{ index }}
+  role: worker
   networkConfig:
     interfaces:
     - ipv4:
