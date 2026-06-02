@@ -113,6 +113,7 @@
 
   # TODO: fix
   - name: Download virtctl
+    become: true
     ansible.builtin.get_url:
       url: https://github.com/kubevirt/kubevirt/releases/download/v1.7.3/virtctl-v1.7.3-linux-amd64
       dest: /usr/bin/virtctl
