@@ -124,13 +124,13 @@
       dest: "~{{ ansible_user }}/{{ cluster_name }}/openshift/cluster-network-03-config.yml"
 
   - name: Enable ip_forwarding for control plane
-    ansible.builtin.template:
+    ansible.builtin.copy:
       src: "sysctl_control_plane.yaml"
       dest: "~{{ ansible_user }}/{{ cluster_name }}/openshift/98_sysctl-control-plane.yaml"
 
   - name: Add node hint manifest for SNO
     when: control_plane_instance_count | int == 1
-    ansible.builtin.template:
+    ansible.builtin.copy:
       src: "node_hint.yaml"
       dest: "~{{ ansible_user }}/{{ cluster_name }}/openshift/98_node-hint.yaml"
 
