@@ -243,6 +243,6 @@
 
     - name: Save credentials in variables
       ansible.builtin.set_fact:
-        openshift_console_url: "https://console-openshift-console.{{ cluster_name }}.{{ cluster_dns_zone }}"
+        openshift_console_url: "https://console-openshift-console.apps.{{ cluster_name }}.{{ cluster_dns_zone }}"
         openshift_kubeadmin_password: "{{ kubeadmin_password['content'] | b64decode }}"
 
