@@ -226,3 +226,12 @@
     - name: Wait for installation to be completed
       ansible.builtin.command: |
         /usr/bin/openshift-install --dir /home/{{ ansible_user }}/{{ cluster_name }}/ agent wait-for install-complete  --log-level=debug
+
+    - name: Downloads OpenShift cluster credentials
+      ansible.builtin.fetch:
+        src: "{{ item }}"
+        dest: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_{{ item }}"
+        flat: true
+      loop:
+      - kubeadmin-password
+      - kubeconfig

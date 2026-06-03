@@ -284,86 +284,86 @@
     - custom_manifests.json
     - custom_manifests.yaml
 
-  - name: Set up bastion
-    delegate_to: "{{ groups['bastions'][0] }}"
-    become: true
+- name: Set up bastion
+  delegate_to: "{{ groups['bastions'][0] }}"
+  become: true
+  block:
+  - name: Create directory for downloaded credential files
+    ansible.builtin.file:
+      state: directory
+      path: "~{{ ansible_user }}/{{ cluster_name }}/auth"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: ug=rwx,o=rx
+      recurse: true
+
+  - name: Copy kube config and kubeadmin password to bastion
+    ansible.builtin.copy:
+      src: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_{{ item }}"
+      dest: "~{{ ansible_user }}/{{ cluster_name }}/auth/{{ item }}"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: u=rw,go=
+    loop:
+    - kubeconfig
+    - kubeadmin-password
+
+  - name: Make sure .kube directory exists for {{ ansible_user }}
+    ansible.builtin.file:
+      state: directory
+      path: "~{{ ansible_user }}/.kube"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: u=rwx,go=
+
+  - name: Make sure .kube directory exists for root
+    ansible.builtin.file:
+      state: directory
+      path: /root/.kube
+      owner: root
+      group: root
+      mode: u=rwx,go=
+
+  - name: Copy cluster kubeconfig to ~{{ ansible_user }}/.kube/config
+    ansible.builtin.copy:
+      remote_src: true
+      src: "~{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig"
+      dest: "~{{ ansible_user }}/.kube/config"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: u=rw,go=
+
+  - name: Copy cluster kubeconfig to /root/.kube/config
+    ansible.builtin.copy:
+      remote_src: true
+      src: "~{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig"
+      dest: /root/.kube/config
+      owner: root
+      group: root
+      mode: u=rw,go=
+
+  - name: Set up student user
+    when: bastion_setup_student_user | bool
     block:
-    - name: Create directory for downloaded credential files
+    - name: Make sure .kube directory exists in ~{{ bastion_student_user_name }}
       ansible.builtin.file:
         state: directory
-        path: "~{{ ansible_user }}/{{ cluster_name }}/auth"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        mode: ug=rwx,o=rx
-        recurse: true
-
-    - name: Copy kube config and kubeadmin password to bastion
-      ansible.builtin.copy:
-        src: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_{{ item }}"
-        dest: "~{{ ansible_user }}/{{ cluster_name }}/auth/{{ item }}"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        mode: u=rw,go=
-      loop:
-      - kubeconfig
-      - kubeadmin-password
-
-    - name: Make sure .kube directory exists for {{ ansible_user }}
-      ansible.builtin.file:
-        state: directory
-        path: "~{{ ansible_user }}/.kube"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
+        path: "~{{ bastion_student_user_name }}/.kube"
+        owner: "{{ bastion_student_user_name }}"
+        group: users
         mode: u=rwx,go=
 
-    - name: Make sure .kube directory exists for root
-      ansible.builtin.file:
-        state: directory
-        path: /root/.kube
-        owner: root
-        group: root
-        mode: u=rwx,go=
-
-    - name: Copy cluster kubeconfig to ~{{ ansible_user }}/.kube/config
+    - name: Set up kubeconfig for student user
       ansible.builtin.copy:
-        remote_src: true
         src: "~{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig"
-        dest: "~{{ ansible_user }}/.kube/config"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
+        dest: "~{{ bastion_student_user_name }}/.kube/config"
+        remote_src: true
+        owner: "{{ bastion_student_user_name }}"
+        group: users
         mode: u=rw,go=
 
-    - name: Copy cluster kubeconfig to /root/.kube/config
-      ansible.builtin.copy:
-        remote_src: true
-        src: "~{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig"
-        dest: /root/.kube/config
-        owner: root
-        group: root
-        mode: u=rw,go=
-
-    - name: Set up student user
-      when: bastion_setup_student_user | bool
-      block:
-      - name: Make sure .kube directory exists in ~{{ bastion_student_user_name }}
-        ansible.builtin.file:
-          state: directory
-          path: "~{{ bastion_student_user_name }}/.kube"
-          owner: "{{ bastion_student_user_name }}"
-          group: users
-          mode: u=rwx,go=
-
-      - name: Set up kubeconfig for student user
-        ansible.builtin.copy:
-          src: "~{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig"
-          dest: "~{{ bastion_student_user_name }}/.kube/config"
-          remote_src: true
-          owner: "{{ bastion_student_user_name }}"
-          group: users
-          mode: u=rw,go=
-
-      - name: Create OpenShift Bash completion file
-        ansible.builtin.shell: oc completion bash >/etc/bash_completion.d/openshift
+    - name: Create OpenShift Bash completion file
+      ansible.builtin.shell: oc completion bash >/etc/bash_completion.d/openshift
 
 - name: Gather and Print cluster info
   ansible.builtin.import_tasks: print_cluster_info.yml
