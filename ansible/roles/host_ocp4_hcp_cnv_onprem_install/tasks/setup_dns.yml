@@ -1,0 +1,83 @@
+---
+- name: Skip DNS setup for passthrough
+  when: hcp_onprem_dns_method == "passthrough"
+  ansible.builtin.debug:
+    msg: >-
+      DNS method is passthrough. Apps are accessible via
+      *.apps.{{ hcp_onprem_cluster_name }}.{{ hcp_onprem_base_domain }}
+      through management cluster ingress.
+
+- name: Configure DNS via nsupdate
+  when: hcp_onprem_dns_method == "nsupdate"
+  block:
+    - name: Get router nodeport service from guest cluster
+      kubernetes.core.k8s_info:
+        kubeconfig: /tmp/kubeconfig-{{ hcp_onprem_cluster_name }}
+        api_version: v1
+        kind: Service
+        namespace: openshift-ingress
+        name: router-nodeport-default
+      register: _hcp_onprem_router_svc
+      retries: 10
+      delay: 30
+      until:
+        - _hcp_onprem_router_svc.resources | length > 0
+        - _hcp_onprem_router_svc.resources[0].spec.ports is defined
+
+    - name: Extract nodeports
+      ansible.builtin.set_fact:
+        _hcp_onprem_nodeport_http: >-
+          {{ _hcp_onprem_router_svc.resources[0].spec.ports
+             | selectattr('name', 'equalto', 'http')
+             | map(attribute='nodePort') | first }}
+        _hcp_onprem_nodeport_https: >-
+          {{ _hcp_onprem_router_svc.resources[0].spec.ports
+             | selectattr('name', 'equalto', 'https')
+             | map(attribute='nodePort') | first }}
+
+    - name: Create LoadBalancer service for apps
+      kubernetes.core.k8s:
+        host: "{{ hcp_onprem_mgmt_api_url }}"
+        api_key: "{{ _hcp_onprem_api_key }}"
+        validate_certs: false
+        state: present
+        definition: "{{ lookup('template', 'workers_svc.yaml.j2') | from_yaml }}"
+        wait: true
+        wait_timeout: 300
+
+    - name: Wait for LoadBalancer IP assignment
+      kubernetes.core.k8s_info:
+        host: "{{ hcp_onprem_mgmt_api_url }}"
+        api_key: "{{ _hcp_onprem_api_key }}"
+        validate_certs: false
+        api_version: v1
+        kind: Service
+        name: "svc-{{ hcp_onprem_cluster_name }}-apps"
+        namespace: "{{ _hcp_onprem_control_plane_namespace }}"
+      register: _hcp_onprem_svc_apps
+      until: >-
+        _hcp_onprem_svc_apps.resources[0].status.loadBalancer.ingress[0].ip
+        | default('') != ''
+      retries: 30
+      delay: 10
+
+    - name: Set LoadBalancer IP fact
+      ansible.builtin.set_fact:
+        _hcp_onprem_apps_lb_ip: >-
+          {{ _hcp_onprem_svc_apps.resources[0].status.loadBalancer.ingress[0].ip }}
+
+    - name: Add wildcard DNS record via nsupdate
+      community.general.nsupdate:
+        server: "{{ hcp_onprem_nsupdate_server }}"
+        zone: "{{ hcp_onprem_nsupdate_zone }}"
+        record: "*.apps.{{ hcp_onprem_cluster_name }}.{{ hcp_onprem_base_domain }}."
+        value: "{{ _hcp_onprem_apps_lb_ip }}"
+        type: A
+        ttl: "{{ hcp_onprem_nsupdate_ttl }}"
+        key_name: "{{ hcp_onprem_nsupdate_key_name }}"
+        key_algorithm: "{{ hcp_onprem_nsupdate_key_algorithm }}"
+        key_secret: "{{ hcp_onprem_nsupdate_key_secret }}"
+      register: _hcp_onprem_nsupdate_result
+      retries: 5
+      delay: 10
+      until: _hcp_onprem_nsupdate_result is success

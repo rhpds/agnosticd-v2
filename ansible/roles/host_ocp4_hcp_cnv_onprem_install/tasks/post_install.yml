@@ -1,0 +1,10 @@
+---
+- name: Assign cluster-admin role to admin user
+  kubernetes.core.k8s:
+    kubeconfig: /tmp/kubeconfig-{{ hcp_onprem_cluster_name }}
+    state: present
+    definition: "{{ lookup('template', 'clusterrolebinding.yaml.j2') | from_yaml }}"
+  retries: 10
+  delay: 30
+  register: _hcp_onprem_crb
+  until: _hcp_onprem_crb is success

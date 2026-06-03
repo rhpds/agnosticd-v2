@@ -1,0 +1,126 @@
+---
+# =============================================================================
+# On-Prem HCP/CNV Cluster - Install Role Defaults
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Cluster identity
+# ---------------------------------------------------------------------------
+hcp_onprem_cluster_name: "hcp-{{ guid }}"
+hcp_onprem_cluster_version: "4.20"
+hcp_onprem_namespace: "clusters"
+hcp_onprem_channel: "fast-4.20"
+
+# ---------------------------------------------------------------------------
+# Management cluster authentication
+# Provide EITHER token OR username+password
+# ---------------------------------------------------------------------------
+hcp_onprem_mgmt_api_url: ""
+hcp_onprem_mgmt_token: ""
+hcp_onprem_mgmt_username: ""
+hcp_onprem_mgmt_password: ""
+
+# ---------------------------------------------------------------------------
+# DNS configuration
+# "passthrough" uses management cluster ingress (no external DNS needed)
+# "nsupdate" registers A records via dynamic DNS
+# ---------------------------------------------------------------------------
+hcp_onprem_dns_method: "passthrough"
+hcp_onprem_base_domain: ""
+
+# nsupdate settings (only when dns_method == "nsupdate")
+hcp_onprem_nsupdate_server: ""
+hcp_onprem_nsupdate_zone: ""
+hcp_onprem_nsupdate_key_name: ""
+hcp_onprem_nsupdate_key_algorithm: "hmac-sha256"
+hcp_onprem_nsupdate_key_secret: ""
+hcp_onprem_nsupdate_ttl: 300
+
+# ---------------------------------------------------------------------------
+# High availability
+# ---------------------------------------------------------------------------
+hcp_onprem_controller_availability: "HighlyAvailable"
+hcp_onprem_infra_availability: "HighlyAvailable"
+
+# ---------------------------------------------------------------------------
+# Storage
+# ---------------------------------------------------------------------------
+hcp_onprem_etcd_storage_class: "ocs-storagecluster-ceph-rbd"
+hcp_onprem_etcd_pvc_size: "8Gi"
+
+# ---------------------------------------------------------------------------
+# Worker node sizing
+# ---------------------------------------------------------------------------
+hcp_onprem_worker_cores: 32
+hcp_onprem_worker_memory: "64Gi"
+hcp_onprem_worker_root_volume_size: "300Gi"
+hcp_onprem_worker_count: 3
+hcp_onprem_worker_autorepair: true
+hcp_onprem_worker_autoscale: false
+hcp_onprem_worker_min_count: 3
+hcp_onprem_worker_max_count: 10
+hcp_onprem_worker_qos_class: "Burstable"
+hcp_onprem_network_multiqueue: true
+
+# ---------------------------------------------------------------------------
+# Authentication (htpasswd)
+# ---------------------------------------------------------------------------
+hcp_onprem_auth_method: "htpasswd"
+hcp_onprem_admin_user: "admin"
+hcp_onprem_admin_password: ""
+hcp_onprem_admin_password_length: 16
+hcp_onprem_user_base: "user"
+hcp_onprem_user_count: 0
+hcp_onprem_user_password: ""
+hcp_onprem_user_password_length: 16
+
+# ---------------------------------------------------------------------------
+# Networking
+# ---------------------------------------------------------------------------
+hcp_onprem_cluster_network_cidr: "10.132.0.0/14"
+hcp_onprem_service_network_cidr: "172.31.0.0/16"
+hcp_onprem_network_type: "OVNKubernetes"
+
+# ---------------------------------------------------------------------------
+# Security
+# ---------------------------------------------------------------------------
+hcp_onprem_etcd_encryption: true
+hcp_onprem_fips: false
+
+# ---------------------------------------------------------------------------
+# Additional trust bundle (optional, for custom CAs)
+# Set to the name of a ConfigMap containing ca-bundle.crt
+# ---------------------------------------------------------------------------
+hcp_onprem_additional_trust_bundle: ""
+
+# ---------------------------------------------------------------------------
+# SSH key (optional)
+# Set to the name of a Secret containing an SSH public key
+# ---------------------------------------------------------------------------
+hcp_onprem_ssh_key_secret: ""
+hcp_onprem_ssh_public_key: ""
+
+# ---------------------------------------------------------------------------
+# Pull secret
+# ---------------------------------------------------------------------------
+hcp_onprem_pull_secret: "{{ ocp4_pull_secret | default('') }}"
+
+# ---------------------------------------------------------------------------
+# OLM
+# ---------------------------------------------------------------------------
+hcp_onprem_olm_catalog_placement: "management"
+
+# ---------------------------------------------------------------------------
+# MetalLB IP pool
+# Name of the IPAddressPool to use for kube-apiserver LoadBalancer.
+# The pool should have autoAssign: false so only HCP clusters use it.
+# Set to "" to skip annotation (pool must have autoAssign: true).
+# ---------------------------------------------------------------------------
+hcp_onprem_metallb_pool: "hcp-onprem-clusters"
+
+# ---------------------------------------------------------------------------
+# Timeouts
+# ---------------------------------------------------------------------------
+hcp_onprem_wait_cluster_timeout: 1800
+hcp_onprem_wait_cluster_delay: 10
+hcp_onprem_wait_cluster_retries: 180

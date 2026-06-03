@@ -1,0 +1,7 @@
+---
+- name: Destroy On-Prem HCP Cluster
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - host_ocp4_hcp_cnv_onprem_destroy

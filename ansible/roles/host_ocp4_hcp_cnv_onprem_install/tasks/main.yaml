@@ -1,0 +1,399 @@
+---
+# =============================================================================
+# On-Prem HCP/CNV Cluster Install
+# Modeled on the hcp-vm cluster running on fusion.isys.hpc.dc.uq.edu.au
+# =============================================================================
+
+- name: Authenticate to management cluster
+  ansible.builtin.include_tasks: authenticate.yml
+
+- name: Resolve OCP release image
+  module_defaults:
+    group/k8s:
+      host: "{{ hcp_onprem_mgmt_api_url }}"
+      api_key: "{{ _hcp_onprem_api_key }}"
+      validate_certs: false
+  block:
+    - name: Resolve specific x.y.z version
+      when: hcp_onprem_cluster_version is match("^[0-9]+\\.[0-9]+\\.[0-9]+$")
+      block:
+        - name: Check if ClusterImageSet exists for {{ hcp_onprem_cluster_version }}
+          kubernetes.core.k8s_info:
+            api_version: hive.openshift.io/v1
+            kind: ClusterImageSet
+            name: "img{{ hcp_onprem_cluster_version }}-x86-64-appsub"
+          register: _hcp_onprem_image_set
+
+        - name: Fail if version not available
+          when: _hcp_onprem_image_set.resources | default([]) | length == 0
+          ansible.builtin.fail:
+            msg: "Version {{ hcp_onprem_cluster_version }} not available as ClusterImageSet"
+
+        - name: Set release image from exact version
+          ansible.builtin.set_fact:
+            _hcp_onprem_release_image: "{{ _hcp_onprem_image_set.resources[0].spec.releaseImage }}"
+
+    - name: Resolve latest x.y version
+      when: hcp_onprem_cluster_version is match("^[0-9]+\\.[0-9]+$")
+      block:
+        - name: Get all ClusterImageSets
+          kubernetes.core.k8s_info:
+            api_version: hive.openshift.io/v1
+            kind: ClusterImageSet
+          register: _hcp_onprem_all_image_sets
+
+        - name: Filter ClusterImageSets matching {{ hcp_onprem_cluster_version }}
+          ansible.builtin.set_fact:
+            _hcp_onprem_filtered_image: >-
+              {{
+                _hcp_onprem_all_image_sets.resources
+                | selectattr('metadata.name', 'match',
+                    "img" ~ hcp_onprem_cluster_version | string ~ "\.\d+-x86-64-appsub")
+                | sort(attribute='metadata.name', reverse=True)
+                | first | default(None)
+              }}
+
+        - name: Fail if no matching version found
+          when: _hcp_onprem_filtered_image is none or _hcp_onprem_filtered_image == ""
+          ansible.builtin.fail:
+            msg: "No ClusterImageSet found for version {{ hcp_onprem_cluster_version }}"
+
+        - name: Set release image from latest minor version
+          ansible.builtin.set_fact:
+            _hcp_onprem_release_image: "{{ _hcp_onprem_filtered_image.spec.releaseImage }}"
+
+    - name: Display selected release image
+      ansible.builtin.debug:
+        msg: "Selected OCP release image: {{ _hcp_onprem_release_image }}"
+
+- name: Create cluster resources on management cluster
+  module_defaults:
+    group/k8s:
+      host: "{{ hcp_onprem_mgmt_api_url }}"
+      api_key: "{{ _hcp_onprem_api_key }}"
+      validate_certs: false
+  block:
+    - name: Ensure namespace exists
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ hcp_onprem_namespace }}"
+        state: present
+
+    - name: Create pull secret
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ lookup('template', 'secret-pull.yaml.j2') | from_yaml }}"
+
+    - name: Create etcd encryption key secret
+      when: hcp_onprem_etcd_encryption
+      block:
+        - name: Generate random encryption key
+          ansible.builtin.set_fact:
+            _hcp_onprem_etcd_key: >-
+              {{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') }}
+
+        - name: Apply etcd encryption secret
+          kubernetes.core.k8s:
+            state: present
+            definition: "{{ lookup('template', 'secret-etcd-encryption.yaml.j2') | from_yaml }}"
+
+    - name: Create SSH key secret
+      when: hcp_onprem_ssh_public_key | default('') | length > 0
+      block:
+        - name: Apply SSH key secret
+          kubernetes.core.k8s:
+            state: present
+            definition: "{{ lookup('template', 'secret-ssh.yaml.j2') | from_yaml }}"
+
+        - name: Set SSH key secret name
+          ansible.builtin.set_fact:
+            hcp_onprem_ssh_key_secret: "{{ hcp_onprem_cluster_name }}-ssh-key"
+
+    - name: Set up htpasswd authentication
+      when: hcp_onprem_auth_method == "htpasswd"
+      ansible.builtin.include_tasks: setup_htpasswd_authentication.yml
+
+    - name: Create HostedCluster and NodePool
+      ansible.builtin.include_tasks: create_hosted_cluster.yml
+
+- name: Annotate kube-apiserver service for MetalLB pool
+  when: hcp_onprem_metallb_pool | default('') | length > 0
+  module_defaults:
+    group/k8s:
+      host: "{{ hcp_onprem_mgmt_api_url }}"
+      api_key: "{{ _hcp_onprem_api_key }}"
+      validate_certs: false
+  block:
+    - name: Wait for kube-apiserver service to be created
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Service
+        name: kube-apiserver
+        namespace: "{{ hcp_onprem_namespace }}-{{ hcp_onprem_cluster_name }}"
+      register: _hcp_onprem_api_svc_check
+      retries: 30
+      delay: 10
+      until:
+        - _hcp_onprem_api_svc_check.resources | length > 0
+
+    - name: Annotate kube-apiserver service with MetalLB pool
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Service
+        name: kube-apiserver
+        namespace: "{{ hcp_onprem_namespace }}-{{ hcp_onprem_cluster_name }}"
+        state: patched
+        definition:
+          metadata:
+            annotations:
+              metallb.universe.tf/address-pool: "{{ hcp_onprem_metallb_pool }}"
+
+    - name: Wait for LoadBalancer IP assignment
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Service
+        name: kube-apiserver
+        namespace: "{{ hcp_onprem_namespace }}-{{ hcp_onprem_cluster_name }}"
+      register: _hcp_onprem_lb_ip_check
+      retries: 30
+      delay: 5
+      until:
+        - _hcp_onprem_lb_ip_check.resources[0].status.loadBalancer.ingress is defined
+        - _hcp_onprem_lb_ip_check.resources[0].status.loadBalancer.ingress | length > 0
+
+    - name: Display assigned IP
+      ansible.builtin.debug:
+        msg: "kube-apiserver assigned IP: {{ _hcp_onprem_lb_ip_check.resources[0].status.loadBalancer.ingress[0].ip }}"
+
+- name: Wait for cluster and post-install
+  module_defaults:
+    group/k8s:
+      host: "{{ hcp_onprem_mgmt_api_url }}"
+      api_key: "{{ _hcp_onprem_api_key }}"
+      validate_certs: false
+  block:
+    - name: Wait for HostedCluster to become available
+      kubernetes.core.k8s_info:
+        api_version: hypershift.openshift.io/v1beta1
+        kind: HostedCluster
+        name: "{{ hcp_onprem_cluster_name }}"
+        namespace: "{{ hcp_onprem_namespace }}"
+      register: _hcp_onprem_hc_status
+      retries: "{{ hcp_onprem_wait_cluster_retries }}"
+      delay: "{{ hcp_onprem_wait_cluster_delay }}"
+      until:
+        - _hcp_onprem_hc_status.resources | length > 0
+        - _hcp_onprem_hc_status.resources[0].status is defined
+        - _hcp_onprem_hc_status.resources[0].status.kubeconfig is defined
+        - _hcp_onprem_hc_status.resources[0].status.kubeconfig.name is defined
+        - _hcp_onprem_hc_status.resources[0].status.kubeconfig.name | length > 0
+
+    - name: Set control plane namespace
+      ansible.builtin.set_fact:
+        _hcp_onprem_control_plane_namespace: "{{ hcp_onprem_namespace }}-{{ hcp_onprem_cluster_name }}"
+
+    - name: Get admin kubeconfig secret
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        name: "{{ _hcp_onprem_hc_status.resources[0].status.kubeconfig.name }}"
+        namespace: "{{ hcp_onprem_namespace }}"
+      register: _hcp_onprem_kubeconfig_secret
+
+    - name: Decode kubeconfig
+      ansible.builtin.set_fact:
+        _hcp_onprem_kubeconfig: >-
+          {{ _hcp_onprem_kubeconfig_secret.resources[0].data.kubeconfig | b64decode }}
+
+    - name: Get kubeadmin password secret
+      when: hcp_onprem_auth_method != "htpasswd"
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        name: "{{ hcp_onprem_cluster_name }}-kubeadmin-password"
+        namespace: "{{ hcp_onprem_namespace }}"
+      register: _hcp_onprem_kubeadmin_secret
+
+    - name: Set kubeadmin password
+      when: hcp_onprem_auth_method != "htpasswd"
+      ansible.builtin.set_fact:
+        _hcp_onprem_kubeadmin_password: >-
+          {{ _hcp_onprem_kubeadmin_secret.resources[0].data.password | b64decode }}
+
+    - name: Save kubeconfig to temporary file
+      ansible.builtin.copy:
+        dest: /tmp/kubeconfig-{{ hcp_onprem_cluster_name }}
+        content: "{{ _hcp_onprem_kubeconfig }}"
+        mode: "0600"
+
+    - name: Wait for NodePool nodes to be ready
+      kubernetes.core.k8s_info:
+        api_version: hypershift.openshift.io/v1beta1
+        kind: NodePool
+        name: "{{ hcp_onprem_cluster_name }}"
+        namespace: "{{ hcp_onprem_namespace }}"
+      register: _hcp_onprem_np_status
+      retries: "{{ hcp_onprem_wait_cluster_retries }}"
+      delay: "{{ hcp_onprem_wait_cluster_delay }}"
+      until:
+        - _hcp_onprem_np_status.resources | length > 0
+        - _hcp_onprem_np_status.resources[0].status is defined
+        - _hcp_onprem_np_status.resources[0].status.replicas is defined
+        - >-
+          _hcp_onprem_np_status.resources[0].status.replicas | int
+          == (hcp_onprem_worker_count | int)
+
+    - name: Verify HostedCluster is Available
+      kubernetes.core.k8s_info:
+        api_version: hypershift.openshift.io/v1beta1
+        kind: HostedCluster
+        name: "{{ hcp_onprem_cluster_name }}"
+        namespace: "{{ hcp_onprem_namespace }}"
+      register: _hcp_onprem_hc_available
+      retries: 60
+      delay: 10
+      until:
+        - _hcp_onprem_hc_available.resources[0].status.conditions is defined
+        - >-
+          _hcp_onprem_hc_available.resources[0].status.conditions
+          | selectattr('type', 'equalto', 'Available')
+          | selectattr('status', 'equalto', 'True')
+          | list | length > 0
+
+- name: Configure DNS
+  ansible.builtin.include_tasks: setup_dns.yml
+
+- name: Post-install via management cluster
+  module_defaults:
+    group/k8s:
+      host: "{{ hcp_onprem_mgmt_api_url }}"
+      api_key: "{{ _hcp_onprem_api_key }}"
+      validate_certs: false
+  block:
+    - name: Set kubeconfig base64 for post-install Job
+      ansible.builtin.set_fact:
+        _hcp_onprem_kubeconfig_b64: "{{ _hcp_onprem_kubeconfig_secret.resources[0].data.kubeconfig }}"
+
+    - name: Run post-install Job on management cluster
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ lookup('template', 'job-postinstall.yaml.j2') | from_yaml }}"
+
+    - name: Wait for post-install Job to complete
+      kubernetes.core.k8s_info:
+        api_version: batch/v1
+        kind: Job
+        name: "{{ hcp_onprem_cluster_name }}-postinstall"
+        namespace: "{{ _hcp_onprem_control_plane_namespace }}"
+      register: _hcp_onprem_job_status
+      retries: 30
+      delay: 20
+      until:
+        - _hcp_onprem_job_status.resources | length > 0
+        - _hcp_onprem_job_status.resources[0].status is defined
+        - >-
+          (_hcp_onprem_job_status.resources[0].status.succeeded | default(0) | int >= 1)
+          or
+          (_hcp_onprem_job_status.resources[0].status.failed | default(0) | int >= 5)
+
+    - name: Fail if post-install Job failed
+      when: _hcp_onprem_job_status.resources[0].status.succeeded | default(0) | int < 1
+      ansible.builtin.fail:
+        msg: "Post-install Job failed. Check logs with: oc logs job/{{ hcp_onprem_cluster_name }}-postinstall -n {{ _hcp_onprem_control_plane_namespace }}"
+
+    - name: Get post-install Job logs
+      ansible.builtin.shell: >-
+        oc logs job/{{ hcp_onprem_cluster_name }}-postinstall
+        -n {{ _hcp_onprem_control_plane_namespace }}
+        --server={{ hcp_onprem_mgmt_api_url }}
+        --token={{ _hcp_onprem_api_key }}
+        --insecure-skip-tls-verify=true
+      register: _hcp_onprem_job_logs
+      changed_when: false
+
+    - name: Parse cluster info from Job output
+      ansible.builtin.set_fact:
+        _hcp_onprem_api_url: "{{ _hcp_onprem_job_logs.stdout | regex_search('RESULT_API_URL=(.+)', '\\1') | first | default('unknown') }}"
+        _hcp_onprem_ingress_domain: "{{ _hcp_onprem_job_logs.stdout | regex_search('RESULT_INGRESS=(.+)', '\\1') | first | default('unknown') }}"
+        _hcp_onprem_console_host: "{{ _hcp_onprem_job_logs.stdout | regex_search('RESULT_CONSOLE=(.+)', '\\1') | first | default('not-ready') }}"
+        _hcp_onprem_node_count: "{{ _hcp_onprem_job_logs.stdout | regex_search('RESULT_NODES=(.+)', '\\1') | first | default('0') }}"
+
+    - name: Get assigned LoadBalancer IP
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Service
+        name: kube-apiserver
+        namespace: "{{ _hcp_onprem_control_plane_namespace }}"
+      register: _hcp_onprem_api_svc
+
+    - name: Set public output variables
+      ansible.builtin.set_fact:
+        hcp_onprem_result_cluster_name: "{{ hcp_onprem_cluster_name }}"
+        hcp_onprem_result_api_url: "{{ _hcp_onprem_api_url }}"
+        hcp_onprem_result_console_url: "{{ 'https://' ~ _hcp_onprem_console_host if _hcp_onprem_console_host != 'not-ready' else '' }}"
+        hcp_onprem_result_ingress_domain: "{{ _hcp_onprem_ingress_domain }}"
+        hcp_onprem_result_lb_ip: "{{ _hcp_onprem_api_svc.resources[0].status.loadBalancer.ingress[0].ip | default('') }}"
+        hcp_onprem_result_kubeconfig_path: "/tmp/kubeconfig-{{ hcp_onprem_cluster_name }}"
+        hcp_onprem_result_kubeconfig_b64: "{{ _hcp_onprem_kubeconfig_b64 }}"
+        hcp_onprem_result_admin_user: "{{ hcp_onprem_admin_user }}"
+        hcp_onprem_result_admin_password: "{{ _hcp_onprem_admin_password }}"
+        hcp_onprem_result_user_passwords: "{{ _hcp_onprem_user_passwords | default([]) }}"
+        hcp_onprem_result_worker_count: "{{ _hcp_onprem_node_count }}"
+        hcp_onprem_result_ocp_version: "{{ _hcp_onprem_release_image | regex_search(':([\\d.]+)', '\\1') | first | default(hcp_onprem_cluster_version) }}"
+        hcp_onprem_result_namespace: "{{ hcp_onprem_namespace }}"
+        hcp_onprem_result_control_plane_namespace: "{{ _hcp_onprem_control_plane_namespace }}"
+
+    - name: Display cluster access information
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          HCP Cluster Deployed Successfully
+          ============================================================
+          Cluster Name:  {{ hcp_onprem_result_cluster_name }}
+          OCP Version:   {{ hcp_onprem_result_ocp_version }}
+          API Server:    {{ hcp_onprem_result_api_url }}
+          Console:       {{ hcp_onprem_result_console_url | default('Console not yet available (wait a few minutes)', true) }}
+          Ingress:       *.{{ hcp_onprem_result_ingress_domain }}
+          LB IP:         {{ hcp_onprem_result_lb_ip }}
+          Kubeconfig:    {{ hcp_onprem_result_kubeconfig_path }}
+          ============================================================
+          Admin User:    {{ hcp_onprem_result_admin_user }}
+          Admin Pass:    {{ hcp_onprem_result_admin_password }}
+          {% if hcp_onprem_result_user_passwords | length > 0 %}
+          {% for i in range(hcp_onprem_result_user_passwords | length) %}
+          User:          {{ hcp_onprem_user_base }}{{ i + 1 }}  Password: {{ hcp_onprem_result_user_passwords[i] }}
+          {% endfor %}
+          {% endif %}
+          ============================================================
+          Workers:       {{ hcp_onprem_result_worker_count }} ready ({{ hcp_onprem_worker_count }} desired)
+          Worker Sizing: {{ hcp_onprem_worker_cores }} cores, {{ hcp_onprem_worker_memory }} RAM
+          ============================================================
+          Namespace:     {{ hcp_onprem_result_namespace }}
+          CP Namespace:  {{ hcp_onprem_result_control_plane_namespace }}
+          MetalLB Pool:  {{ hcp_onprem_metallb_pool | default('auto') }}
+          ============================================================
+
+          To access this cluster from within the management cluster network:
+            export KUBECONFIG={{ hcp_onprem_result_kubeconfig_path }}
+            oc login -u {{ hcp_onprem_result_admin_user }} -p {{ hcp_onprem_result_admin_password }} {{ hcp_onprem_result_api_url }}
+          ============================================================
+
+    - name: Display output variable reference
+      ansible.builtin.debug:
+        msg: |
+          The following variables are now set and can be used in subsequent tasks/roles:
+            hcp_onprem_result_cluster_name
+            hcp_onprem_result_api_url
+            hcp_onprem_result_console_url
+            hcp_onprem_result_ingress_domain
+            hcp_onprem_result_lb_ip
+            hcp_onprem_result_kubeconfig_path
+            hcp_onprem_result_kubeconfig_b64
+            hcp_onprem_result_admin_user
+            hcp_onprem_result_admin_password
+            hcp_onprem_result_user_passwords
+            hcp_onprem_result_worker_count
+            hcp_onprem_result_ocp_version
+            hcp_onprem_result_namespace
+            hcp_onprem_result_control_plane_namespace

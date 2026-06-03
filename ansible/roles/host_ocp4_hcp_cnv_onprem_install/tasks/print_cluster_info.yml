@@ -1,0 +1,69 @@
+---
+- name: Get OpenShift Infrastructure info
+  kubernetes.core.k8s_info:
+    kubeconfig: /tmp/kubeconfig-{{ hcp_onprem_cluster_name }}
+    api_version: config.openshift.io/v1
+    kind: Infrastructure
+    name: cluster
+  retries: 10
+  delay: 30
+  until:
+    - _hcp_onprem_infra.resources is defined
+    - _hcp_onprem_infra.resources | length > 0
+    - _hcp_onprem_infra.resources[0].status.apiServerURL is defined
+  register: _hcp_onprem_infra
+
+- name: Get OpenShift Ingress Domain
+  kubernetes.core.k8s_info:
+    kubeconfig: /tmp/kubeconfig-{{ hcp_onprem_cluster_name }}
+    api_version: config.openshift.io/v1
+    kind: Ingress
+    name: cluster
+  retries: 10
+  delay: 30
+  until:
+    - _hcp_onprem_ingress.resources is defined
+    - _hcp_onprem_ingress.resources | length > 0
+    - _hcp_onprem_ingress.resources[0].spec.domain is defined
+  register: _hcp_onprem_ingress
+
+- name: Get console route
+  kubernetes.core.k8s_info:
+    kubeconfig: /tmp/kubeconfig-{{ hcp_onprem_cluster_name }}
+    api_version: route.openshift.io/v1
+    kind: Route
+    name: console
+    namespace: openshift-console
+  retries: 15
+  delay: 120
+  until:
+    - _hcp_onprem_console.resources is defined
+    - _hcp_onprem_console.resources | length > 0
+    - _hcp_onprem_console.resources[0].spec.host is defined
+  register: _hcp_onprem_console
+  ignore_errors: true
+
+- name: Set cluster info facts
+  ansible.builtin.set_fact:
+    _hcp_onprem_api_server_url: "{{ _hcp_onprem_infra.resources[0].status.apiServerURL }}"
+    _hcp_onprem_ingress_domain: "{{ _hcp_onprem_ingress.resources[0].spec.domain }}"
+    _hcp_onprem_console_url: >-
+      {{ 'https://' ~ _hcp_onprem_console.resources[0].spec.host
+         if _hcp_onprem_console.resources | default([]) | length > 0
+         else 'Console not yet available' }}
+
+- name: Display cluster access information
+  ansible.builtin.debug:
+    msg: |
+      ============================================================
+      HCP Cluster: {{ hcp_onprem_cluster_name }}
+      ============================================================
+      API Server:    {{ _hcp_onprem_api_server_url }}
+      Console:       {{ _hcp_onprem_console_url }}
+      Ingress:       {{ _hcp_onprem_ingress_domain }}
+      Kubeconfig:    /tmp/kubeconfig-{{ hcp_onprem_cluster_name }}
+      Admin User:    {{ hcp_onprem_admin_user }}
+      Admin Pass:    {{ _hcp_onprem_admin_password }}
+      Workers:       {{ hcp_onprem_worker_count }}
+      Worker Sizing: {{ hcp_onprem_worker_cores }} cores, {{ hcp_onprem_worker_memory }} RAM
+      ============================================================

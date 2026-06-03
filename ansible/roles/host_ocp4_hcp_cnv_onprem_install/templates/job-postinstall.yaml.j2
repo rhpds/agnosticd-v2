@@ -1,0 +1,42 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ hcp_onprem_cluster_name }}-postinstall
+  namespace: {{ _hcp_onprem_control_plane_namespace }}
+spec:
+  backoffLimit: 5
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: postinstall
+        image: registry.redhat.io/openshift4/ose-cli:latest
+        command:
+        - bash
+        - -c
+        - |
+          set -e
+          echo "$KUBECONFIG_DATA" | base64 -d > /tmp/kc
+          export KUBECONFIG=/tmp/kc
+
+          echo "=== Assigning cluster-admin to {{ hcp_onprem_admin_user }} ==="
+          oc create clusterrolebinding cluster-admin-{{ hcp_onprem_admin_user }} \
+            --clusterrole=cluster-admin --user={{ hcp_onprem_admin_user }} \
+            --dry-run=client -o yaml | oc apply -f -
+
+          echo "=== Gathering cluster info ==="
+          API_URL=$(oc get infrastructure cluster -o jsonpath='{.status.apiServerURL}')
+          INGRESS=$(oc get ingress.config cluster -o jsonpath='{.spec.domain}')
+          CONSOLE=$(oc get route console -n openshift-console -o jsonpath='{.spec.host}' 2>/dev/null || echo "not-ready")
+          NODES=$(oc get nodes --no-headers 2>/dev/null | wc -l | tr -d ' ')
+
+          echo "RESULT_API_URL=${API_URL}"
+          echo "RESULT_INGRESS=${INGRESS}"
+          echo "RESULT_CONSOLE=${CONSOLE}"
+          echo "RESULT_NODES=${NODES}"
+          echo "=== Post-install complete ==="
+        env:
+        - name: KUBECONFIG_DATA
+          value: "{{ _hcp_onprem_kubeconfig_b64 }}"

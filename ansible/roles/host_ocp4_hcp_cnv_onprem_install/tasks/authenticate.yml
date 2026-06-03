@@ -1,0 +1,33 @@
+---
+- name: Validate authentication parameters
+  ansible.builtin.assert:
+    that:
+      - hcp_onprem_mgmt_api_url | default('') | length > 0
+      - >-
+        (hcp_onprem_mgmt_token | default('') | length > 0)
+        or
+        (hcp_onprem_mgmt_username | default('') | length > 0
+         and hcp_onprem_mgmt_password | default('') | length > 0)
+    fail_msg: >-
+      Must provide either hcp_onprem_mgmt_token
+      or hcp_onprem_mgmt_username + hcp_onprem_mgmt_password
+
+- name: Authenticate with token
+  when: hcp_onprem_mgmt_token | default('') | length > 0
+  ansible.builtin.set_fact:
+    _hcp_onprem_api_key: "{{ hcp_onprem_mgmt_token }}"
+
+- name: Authenticate with username/password
+  when: hcp_onprem_mgmt_token | default('') | length == 0
+  block:
+    - name: Obtain access token via openshift_auth
+      community.okd.openshift_auth:
+        username: "{{ hcp_onprem_mgmt_username }}"
+        password: "{{ hcp_onprem_mgmt_password }}"
+        host: "{{ hcp_onprem_mgmt_api_url }}"
+        validate_certs: false
+      register: _hcp_onprem_auth_result
+
+    - name: Set API key from auth result
+      ansible.builtin.set_fact:
+        _hcp_onprem_api_key: "{{ _hcp_onprem_auth_result.k8s_auth.api_key }}"

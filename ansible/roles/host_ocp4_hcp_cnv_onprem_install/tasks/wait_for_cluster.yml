@@ -1,0 +1,88 @@
+---
+- name: Wait for HostedCluster to become available
+  kubernetes.core.k8s_info:
+    api_version: hypershift.openshift.io/v1beta1
+    kind: HostedCluster
+    name: "{{ hcp_onprem_cluster_name }}"
+    namespace: "{{ hcp_onprem_namespace }}"
+  register: _hcp_onprem_hc_status
+  retries: "{{ hcp_onprem_wait_cluster_retries }}"
+  delay: "{{ hcp_onprem_wait_cluster_delay }}"
+  until:
+    - _hcp_onprem_hc_status.resources | length > 0
+    - _hcp_onprem_hc_status.resources[0].status is defined
+    - _hcp_onprem_hc_status.resources[0].status.kubeconfig is defined
+    - _hcp_onprem_hc_status.resources[0].status.kubeconfig.name is defined
+    - _hcp_onprem_hc_status.resources[0].status.kubeconfig.name | length > 0
+
+- name: Set control plane namespace
+  ansible.builtin.set_fact:
+    _hcp_onprem_control_plane_namespace: "{{ hcp_onprem_namespace }}-{{ hcp_onprem_cluster_name }}"
+
+- name: Get admin kubeconfig secret
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: "{{ _hcp_onprem_hc_status.resources[0].status.kubeconfig.name }}"
+    namespace: "{{ hcp_onprem_namespace }}"
+  register: _hcp_onprem_kubeconfig_secret
+
+- name: Decode kubeconfig
+  ansible.builtin.set_fact:
+    _hcp_onprem_kubeconfig: >-
+      {{ _hcp_onprem_kubeconfig_secret.resources[0].data.kubeconfig | b64decode }}
+
+- name: Get kubeadmin password secret
+  when: hcp_onprem_auth_method != "htpasswd"
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: "{{ hcp_onprem_cluster_name }}-kubeadmin-password"
+    namespace: "{{ hcp_onprem_namespace }}"
+  register: _hcp_onprem_kubeadmin_secret
+
+- name: Set kubeadmin password
+  when: hcp_onprem_auth_method != "htpasswd"
+  ansible.builtin.set_fact:
+    _hcp_onprem_kubeadmin_password: >-
+      {{ _hcp_onprem_kubeadmin_secret.resources[0].data.password | b64decode }}
+
+- name: Save kubeconfig to temporary file
+  ansible.builtin.copy:
+    dest: /tmp/kubeconfig-{{ hcp_onprem_cluster_name }}
+    content: "{{ _hcp_onprem_kubeconfig }}"
+    mode: "0600"
+
+- name: Wait for NodePool nodes to be ready
+  kubernetes.core.k8s_info:
+    api_version: hypershift.openshift.io/v1beta1
+    kind: NodePool
+    name: "{{ hcp_onprem_cluster_name }}"
+    namespace: "{{ hcp_onprem_namespace }}"
+  register: _hcp_onprem_np_status
+  retries: "{{ hcp_onprem_wait_cluster_retries }}"
+  delay: "{{ hcp_onprem_wait_cluster_delay }}"
+  until:
+    - _hcp_onprem_np_status.resources | length > 0
+    - _hcp_onprem_np_status.resources[0].status is defined
+    - _hcp_onprem_np_status.resources[0].status.replicas is defined
+    - >-
+      _hcp_onprem_np_status.resources[0].status.replicas | int
+      == (hcp_onprem_worker_count | int)
+
+- name: Verify HostedCluster is Available
+  kubernetes.core.k8s_info:
+    api_version: hypershift.openshift.io/v1beta1
+    kind: HostedCluster
+    name: "{{ hcp_onprem_cluster_name }}"
+    namespace: "{{ hcp_onprem_namespace }}"
+  register: _hcp_onprem_hc_available
+  retries: 60
+  delay: 10
+  until:
+    - _hcp_onprem_hc_available.resources[0].status.conditions is defined
+    - >-
+      _hcp_onprem_hc_available.resources[0].status.conditions
+      | selectattr('type', 'equalto', 'Available')
+      | selectattr('status', 'equalto', 'True')
+      | list | length > 0

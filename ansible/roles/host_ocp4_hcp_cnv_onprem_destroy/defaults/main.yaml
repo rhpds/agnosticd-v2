@@ -1,0 +1,30 @@
+---
+# =============================================================================
+# On-Prem HCP/CNV Cluster - Destroy Role Defaults
+# =============================================================================
+
+hcp_onprem_cluster_name: "hcp-{{ guid }}"
+hcp_onprem_namespace: "clusters"
+
+# Management cluster authentication
+hcp_onprem_mgmt_api_url: ""
+hcp_onprem_mgmt_token: ""
+hcp_onprem_mgmt_username: ""
+hcp_onprem_mgmt_password: ""
+
+# DNS cleanup
+hcp_onprem_dns_method: "passthrough"
+hcp_onprem_base_domain: ""
+hcp_onprem_nsupdate_server: ""
+hcp_onprem_nsupdate_zone: ""
+hcp_onprem_nsupdate_key_name: ""
+hcp_onprem_nsupdate_key_algorithm: "hmac-sha256"
+hcp_onprem_nsupdate_key_secret: ""
+
+# Timeouts
+hcp_onprem_destroy_timeout: 1800
+hcp_onprem_destroy_retries: 5
+hcp_onprem_destroy_delay: 60
+
+# Cleanup namespace after destroy
+hcp_onprem_cleanup_namespace: false

@@ -1,0 +1,39 @@
+---
+apiVersion: hypershift.openshift.io/v1beta1
+kind: NodePool
+metadata:
+  name: {{ hcp_onprem_cluster_name }}
+  namespace: {{ hcp_onprem_namespace }}
+spec:
+  arch: amd64
+  clusterName: {{ hcp_onprem_cluster_name }}
+  management:
+    autoRepair: {{ hcp_onprem_worker_autorepair | lower }}
+    replace:
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
+      strategy: RollingUpdate
+    upgradeType: Replace
+  platform:
+    kubevirt:
+      attachDefaultNetwork: true
+      compute:
+        cores: {{ hcp_onprem_worker_cores }}
+        memory: {{ hcp_onprem_worker_memory }}
+        qosClass: {{ hcp_onprem_worker_qos_class }}
+      networkInterfaceMultiqueue: {{ 'Enable' if hcp_onprem_network_multiqueue else 'Disable' }}
+      rootVolume:
+        persistent:
+          size: {{ hcp_onprem_worker_root_volume_size }}
+        type: Persistent
+    type: KubeVirt
+  release:
+    image: {{ _hcp_onprem_release_image }}
+{% if hcp_onprem_worker_autoscale %}
+  autoScaling:
+    min: {{ hcp_onprem_worker_min_count | int }}
+    max: {{ hcp_onprem_worker_max_count | int }}
+{% else %}
+  replicas: {{ hcp_onprem_worker_count | int }}
+{% endif %}

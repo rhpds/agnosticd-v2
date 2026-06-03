@@ -1,0 +1,93 @@
+---
+apiVersion: hypershift.openshift.io/v1beta1
+kind: HostedCluster
+metadata:
+  name: {{ hcp_onprem_cluster_name }}
+  namespace: {{ hcp_onprem_namespace }}
+spec:
+{% if hcp_onprem_additional_trust_bundle | default('') | length > 0 %}
+  additionalTrustBundle:
+    name: {{ hcp_onprem_additional_trust_bundle }}
+{% endif %}
+  autoscaling:
+    scaling: ScaleUpAndScaleDown
+  capabilities: {}
+  channel: {{ hcp_onprem_channel }}
+  controllerAvailabilityPolicy: {{ hcp_onprem_controller_availability }}
+  dns:
+    baseDomain: {{ hcp_onprem_base_domain }}
+  etcd:
+    managed:
+      storage:
+        persistentVolume:
+          size: {{ hcp_onprem_etcd_pvc_size }}
+          storageClassName: {{ hcp_onprem_etcd_storage_class }}
+        type: PersistentVolume
+    managementType: Managed
+  fips: {{ hcp_onprem_fips | lower }}
+  infraID: {{ hcp_onprem_cluster_name }}
+  infrastructureAvailabilityPolicy: {{ hcp_onprem_infra_availability }}
+  issuerURL: https://kubernetes.default.svc
+  networking:
+    clusterNetwork:
+    - cidr: {{ hcp_onprem_cluster_network_cidr }}
+    networkType: {{ hcp_onprem_network_type }}
+    serviceNetwork:
+    - cidr: {{ hcp_onprem_service_network_cidr }}
+  olmCatalogPlacement: {{ hcp_onprem_olm_catalog_placement }}
+  platform:
+    kubevirt:
+      baseDomainPassthrough: true
+    type: KubeVirt
+  pullSecret:
+    name: {{ hcp_onprem_cluster_name }}-pull-secret
+  release:
+    image: {{ _hcp_onprem_release_image }}
+{% if hcp_onprem_etcd_encryption %}
+  secretEncryption:
+    aescbc:
+      activeKey:
+        name: {{ hcp_onprem_cluster_name }}-etcd-encryption-key
+    type: aescbc
+{% endif %}
+  services:
+  - service: APIServer
+    servicePublishingStrategy:
+      type: LoadBalancer
+  - service: OAuthServer
+    servicePublishingStrategy:
+      type: Route
+  - service: OIDC
+    servicePublishingStrategy:
+      type: Route
+  - service: Konnectivity
+    servicePublishingStrategy:
+      type: Route
+  - service: Ignition
+    servicePublishingStrategy:
+      type: Route
+{% if hcp_onprem_ssh_key_secret | default('') | length > 0 %}
+  sshKey:
+    name: {{ hcp_onprem_ssh_key_secret }}
+{% else %}
+  sshKey: {}
+{% endif %}
+{% if hcp_onprem_auth_method == "htpasswd" %}
+  configuration:
+    oauth:
+      identityProviders:
+      - name: htpasswd
+        type: HTPasswd
+        htpasswd:
+          fileData:
+            name: {{ hcp_onprem_cluster_name }}-htpasswd
+        mappingMethod: claim
+      templates:
+        error:
+          name: ""
+        login:
+          name: ""
+        providerSelection:
+          name: ""
+      tokenConfig: {}
+{% endif %}

@@ -1,0 +1,21 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: {{ hcp_onprem_cluster_name }}
+  name: svc-{{ hcp_onprem_cluster_name }}-apps
+  namespace: {{ _hcp_onprem_control_plane_namespace }}
+spec:
+  ports:
+  - name: https-443
+    port: 443
+    protocol: TCP
+    targetPort: {{ _hcp_onprem_nodeport_https }}
+  - name: http-80
+    port: 80
+    protocol: TCP
+    targetPort: {{ _hcp_onprem_nodeport_http }}
+  selector:
+    cluster.x-k8s.io/role: worker
+  type: LoadBalancer

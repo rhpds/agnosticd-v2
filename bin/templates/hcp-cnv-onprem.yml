@@ -1,0 +1,106 @@
+---
+# =============================================================================
+# Sample Variables for On-Prem HCP/CNV Cluster Deployment
+# =============================================================================
+# This template creates an OpenShift cluster using Hosted Control Planes (HCP)
+# on an on-prem management cluster with OpenShift Virtualization (CNV).
+#
+# Based on the hcp-vm cluster pattern from fusion.isys.hpc.dc.uq.edu.au
+#
+# Usage:
+#   ansible-playbook playbook.yml \
+#     -e @bin/templates/hcp-cnv-onprem.yml \
+#     -e @bin/templates/hcp-cnv-onprem-secrets.yml \
+#     -e guid=mycluster1
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Cluster identity
+# ---------------------------------------------------------------------------
+hcp_onprem_cluster_name: "hcp-{{ guid }}"
+hcp_onprem_cluster_version: "4.20"
+hcp_onprem_namespace: "clusters"
+hcp_onprem_channel: "fast-4.20"
+
+# ---------------------------------------------------------------------------
+# Management cluster connection
+# Provide the API URL of the management cluster where HCP will run
+# Auth: provide EITHER token OR username+password in secrets file
+# ---------------------------------------------------------------------------
+hcp_onprem_mgmt_api_url: "https://api.fusion.isys.hpc.dc.uq.edu.au:6443"
+
+# ---------------------------------------------------------------------------
+# DNS configuration
+# "passthrough" — apps accessible via management cluster ingress
+#   e.g., *.apps.hcp-mycluster.apps.fusion.isys.hpc.dc.uq.edu.au
+# "nsupdate" — register wildcard DNS A record via dynamic DNS
+# ---------------------------------------------------------------------------
+hcp_onprem_dns_method: "passthrough"
+hcp_onprem_base_domain: "apps.fusion.isys.hpc.dc.uq.edu.au"
+
+# Uncomment for nsupdate DNS method:
+# hcp_onprem_dns_method: "nsupdate"
+# hcp_onprem_nsupdate_server: "dns.example.com"
+# hcp_onprem_nsupdate_zone: "example.com"
+# hcp_onprem_nsupdate_key_name: "mykey"
+# hcp_onprem_nsupdate_key_secret: "<base64-encoded-key>"
+
+# ---------------------------------------------------------------------------
+# High availability
+# Use HighlyAvailable for production, SingleReplica for dev/lab
+# ---------------------------------------------------------------------------
+hcp_onprem_controller_availability: "HighlyAvailable"
+hcp_onprem_infra_availability: "HighlyAvailable"
+
+# ---------------------------------------------------------------------------
+# Storage
+# ---------------------------------------------------------------------------
+hcp_onprem_etcd_storage_class: "lvms-hcp-etcd"
+hcp_onprem_etcd_pvc_size: "8Gi"
+
+# ---------------------------------------------------------------------------
+# Worker node sizing
+# Adjust based on expected workload and available capacity
+#
+# hcp-vm reference: 10 workers x 32 cores x 64Gi x 300Gi disk
+# Lab/dev example:   3 workers x  8 cores x 16Gi x 100Gi disk
+# ---------------------------------------------------------------------------
+hcp_onprem_worker_cores: 8
+hcp_onprem_worker_memory: "16Gi"
+hcp_onprem_worker_root_volume_size: "100Gi"
+hcp_onprem_worker_count: 3
+hcp_onprem_worker_autorepair: true
+
+# Uncomment for autoscaling:
+# hcp_onprem_worker_autoscale: true
+# hcp_onprem_worker_min_count: 3
+# hcp_onprem_worker_max_count: 10
+
+# ---------------------------------------------------------------------------
+# Authentication
+# ---------------------------------------------------------------------------
+hcp_onprem_auth_method: "htpasswd"
+hcp_onprem_admin_user: "admin"
+# hcp_onprem_admin_password: ""  # Auto-generated if empty
+hcp_onprem_user_count: 2
+# hcp_onprem_user_password: ""   # Auto-generated per user if empty
+
+# ---------------------------------------------------------------------------
+# Networking
+# ---------------------------------------------------------------------------
+hcp_onprem_cluster_network_cidr: "10.132.0.0/14"
+hcp_onprem_service_network_cidr: "172.31.0.0/16"
+hcp_onprem_network_type: "OVNKubernetes"
+
+# ---------------------------------------------------------------------------
+# Security
+# ---------------------------------------------------------------------------
+hcp_onprem_etcd_encryption: true
+hcp_onprem_fips: false
+
+# ---------------------------------------------------------------------------
+# Additional trust bundle (optional)
+# If your management cluster uses a custom CA, create a ConfigMap
+# with ca-bundle.crt and reference its name here
+# ---------------------------------------------------------------------------
+# hcp_onprem_additional_trust_bundle: "custom-ca"

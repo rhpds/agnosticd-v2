@@ -1,0 +1,7 @@
+---
+- name: Deploy On-Prem HCP Cluster via KubeVirt
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - host_ocp4_hcp_cnv_onprem_install

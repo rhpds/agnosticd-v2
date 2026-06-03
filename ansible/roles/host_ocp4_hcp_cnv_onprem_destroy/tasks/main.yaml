@@ -1,0 +1,110 @@
+---
+# =============================================================================
+# On-Prem HCP/CNV Cluster Destroy
+# =============================================================================
+
+- name: Validate authentication parameters
+  ansible.builtin.assert:
+    that:
+      - hcp_onprem_mgmt_api_url | default('') | length > 0
+      - >-
+        (hcp_onprem_mgmt_token | default('') | length > 0)
+        or
+        (hcp_onprem_mgmt_username | default('') | length > 0
+         and hcp_onprem_mgmt_password | default('') | length > 0)
+    fail_msg: >-
+      Must provide either hcp_onprem_mgmt_token
+      or hcp_onprem_mgmt_username + hcp_onprem_mgmt_password
+
+- name: Authenticate with token
+  when: hcp_onprem_mgmt_token | default('') | length > 0
+  ansible.builtin.set_fact:
+    _hcp_onprem_api_key: "{{ hcp_onprem_mgmt_token }}"
+
+- name: Authenticate with username/password
+  when: hcp_onprem_mgmt_token | default('') | length == 0
+  block:
+    - name: Obtain access token
+      community.okd.openshift_auth:
+        username: "{{ hcp_onprem_mgmt_username }}"
+        password: "{{ hcp_onprem_mgmt_password }}"
+        host: "{{ hcp_onprem_mgmt_api_url }}"
+        validate_certs: false
+      register: _hcp_onprem_auth_result
+
+    - name: Set API key
+      ansible.builtin.set_fact:
+        _hcp_onprem_api_key: "{{ _hcp_onprem_auth_result.k8s_auth.api_key }}"
+
+- name: Destroy HCP cluster
+  module_defaults:
+    group/k8s:
+      host: "{{ hcp_onprem_mgmt_api_url }}"
+      api_key: "{{ _hcp_onprem_api_key }}"
+      validate_certs: false
+  block:
+    - name: Remove DNS records via nsupdate
+      when: hcp_onprem_dns_method == "nsupdate"
+      community.general.nsupdate:
+        server: "{{ hcp_onprem_nsupdate_server }}"
+        zone: "{{ hcp_onprem_nsupdate_zone }}"
+        record: "*.apps.{{ hcp_onprem_cluster_name }}.{{ hcp_onprem_base_domain }}."
+        type: A
+        state: absent
+        key_name: "{{ hcp_onprem_nsupdate_key_name }}"
+        key_algorithm: "{{ hcp_onprem_nsupdate_key_algorithm }}"
+        key_secret: "{{ hcp_onprem_nsupdate_key_secret }}"
+      ignore_errors: true
+
+    - name: Delete HostedCluster (cascading delete of NodePool and VMs)
+      kubernetes.core.k8s:
+        api_version: hypershift.openshift.io/v1beta1
+        kind: HostedCluster
+        name: "{{ hcp_onprem_cluster_name }}"
+        namespace: "{{ hcp_onprem_namespace }}"
+        state: absent
+        wait: true
+        wait_timeout: "{{ hcp_onprem_destroy_timeout }}"
+      register: _hcp_onprem_delete_hc
+      retries: "{{ hcp_onprem_destroy_retries }}"
+      delay: "{{ hcp_onprem_destroy_delay }}"
+      until: _hcp_onprem_delete_hc is success
+      ignore_errors: true
+
+    - name: Clean up remaining secrets
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Secret
+        name: "{{ item }}"
+        namespace: "{{ hcp_onprem_namespace }}"
+        state: absent
+      loop:
+        - "{{ hcp_onprem_cluster_name }}-pull-secret"
+        - "{{ hcp_onprem_cluster_name }}-etcd-encryption-key"
+        - "{{ hcp_onprem_cluster_name }}-ssh-key"
+        - "{{ hcp_onprem_cluster_name }}-htpasswd"
+      ignore_errors: true
+
+    - name: Clean up namespace
+      when: hcp_onprem_cleanup_namespace | bool
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ hcp_onprem_namespace }}"
+        state: absent
+        wait: true
+        wait_timeout: 300
+      ignore_errors: true
+
+    - name: Remove local kubeconfig
+      ansible.builtin.file:
+        path: /tmp/kubeconfig-{{ hcp_onprem_cluster_name }}
+        state: absent
+
+    - name: Display destroy status
+      ansible.builtin.debug:
+        msg: >-
+          HCP cluster {{ hcp_onprem_cluster_name }} has been destroyed.
+          {{ 'HostedCluster deletion succeeded.'
+             if _hcp_onprem_delete_hc is success
+             else 'WARNING: HostedCluster deletion may have failed. Check manually.' }}
