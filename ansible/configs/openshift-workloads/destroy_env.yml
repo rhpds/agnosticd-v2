@@ -31,3 +31,8 @@
       ACTION: destroy
       openshift_workload_destroyer_workloads: "{{ _workloads }}"
       openshift_workload_destroyer_clusters: "{{ clusters }}"
+
+  - name: Destroy HCP cluster on on-prem CNV
+    when: hcp_onprem_create_cluster | default(false) | bool
+    ansible.builtin.include_role:
+      name: host_ocp4_hcp_cnv_onprem_destroy

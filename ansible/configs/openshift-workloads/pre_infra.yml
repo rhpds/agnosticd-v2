@@ -14,3 +14,8 @@
     when: openshift_aws_scale_cluster | default(false) | bool
     ansible.builtin.include_role:
       name: agnosticd.cloud_provider_aws.scale_ocp_workers
+
+  - name: Create HCP cluster on on-prem CNV
+    when: hcp_onprem_create_cluster | default(false) | bool
+    ansible.builtin.include_role:
+      name: host_ocp4_hcp_cnv_onprem_install
