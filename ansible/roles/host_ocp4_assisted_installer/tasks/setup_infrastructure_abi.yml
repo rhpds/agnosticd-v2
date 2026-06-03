@@ -74,7 +74,7 @@
 
 # FIXME
   - name: Get version
-    ansible.builtin.shell: oc version -o json|jq -r ".releaseClientVersion"
+    ansible.builtin.shell: /usr/bin/oc version -o json | jq -r ".releaseClientVersion"
     register: r_oc_version
 
   - name: Extract openshift-install binary
@@ -88,29 +88,64 @@
       path: "/tmp/pull-secret.json"
       state: absent
 
-  - name: Ensure {{ ansible_user }}/{{ cluster_name }}/ocp-cluster/ exists
+  - name: Ensure {{ ansible_user }}/{{ cluster_name }}/ exists
     ansible.builtin.file:
-      path: "~{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/"
+      path: "~{{ ansible_user }}/{{ cluster_name }}/"
       state: directory
 
-  - name: Ensure {{ ansible_user }}/{{ cluster_name }}/ocp-cluster/openshift/ exists
+  - name: Ensure {{ ansible_user }}/{{ cluster_name }}/openshift/ exists
     ansible.builtin.file:
-      path: "~{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/openshift/"
+      path: "~{{ ansible_user }}/{{ cluster_name }}/openshift/"
       state: directory
 
   - name: Generate the install-config.yaml from mode-specific template
     ansible.builtin.template:
       src: "install-config-connected.yaml.j2"
-      dest: "~{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/install-config.yaml"
+      dest: "~{{ ansible_user }}/{{ cluster_name }}/install-config.yaml"
 
   - name: Generate the agent-config.yaml from template
     ansible.builtin.template:
       src: "agent-config.yaml.j2"
-      dest: "~{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/agent-config.yaml"
+      dest: "~{{ ansible_user }}/{{ cluster_name }}/agent-config.yaml"
+
+  - name: Add etcd manifest
+    ansible.builtin.copy:
+      src: "etcd_disk.yaml"
+      dest: "~{{ ansible_user }}/{{ cluster_name }}/openshift/10-control-plane-etcd-config.yaml"
+
+  - name: Add routers replicas manifest
+    ansible.builtin.template:
+      src: "router_replicas.yaml.j2"
+      dest: "~{{ ansible_user }}/{{ cluster_name }}/openshift/99_router-replicas.yaml"
+
+  - name: Add OVN-Kubernetes to switch to local gateway mode manifest
+    ansible.builtin.copy:
+      src: "network_config.yaml"
+      dest: "~{{ ansible_user }}/{{ cluster_name }}/openshift/cluster-network-03-config.yml"
+
+  - name: Enable ip_forwarding for control plane
+    ansible.builtin.template:
+      src: "sysctl_control_plane.yaml"
+      dest: "~{{ ansible_user }}/{{ cluster_name }}/openshift/98_sysctl-control-plane.yaml"
+
+  - name: Add node hint manifest for SNO
+    when: control_plane_instance_count | int == 1
+    ansible.builtin.template:
+      src: "node_hint.yaml"
+      dest: "~{{ ansible_user }}/{{ cluster_name }}/openshift/98_node-hint.yaml"
+
+  - name: Add MachineConfig manifests to Assisted Installer
+    when: ai_machineconfigs | default([]) | length > 0
+    ansible.builtin.copy:
+      content: "{{ item | to_yaml }}"
+      dest: "~{{ ansible_user }}/{{ cluster_name }}/openshift/{{ item.metadata.name }}.yaml"
+    loop: "{{ ai_machineconfigs }}"
+    loop_control:
+      label: "{{ item.metadata.name }}"                   # Clean logging output using the MachineConfig name
 
   - name: Generate the ISO image
     ansible.builtin.command:
-      cmd: "/usr/bin/openshift-install agent create image --dir ~{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/"
+      cmd: "/usr/bin/openshift-install agent create image --dir ~{{ ansible_user }}/{{ cluster_name }}/"
 
   - name: Download virtctl
     ansible.builtin.get_url:
@@ -141,7 +176,7 @@
     ansible.builtin.command: |
       virtctl --server {{ sandbox_openshift_api_url }} --token {{ sandbox_openshift_api_token }}
       --namespace {{ sandbox_openshift_namespace }} image-upload dv installation-iso-{{ cluster_name }} --size=2Gi
-      --image-path=/home/{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/agent.x86_64.iso
+      --image-path=/home/{{ ansible_user }}/{{ cluster_name }}/agent.x86_64.iso
 
 - name: Create three control plane VMs for full cluster
   vars:
@@ -186,10 +221,8 @@
   block:
     - name: Wait for bootstrap to be completed
       ansible.builtin.command: |
-        /usr/bin/openshift-install --dir /home/{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/ agent wait-for bootstrap-complete --log-level=debug
+        /usr/bin/openshift-install --dir /home/{{ ansible_user }}/{{ cluster_name }}/ agent wait-for bootstrap-complete --log-level=debug
 
     - name: Wait for installation to be completed
       ansible.builtin.command: |
-        /usr/bin/openshift-install --dir /home/{{ ansible_user }}/{{ cluster_name }}/ocp-cluster/ agent wait-for install-complete  --log-level=debug
-
-- ansible.builtin.fail:
+        /usr/bin/openshift-install --dir /home/{{ ansible_user }}/{{ cluster_name }}/ agent wait-for install-complete  --log-level=debug
