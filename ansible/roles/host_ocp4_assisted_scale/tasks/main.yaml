@@ -74,10 +74,6 @@
     loop_control:
       loop_var: _index
 
-  - name: Create nodes-config.yaml
-    ansible.builtin.template:
-      src: "nodes-config.yaml.j2"
-      dest: "/tmp/nodes-config.yaml"
 
   - name: Add bastion host to inventory
     ansible.builtin.add_host:
@@ -89,6 +85,12 @@
       ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
       ansible_connection: ssh
       ansible_become: false
+
+  - name: Create nodes-config.yaml
+    delegate_to: bastion
+    ansible.builtin.template:
+      src: "nodes-config.yaml.j2"
+      dest: "/tmp/nodes-config.yaml"
 
   - name: Test
     delegate_to: bastion
