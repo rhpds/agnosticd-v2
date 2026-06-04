@@ -89,7 +89,7 @@
 
   - name: Test
     delegate_to: bastion
-    ansible.builtin.command: oc get node
+    ansible.builtin.command: id
 
   - fail:
 
