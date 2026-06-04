@@ -86,6 +86,7 @@
       ansible_ssh_pass: "{{ bastion_ansible_ssh_pass }}"
       ansible_port: "{{ bastion_ansible_port }}"
       ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+      ansible_connection: ssh
       ansible_become: false
 
   - name: Test
