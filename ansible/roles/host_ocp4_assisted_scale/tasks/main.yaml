@@ -74,9 +74,10 @@
     loop_control:
       loop_var: _index
 
-  - name: Set static_network_config variable
-    ansible.builtin.set_fact:
-      static_network_config: "{{ lookup('template','static_network_config_full.yaml.j2') | from_yaml}}"
+  - name: Create nodes-config.yaml
+    ansible.builtin.template:
+      src: "nodes-config.yaml.j2"
+      dest: "/tmp/nodes-config.yaml"
 
   - name: Add bastion host to inventory
     ansible.builtin.add_host:
@@ -91,9 +92,9 @@
 
   - name: Test
     delegate_to: bastion
-    become: false
-    ansible.builtin.shell: id && oc get node
-
+    ansible.builtin.shell: oc adm node-image create
+    args:
+      chdir: /tmp/
   - fail:
 
   - name: Create {{ worker_instance_count }} worker VMs for full cluster
