@@ -61,6 +61,7 @@
     delay: 10
     until: _r_update_svc is not failed
 
+  - fail:
   - name: Get a list of clusters
     rhpds.assisted_installer.list_clusters:
       offline_token: "{{ ai_offline_token }}"
