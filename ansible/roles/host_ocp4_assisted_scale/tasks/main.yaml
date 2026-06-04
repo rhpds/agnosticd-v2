@@ -100,7 +100,7 @@
 
   - name: Create a DataVolume
     ansible.builtin.command: |
-      virtctl --server {{ sandbox_openshift_api_url }} --token {{ openshift_cluster_admin_token }}
+      virtctl --insecure-skip-tls-verify=true --server {{ sandbox_openshift_api_url }} --token {{ sandbox_openshift_api_key }}
       --namespace {{ sandbox_openshift_namespace }} image-upload dv scale-iso-{{ cluster_name }} --size=2Gi
       --image-path=/tmp/node.x86_64.iso
 
