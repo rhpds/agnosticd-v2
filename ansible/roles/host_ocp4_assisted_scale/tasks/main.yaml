@@ -92,13 +92,14 @@
       src: "nodes-config.yaml.j2"
       dest: "/tmp/nodes-config.yaml"
 
-  - name: Test
+  - name: Generate ISO image for scale up
     delegate_to: bastion
     ansible.builtin.shell: oc adm node-image create
     args:
       chdir: /tmp/
 
   - name: Create a DataVolume
+    delegate_to: bastion
     ansible.builtin.command: |
       virtctl --insecure-skip-tls-verify=true --server {{ sandbox_openshift_api_url }} --token {{ sandbox_openshift_api_key }}
       --namespace {{ sandbox_openshift_namespace }} image-upload dv scale-iso --size=2Gi
