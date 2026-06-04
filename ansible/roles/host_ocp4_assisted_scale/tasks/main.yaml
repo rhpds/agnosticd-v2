@@ -37,6 +37,7 @@
     current_instance_control_planes: "{{ _r_node_status.resources | length }}"
 
 - name: Scale OCP using Assisted Installer
+  when: ai_use_abi | default(false) == true
   module_defaults:
     group/k8s:
       host: "{{ sandbox_openshift_api_url }}"
@@ -61,7 +62,92 @@
     delay: 10
     until: _r_update_svc is not failed
 
+  - name: Generate mac addresses for workers
+    ansible.builtin.set_fact:
+      ai_workers_macs: >
+        {{ ai_workers_macs + ['f6' |
+           community.general.random_mac(ai_ocp_namespace + cluster_name + 'w1' + (_index+current_instance_workers | int) | string)] }}
+      ai_workers_macs2: >
+        {{ ai_workers_macs2 + ['f6' |
+           community.general.random_mac(ai_ocp_namespace + cluster_name + 'w2' + (_index+current_instance_workers | int) | string)] }}
+    loop: "{{ range(1,worker_instance_count | int+1) | list }}"
+    loop_control:
+      loop_var: _index
+
+  - name: Set static_network_config variable
+    ansible.builtin.set_fact:
+      static_network_config: "{{ lookup('template','static_network_config_full.yaml.j2') | from_yaml}}"
+
+  - name: Add bastion host to inventory
+    ansible.builtin.add_host:
+      name: "bastion"
+      ansible_host: "{{ bastion_public_hostname }}"
+      ansible_user: "{{ bastion_ssh_user_name }}"
+      ansible_ssh_pass: "{{ bastion_ssh_password }}"
+      ansible_port: "{{ bastion_ssh_port }}"
+      ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+
+  - name: Test
+    delegate_to: bastion
+    ansible.builtin.command: oc get node
+
   - fail:
+
+  - name: Create {{ worker_instance_count }} worker VMs for full cluster
+    ansible.builtin.include_tasks: create_workers.yaml
+    vars:
+      pvcinstall: scale-iso
+      vmname: "{{ ai_ocp_vmname_worker_prefix }}-{{ _index + current_instance_workers | int }}"
+      sandbox_namespace: "{{ ai_ocp_namespace }}"
+      storageclass: "{{ ai_storage_class }}"
+      network: "{{ cluster_name }}-openshift"
+      network_name: "{{ ai_install_use_network | default(cluster_name + '-openshift') }}"
+      pod_network: "192.168.1{{ _index+current_instance_workers | int }}.0/24"
+    loop: "{{ range(1,worker_instance_count | int + 1) | list }}"
+    loop_control:
+      loop_var: _index
+
+  - name: Wait for all worker VMs to be running
+    kubernetes.core.k8s_info:
+      api_version: kubevirt.io/v1
+      kind: VirtualMachine
+      name: "{{ ai_ocp_vmname_worker_prefix }}-{{ _index + current_instance_workers | int }}"
+      namespace: "{{ ai_ocp_namespace }}"
+    register: r_vm_status
+    until: r_vm_status.resources[0].status.printableStatus | default('') == "Running"
+    retries: 30
+    delay: 10
+    loop: "{{ range(1, worker_instance_count | int + 1) | list }}"
+    loop_control:
+      loop_var: _index
+
+
+- name: Scale OCP using Assisted Installer
+  when: ai_use_abi | default(false) == false
+  module_defaults:
+    group/k8s:
+      host: "{{ sandbox_openshift_api_url }}"
+      api_key: "{{ sandbox_openshift_api_key }}"
+      validate_certs: false
+  block:
+  - name: Update worker SVC to point role worker
+    when: current_instance_workers | int == 0
+    kubernetes.core.k8s:
+      state: patched
+      kind: Service
+      name: "{{ ai_ocp_vmname_worker_prefix }}-svc-{{ _cluster_name }}"
+      namespace: "{{ ai_ocp_namespace }}"
+      api_version: v1
+      merge_type: merge
+      resource_definition: |
+        spec:
+          selector:
+            role: worker
+    register: _r_update_svc
+    retries: 5
+    delay: 10
+    until: _r_update_svc is not failed
+
   - name: Get a list of clusters
     rhpds.assisted_installer.list_clusters:
       offline_token: "{{ ai_offline_token }}"
