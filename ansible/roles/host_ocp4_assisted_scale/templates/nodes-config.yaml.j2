@@ -2,7 +2,7 @@ hosts:
 {% for index in range(0, worker_instance_count | int) %}
 {% set worker_loop = loop %}
 - hostname: worker-{{ 30 + index | int }}
-  networkConfig: |
+  networkConfig:
     interfaces:
     - ipv4:
         dhcp: true
@@ -28,6 +28,6 @@ hosts:
   interfaces:
     - macAddress: "{{ ai_workers_macs[index] }}" 
       name: "enp1s0"
-    - mac_address: "{{ ai_workers_macs2[index] }}"
+    - macAddress: "{{ ai_workers_macs2[index] }}"
       name: "enp2s0"
 {% endfor %}
