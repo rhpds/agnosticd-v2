@@ -90,6 +90,7 @@
 
   - name: Test
     delegate_to: bastion
+    become: false
     ansible.builtin.command: oc get node
 
   - fail:
