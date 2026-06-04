@@ -81,10 +81,10 @@
   - name: Add bastion host to inventory
     ansible.builtin.add_host:
       name: "bastion"
-      ansible_host: "{{ bastion_public_hostname }}"
-      ansible_user: "{{ bastion_ssh_user_name }}"
-      ansible_ssh_pass: "{{ bastion_ssh_password }}"
-      ansible_port: "{{ bastion_ssh_port }}"
+      ansible_host: "{{ bastion_ansible_host }}"
+      ansible_user: "{{ bastion_ansible_user }}"
+      ansible_ssh_pass: "{{ bastion_ansible_ssh_pass }}"
+      ansible_port: "{{ bastion_ansible_port }}"
       ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
   - name: Test
