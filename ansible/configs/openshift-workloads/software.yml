@@ -21,6 +21,7 @@
         {{ _workloads | default([]) + [_workload | combine({"clusters": _clusters})] }}
 
   - name: Provision Workloads on cluster(s)
+    when: workloads | length > 0
     ansible.builtin.include_role:
       name: openshift_workload_deployer
     vars:

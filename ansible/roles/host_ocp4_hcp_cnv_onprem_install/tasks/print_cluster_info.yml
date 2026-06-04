@@ -52,6 +52,31 @@
          if _hcp_onprem_console.resources | default([]) | length > 0
          else 'Console not yet available' }}
 
+- name: Set user data for OpenShift access
+  agnosticd.core.agnosticd_user_info:
+    data:
+      openshift_api_server_url: "{{ _hcp_onprem_api_server_url }}"
+      openshift_console_url: "{{ _hcp_onprem_console_url }}"
+      openshift_cluster_ingress_domain: "{{ _hcp_onprem_ingress_domain }}"
+      openshift_cluster_admin_username: "{{ hcp_onprem_admin_user }}"
+      openshift_cluster_admin_password: "{{ _hcp_onprem_admin_password }}"
+
+- name: Show user messages for OpenShift access
+  agnosticd.core.agnosticd_user_info:
+    msg: |-
+      OpenShift Console: {{ _hcp_onprem_console_url }}
+      OpenShift API for command line 'oc' client: {{ _hcp_onprem_api_server_url }}
+
+      User `{{ hcp_onprem_admin_user }}` with password `{{ _hcp_onprem_admin_password }}` is cluster admin.
+
+- name: Show user credentials per user
+  when: _hcp_onprem_user_passwords | default([]) | length > 0
+  agnosticd.core.agnosticd_user_info:
+    msg: |-
+      {% for i in range(_hcp_onprem_user_passwords | length) %}
+      User `{{ hcp_onprem_user_base }}{{ i + 1 }}` password: `{{ _hcp_onprem_user_passwords[i] }}`
+      {% endfor %}
+
 - name: Display cluster access information
   ansible.builtin.debug:
     msg: |

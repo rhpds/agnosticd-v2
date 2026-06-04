@@ -344,56 +344,5 @@
         hcp_onprem_result_namespace: "{{ hcp_onprem_namespace }}"
         hcp_onprem_result_control_plane_namespace: "{{ _hcp_onprem_control_plane_namespace }}"
 
-    - name: Display cluster access information
-      ansible.builtin.debug:
-        msg: |
-          ============================================================
-          HCP Cluster Deployed Successfully
-          ============================================================
-          Cluster Name:  {{ hcp_onprem_result_cluster_name }}
-          OCP Version:   {{ hcp_onprem_result_ocp_version }}
-          API Server:    {{ hcp_onprem_result_api_url }}
-          Console:       {{ hcp_onprem_result_console_url | default('Console not yet available (wait a few minutes)', true) }}
-          Ingress:       *.{{ hcp_onprem_result_ingress_domain }}
-          LB IP:         {{ hcp_onprem_result_lb_ip }}
-          Kubeconfig:    {{ hcp_onprem_result_kubeconfig_path }}
-          ============================================================
-          Admin User:    {{ hcp_onprem_result_admin_user }}
-          Admin Pass:    {{ hcp_onprem_result_admin_password }}
-          {% if hcp_onprem_result_user_passwords | length > 0 %}
-          {% for i in range(hcp_onprem_result_user_passwords | length) %}
-          User:          {{ hcp_onprem_user_base }}{{ i + 1 }}  Password: {{ hcp_onprem_result_user_passwords[i] }}
-          {% endfor %}
-          {% endif %}
-          ============================================================
-          Workers:       {{ hcp_onprem_result_worker_count }} ready ({{ hcp_onprem_worker_count }} desired)
-          Worker Sizing: {{ hcp_onprem_worker_cores }} cores, {{ hcp_onprem_worker_memory }} RAM
-          ============================================================
-          Namespace:     {{ hcp_onprem_result_namespace }}
-          CP Namespace:  {{ hcp_onprem_result_control_plane_namespace }}
-          MetalLB Pool:  {{ hcp_onprem_metallb_pool | default('auto') }}
-          ============================================================
-
-          To access this cluster from within the management cluster network:
-            export KUBECONFIG={{ hcp_onprem_result_kubeconfig_path }}
-            oc login -u {{ hcp_onprem_result_admin_user }} -p {{ hcp_onprem_result_admin_password }} {{ hcp_onprem_result_api_url }}
-          ============================================================
-
-    - name: Display output variable reference
-      ansible.builtin.debug:
-        msg: |
-          The following variables are now set and can be used in subsequent tasks/roles:
-            hcp_onprem_result_cluster_name
-            hcp_onprem_result_api_url
-            hcp_onprem_result_console_url
-            hcp_onprem_result_ingress_domain
-            hcp_onprem_result_lb_ip
-            hcp_onprem_result_kubeconfig_path
-            hcp_onprem_result_kubeconfig_b64
-            hcp_onprem_result_admin_user
-            hcp_onprem_result_admin_password
-            hcp_onprem_result_user_passwords
-            hcp_onprem_result_worker_count
-            hcp_onprem_result_ocp_version
-            hcp_onprem_result_namespace
-            hcp_onprem_result_control_plane_namespace
+- name: Print cluster info and set user data
+  ansible.builtin.include_tasks: print_cluster_info.yml
