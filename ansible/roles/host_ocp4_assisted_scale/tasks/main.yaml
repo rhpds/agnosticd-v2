@@ -97,7 +97,12 @@
     ansible.builtin.shell: oc adm node-image create
     args:
       chdir: /tmp/
-  - fail:
+
+  - name: Create a DataVolume
+    ansible.builtin.command: |
+      virtctl --server {{ sandbox_openshift_api_url }} --token {{ sandbox_openshift_api_token }}
+      --namespace {{ sandbox_openshift_namespace }} image-upload dv scale-iso-{{ cluster_name }} --size=2Gi
+      --image-path=/tmp/node.x86_64.iso
 
   - name: Create {{ worker_instance_count }} worker VMs for full cluster
     ansible.builtin.include_tasks: create_workers.yaml
