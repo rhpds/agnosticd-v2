@@ -331,7 +331,7 @@
       ansible.builtin.set_fact:
         hcp_onprem_result_cluster_name: "{{ hcp_onprem_cluster_name }}"
         hcp_onprem_result_api_url: "{{ _hcp_onprem_api_url }}"
-        hcp_onprem_result_console_url: "{{ 'https://' ~ _hcp_onprem_console_host if _hcp_onprem_console_host != 'not-ready' else '' }}"
+        hcp_onprem_result_console_url: "https://console-openshift-console.{{ _hcp_onprem_ingress_domain }}"
         hcp_onprem_result_ingress_domain: "{{ _hcp_onprem_ingress_domain }}"
         hcp_onprem_result_lb_ip: "{{ _hcp_onprem_api_svc.resources[0].status.loadBalancer.ingress[0].ip | default('') }}"
         hcp_onprem_result_kubeconfig_path: "/tmp/kubeconfig-{{ hcp_onprem_cluster_name }}"
