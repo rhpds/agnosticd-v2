@@ -45,7 +45,7 @@ platform:
 {% endif %}
 
 publish: External
-pullSecret: "{{ ai_pull_secret | to_json }}"
+pullSecret: "{{ ai_pull_secret | to_json | to_json }}"
 
 {% if ai_use_abi_disconnected %}
 imageDigestSources:
