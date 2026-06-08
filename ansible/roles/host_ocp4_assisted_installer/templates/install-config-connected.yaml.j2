@@ -47,6 +47,8 @@ platform:
 publish: External
 pullSecret: {{ ai_pull_secret | to_json | to_json }}
 
+sshKey: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCq0Y8w5SS2+XbWBGuUewuAw2a+WFHQ8r9agqx2nsGhBesw048FphtZKNWEQ2SmH1+WsLcLR01N4kzUQAWF2lF/v3UwgPK1bSH2HmX/906d5/v+foZpGJvbCIUXIPCBcT2/jJgl5YOWRGZBIB7r2BWk3Cq49hdZKlx18MJR9AQUpSuzQNwOyysiHpDNYwiVeVH5RrdZCcBSyCX43m9ybzbNwG2ZbB5EP75AP1XJ0bijBur3lF7vW3+MHzoOdAyyiKF59qXM99wr8U2cXXf7TpUZH5yOJF62YWM7cdJPzio/TbVCuBaz/p/4UWn+c1Y4Lq3rHV18xTv2nE1Ke1RmaPwF josegonz@josegonz.remote.csb"
+
 {% if ai_use_abi_disconnected %}
 imageDigestSources:
   - mirrors:

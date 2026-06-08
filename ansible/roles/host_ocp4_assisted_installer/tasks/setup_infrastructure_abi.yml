@@ -111,7 +111,13 @@
     when: ai_use_abi_disconnected == true
     ansible.builtin.template:
       src: "../templates/itms.yaml.j2"
-      dest: "~{{ ansible_user }}/{{ cluster_name }}/openshift/00_itms.yaml"
+      dest: "~{{ ansible_user }}/{{ cluster_name }}/openshift/98_itms.yaml"
+
+  - name: Add ITMS for local proxy #FIXME
+    when: ai_use_abi_disconnected == true
+    ansible.builtin.template:
+      src: "../templates/itms.yaml.j2"
+      dest: "/tmp/98_itms.yaml"
 
   - name: Add node hint manifest for SNO
     when: control_plane_instance_count | int == 1
