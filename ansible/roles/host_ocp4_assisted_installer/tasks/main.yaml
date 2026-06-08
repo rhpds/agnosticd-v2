@@ -2,6 +2,11 @@
 - name: Set URLs for OpenShift GA releases (specific version)
   when: (host_ocp4_installer_version | string).split('.') | length >= 3
   ansible.builtin.set_fact:
+    openshift_installer_download_url: >-
+      {{ '{0}/ocp/{1}/openshift-install-linux-{1}.tar.gz'.format(
+        host_ocp4_installer_root_url | default("https://mirror.openshift.com/pub/openshift-v4/clients"),
+        host_ocp4_installer_version
+      ) }}
     openshift_client_download_url: >-
       {{ '{0}/ocp/{1}/openshift-client-linux-{1}.tar.gz'.format(
         host_ocp4_installer_root_url | default("https://mirror.openshift.com/pub/openshift-v4/clients"),
@@ -11,6 +16,12 @@
 - name: Set URLs for OpenShift GA releases (latest stable)
   when: (host_ocp4_installer_version | string).split('.') | length == 2
   set_fact:
+    openshift_installer_download_url: >-
+      {{ '{0}/ocp/stable-{1}/openshift-install-linux.tar.gz'.format(
+        host_ocp4_installer_root_url | default("https://mirror.openshift.com/pub/openshift-v4/clients"),
+        host_ocp4_installer_version
+      ) }}
+
     openshift_client_download_url: >-
       {{ '{0}/ocp/stable-{1}/openshift-client-linux.tar.gz'.format(
         host_ocp4_installer_root_url | default("https://mirror.openshift.com/pub/openshift-v4/clients"),
@@ -23,6 +34,23 @@
   ansible.builtin.unarchive:
     remote_src: true
     src: "{{ openshift_client_download_url }}"
+    dest: /usr/bin
+    mode: ug=rwx,o=rx
+    owner: root
+    group: root
+    creates: /usr/bin/oc
+  register: r_client
+  until: r_client is success
+  retries: 10
+  delay: 30
+
+- name: Install the OpenShift Installer on the bastion
+  when: ai_use_abi | default(false) == true
+  delegate_to: "{{ groups['bastions'][0] }}"
+  become: true
+  ansible.builtin.unarchive:
+    remote_src: true
+    src: "{{ openshift_installer_download_url }}"
     dest: /usr/bin
     mode: ug=rwx,o=rx
     owner: root
