@@ -70,7 +70,7 @@
   - name: Create /tmp/pull-secret.json
     ansible.builtin.copy:
       dest: "/tmp/pull-secret.json"
-      content: "{{ ai_pull_secret | from_json if ai_pull_secret is  mapping else ai_pull_secret }}"
+      content: "{{ ai_pull_secret }}"
 
   - name: Get version
     ansible.builtin.command: /usr/bin/oc version -o json
