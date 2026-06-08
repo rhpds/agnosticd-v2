@@ -59,7 +59,7 @@
   ansible.builtin.set_fact:
     static_network_config: "{{ lookup('template','static_network_config_full.yaml.j2') | from_yaml }}"
 
-- name: Extract openshift-install and generate ISO
+- name: Generate ISO
   delegate_to: "{{ groups['bastions'][0] }}"
   block:
   - name: Install required nmstate package

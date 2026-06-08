@@ -55,7 +55,7 @@
     mode: ug=rwx,o=rx
     owner: root
     group: root
-    creates: /usr/bin/oc
+    creates: /usr/bin/openshift-install
   register: r_client
   until: r_client is success
   retries: 10
