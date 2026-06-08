@@ -80,7 +80,7 @@
     become: true
     ansible.builtin.command: |
       /usr/bin/oc adm release extract --registry-config=/tmp/pull-secret.json --command=openshift-install --to /usr/bin/
-      quay.io/openshift-release-dev/ocp-release:{{ (r_oc_version.stdout | from_json).releaseClientVersion }}-x86_64
+      {{ ai_use_abi_disconnected_primary_quay }}/openshift-release-dev/ocp-release:{{ (r_oc_version.stdout | from_json).releaseClientVersion }}-x86_64
 
   - name: Remove /tmp/pull-secret.json
     ansible.builtin.file:
