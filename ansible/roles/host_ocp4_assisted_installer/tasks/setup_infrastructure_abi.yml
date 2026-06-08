@@ -107,6 +107,12 @@
       src: "sysctl_control_plane.yaml"
       dest: "~{{ ansible_user }}/{{ cluster_name }}/openshift/98_sysctl-control-plane.yaml"
 
+  - name: Add ITMS for local proxy
+    when: ai_use_abi_disconnected == true
+    ansible.builtin.template:
+      src: "../templates/itms.yaml.j2"
+      dest: "~{{ ansible_user }}/{{ cluster_name }}/openshift/00_itms.yaml"
+
   - name: Add node hint manifest for SNO
     when: control_plane_instance_count | int == 1
     ansible.builtin.copy:
