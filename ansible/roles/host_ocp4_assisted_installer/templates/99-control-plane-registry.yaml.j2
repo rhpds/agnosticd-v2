@@ -1,0 +1,17 @@
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: worker
+  name: 99-worker-registry-mirror
+spec:
+  config:
+    ignition:
+      version: 3.4.0
+    storage:
+      files:
+        - contents:
+            source: data:;base64,{{ lookup('template', 'registry-mirror.conf.j2') | b64encode }}
+          mode: 420
+          overwrite: true
+          path: /etc/containers/registries.conf.d/001-mirrors.conf
