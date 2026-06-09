@@ -107,17 +107,17 @@
       src: "sysctl_control_plane.yaml"
       dest: "~{{ ansible_user }}/{{ cluster_name }}/openshift/98_sysctl-control-plane.yaml"
 
-  - name: Add ITMS for local proxy
+  - name: Add disconnected config for local proxy for workers
     when: ai_use_abi_disconnected == true
     ansible.builtin.template:
-      src: "../templates/itms.yaml.j2"
-      dest: "~{{ ansible_user }}/{{ cluster_name }}/openshift/98_itms.yaml"
+      src: "99-worker-registry.yaml.j2"
+      dest: "~{{ ansible_user }}/{{ cluster_name }}/openshift/99-worker-registry.yaml"
 
-  - name: Add ITMS for local proxy #FIXME
+  - name: Add disconnected config for local proxy for workers
     when: ai_use_abi_disconnected == true
     ansible.builtin.template:
-      src: "../templates/itms.yaml.j2"
-      dest: "/tmp/98_itms.yaml"
+      src: "99-control-plane-registry.yaml.j2"
+      dest: "~{{ ansible_user }}/{{ cluster_name }}/openshift/99-control-plane-registry.yaml"
 
   - name: Add node hint manifest for SNO
     when: control_plane_instance_count | int == 1
