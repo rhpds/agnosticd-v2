@@ -2,18 +2,18 @@
   location = "registry.redhat.io"
 
   [[registry.mirror]]
-    location = "{{ ai_use_abi_disconnected_primary_quay }}/registry_redhat_io"
+    location = "{{ ai_use_abi_disconnected_first_quay }}/registry_redhat_io"
     pull-from-mirror = "all"
   [[registry.mirror]]
-    location = "{{ ai_use_abi_disconnected_secondary_quay }}/registry_redhat_io"
+    location = "{{ ai_use_abi_disconnected_second_quay }}/registry_redhat_io"
     pull-from-mirror = "all"
 
 [[registry]]
   location = "quay.io"
 
   [[registry.mirror]]
-    location = "{{ ai_use_abi_disconnected_primary_quay }}/quay_io"
+    location = "{{ ai_use_abi_disconnected_first_quay }}/quay_io"
     pull-from-mirror = "all"
   [[registry.mirror]]
-    location = "{{ ai_use_abi_disconnected_secondary_quay }}/quay_io"
+    location = "{{ ai_use_abi_disconnected_second_quay }}/quay_io"
     pull-from-mirror = "all"

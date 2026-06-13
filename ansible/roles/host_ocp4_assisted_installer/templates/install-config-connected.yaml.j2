@@ -52,12 +52,12 @@ sshKey: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCq0Y8w5SS2+XbWBGuUewuAw2a+WFHQ8r9
 {% if ai_use_abi_disconnected %}
 imageDigestSources:
   - mirrors:
-    - "{{ ai_use_abi_disconnected_primary_quay }}/quay_io/openshift-release-dev/ocp-release"
-    - "{{ ai_use_abi_disconnected_secondary_quay }}/quay_io/openshift-release-dev/ocp-release"
+    - "{{ ai_use_abi_disconnected_first_quay }}/quay_io/openshift-release-dev/ocp-release"
+    - "{{ ai_use_abi_disconnected_second_quay }}/quay_io/openshift-release-dev/ocp-release"
     source: quay.io/openshift-release-dev/ocp-release
   - mirrors:
-    - "{{ ai_use_abi_disconnected_primary_quay }}/quay_io/openshift-release-dev/ocp-v4.0-art-dev"
-    - "{{ ai_use_abi_disconnected_secondary_quay }}/quay_io/openshift-release-dev/ocp-v4.0-art-dev"
+    - "{{ ai_use_abi_disconnected_first_quay }}/quay_io/openshift-release-dev/ocp-v4.0-art-dev"
+    - "{{ ai_use_abi_disconnected_second_quay }}/quay_io/openshift-release-dev/ocp-v4.0-art-dev"
     source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
 
 {% endif %}
