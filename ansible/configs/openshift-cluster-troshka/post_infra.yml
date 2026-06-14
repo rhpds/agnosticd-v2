@@ -1,0 +1,14 @@
+---
+- name: Step 002 - Post Infrastructure
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Save user data
+      agnosticd.core.agnosticd_user_info:
+        data:
+          guid: "{{ guid }}"
+          cloud_provider: "{{ cloud_provider | default('troshka') }}"
+          troshka_project_id: "{{ troshka_project_id | default('') }}"
+          troshka_portal_url: "{{ troshka_portal_url | default('') }}"

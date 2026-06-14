@@ -1,0 +1,22 @@
+---
+- name: Step 005 - Post Software
+  hosts: localhost
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Print post software
+      ansible.builtin.debug:
+        msg: "Post-Software Steps starting"
+
+- name: Step 005.1 - Deploy Workloads
+  ansible.builtin.import_playbook: workloads.yml
+
+- name: Step 005.2 - Capture Pattern (mode 3)
+  hosts: localhost
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Capture project as pattern
+      when: troshka_capture_on_complete | default(false) | bool
+      ansible.builtin.include_role:
+        name: agnosticd.cloud_provider_troshka.capture

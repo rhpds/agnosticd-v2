@@ -1,0 +1,10 @@
+---
+- name: Step 003 - Pre Software
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Print debug message
+      ansible.builtin.debug:
+        msg: "Step 003 - Pre Software (Troshka — bastion/repos configured in pattern)"

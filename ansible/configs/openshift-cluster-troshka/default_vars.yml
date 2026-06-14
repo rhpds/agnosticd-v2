@@ -1,0 +1,27 @@
+---
+# Troshka OCP cluster config
+# Deploys pre-built OCP patterns or templates via Troshka API
+
+purpose: development
+output_dir: /tmp/output_dir
+guid: notset
+project_tag: "{{ config }}-{{ guid }}"
+
+cluster_name: ocp
+
+# Troshka handles bastion/repo/package setup internally
+install_bastion: false
+install_common_packages: false
+install_satellite_repositories: false
+install_rhn_repositories: false
+host_common_packages_update_all: false
+
+# No OCP installer needed — Troshka deploys OCP internally
+host_ocp4_deploy_installation_method: none
+
+# Workloads run after deployment (modes 2 and 3)
+workloads: []
+remove_workloads: []
+
+# Don't try to remove cloud credentials from OCP — Troshka manages this
+remove_mint_mode_cloud_provider_credentials: false
