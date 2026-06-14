@@ -1,0 +1,9 @@
+---
+- name: Destroy Troshka Environment
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Delete Troshka project
+      ansible.builtin.include_role:
+        name: agnosticd.cloud_provider_troshka.destroy
