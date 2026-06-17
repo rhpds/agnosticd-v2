@@ -34,7 +34,7 @@
   retries: 20
   delay: 30
 
-- name: Add A dns record - masters
+- name: Add A dns record - api (nsupdate)
   when: cluster_dns_server is defined
   community.general.nsupdate:
     server: >-
@@ -47,7 +47,7 @@
     type: A
     ttl: 30
     port: "{{ cluster_dns_port | d('53') }}"
-    value: "{{ r_svc_control_plane.resources[0].status.loadBalancer.ingress[0].ip }}"
+    value: "{{ full_svc_control_plane.resources[0].status.loadBalancer.ingress[0].ip }}"
     key_name: "{{ ddns_key_name }}"
     key_secret: "{{ ddns_key_secret }}"
     key_algorithm: "hmac-sha256"
@@ -106,7 +106,7 @@
     type: A
     ttl: 30
     port: "{{ cluster_dns_port | d('53') }}"
-    value: "{{ r_svc_control_plane.resources[0].status.loadBalancer.ingress[0].ip }}"
+    value: "{{ full_svc_workers.resources[0].status.loadBalancer.ingress[0].ip }}"
     key_name: "{{ ddns_key_name }}"
     key_secret: "{{ ddns_key_secret }}"
     key_algorithm: "hmac-sha256"
