@@ -98,6 +98,7 @@
                   - --pass-user-headers=true
                   - --pass-access-token=false
                   - --skip-auth-regex=^/api/v1/
+                  - --upstream-timeout=600s
                 volumeMounts:
                   - name: tls
                     mountPath: /etc/tls/private
@@ -126,6 +127,8 @@
       metadata:
         name: troshka
         namespace: "{{ troshka_namespace }}"
+        annotations:
+          haproxy.router.openshift.io/timeout: 600s
       spec:
         host: "{{ _troshka_route_host }}"
         to:
