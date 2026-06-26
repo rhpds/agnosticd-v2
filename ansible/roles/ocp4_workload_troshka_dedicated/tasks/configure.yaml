@@ -11,6 +11,7 @@
   ansible.builtin.uri:
     url: "{{ _troshka_api }}/health"
     validate_certs: false
+    follow_redirects: all
   register: _health
   until: _health.status == 200
   retries: 30
@@ -37,6 +38,7 @@
         api_url: "{{ _cluster_api_url }}"
     status_code: [200, 201]
     validate_certs: false
+    follow_redirects: all
   register: _provider
 
 - name: Create agent host
@@ -54,6 +56,7 @@
       disk_gb: "{{ troshka_host_disk_gb }}"
     status_code: [200, 201]
     validate_certs: false
+    follow_redirects: all
   register: _host
 
 - name: Wait for host to connect
@@ -62,6 +65,7 @@
     method: GET
     headers: "{{ _api_headers }}"
     validate_certs: false
+    follow_redirects: all
   register: _host_status
   until: _host_status.json.state == "connected"
   retries: 60

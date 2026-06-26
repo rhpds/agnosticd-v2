@@ -60,6 +60,7 @@
           format: "{{ item.format }}"
         status_code: [200, 201]
         validate_certs: false
+        follow_redirects: all
       register: _lib_items
       loop: "{{ troshka_seed_images }}"
 
@@ -74,6 +75,7 @@
           tags: "{{ troshka_seed_images[idx].tags | default([]) }}"
         status_code: [200, 201]
         validate_certs: false
+        follow_redirects: all
       loop: "{{ _lib_items.results }}"
       loop_control:
         index_var: idx
