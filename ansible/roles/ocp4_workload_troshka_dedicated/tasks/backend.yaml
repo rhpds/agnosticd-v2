@@ -3,7 +3,7 @@
   ansible.builtin.set_fact:
     _cluster_apps_domain: "{{ sandbox_openshift_apps_domain }}"
     _troshka_route_host: "troshka-{{ troshka_namespace }}.{{ sandbox_openshift_apps_domain }}"
-    _requester_identity: "{{ requester_email | default(user) | default('admin@troshka') }}"
+    _requester_identity: "{{ requester_email | default(sandboxes[0].annotations.owner_email | default('admin@troshka')) }}"
 
 - name: Create backend ConfigMap
   kubernetes.core.k8s:
