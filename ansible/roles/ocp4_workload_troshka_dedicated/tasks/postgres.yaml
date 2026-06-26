@@ -1,0 +1,95 @@
+---
+- name: Generate PostgreSQL password
+  ansible.builtin.set_fact:
+    _postgres_password: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=24') }}"
+
+- name: Create PostgreSQL PVC
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: troshka-postgres-data
+        namespace: "{{ troshka_namespace }}"
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: "{{ troshka_postgres_pvc_size }}"
+
+- name: Deploy PostgreSQL
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: troshka-postgres
+        namespace: "{{ troshka_namespace }}"
+        labels:
+          app.kubernetes.io/name: troshka-postgres
+      spec:
+        replicas: 1
+        serviceName: troshka-postgres
+        selector:
+          matchLabels:
+            app.kubernetes.io/name: troshka-postgres
+        template:
+          metadata:
+            labels:
+              app.kubernetes.io/name: troshka-postgres
+          spec:
+            containers:
+              - name: postgres
+                image: registry.redhat.io/rhel9/postgresql-16:latest
+                env:
+                  - name: POSTGRESQL_USER
+                    value: troshka
+                  - name: POSTGRESQL_PASSWORD
+                    value: "{{ _postgres_password }}"
+                  - name: POSTGRESQL_DATABASE
+                    value: troshka
+                ports:
+                  - containerPort: 5432
+                volumeMounts:
+                  - name: data
+                    mountPath: /var/lib/pgsql/data
+                resources:
+                  requests:
+                    cpu: 250m
+                    memory: 512Mi
+                  limits:
+                    memory: 1Gi
+            volumes:
+              - name: data
+                persistentVolumeClaim:
+                  claimName: troshka-postgres-data
+
+- name: Create PostgreSQL Service
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: troshka-postgres
+        namespace: "{{ troshka_namespace }}"
+      spec:
+        clusterIP: None
+        selector:
+          app.kubernetes.io/name: troshka-postgres
+        ports:
+          - port: 5432
+            targetPort: 5432
+
+- name: Wait for PostgreSQL to be ready
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: StatefulSet
+    name: troshka-postgres
+    namespace: "{{ troshka_namespace }}"
+  register: _pg
+  until: (_pg.resources[0].status.readyReplicas | default(0)) >= 1
+  retries: 30
+  delay: 10
