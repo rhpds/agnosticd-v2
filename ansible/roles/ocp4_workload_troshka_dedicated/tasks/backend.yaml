@@ -17,9 +17,11 @@
       data:
         config.yaml: |
           app:
+            name: troshka
             port: 8200
             host: "0.0.0.0"
             log_level: info
+            root_path: ""
             external_url: "https://{{ _troshka_route_host }}"
           auth:
             oauth_enabled: true
