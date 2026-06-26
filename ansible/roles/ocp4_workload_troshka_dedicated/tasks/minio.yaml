@@ -120,6 +120,7 @@
                   - /bin/sh
                   - -c
                   - |
+                    export HOME=/tmp
                     mc alias set local http://troshka-minio:9000 {{ _minio_root_user }} {{ _minio_root_password }}
                     mc mb --ignore-existing local/troshka-images
 
