@@ -21,6 +21,7 @@
   kubernetes.core.k8s_exec:
     namespace: "{{ troshka_namespace }}"
     pod: "{{ _backend_pod }}"
+    container: backend
     command: curl -sf http://localhost:8200/api/v1/health
   register: _health
   until: _health.return_code == 0
@@ -36,6 +37,7 @@
   kubernetes.core.k8s_exec:
     namespace: "{{ troshka_namespace }}"
     pod: "{{ _backend_pod }}"
+    container: backend
     command: >-
       curl -sf -X POST http://localhost:8200/api/v1/providers/
       -H "Content-Type: application/json"
@@ -52,6 +54,7 @@
   kubernetes.core.k8s_exec:
     namespace: "{{ troshka_namespace }}"
     pod: "{{ _backend_pod }}"
+    container: backend
     command: >-
       curl -sf -X POST http://localhost:8200/api/v1/hosts/
       -H "Content-Type: application/json"
@@ -68,6 +71,7 @@
   kubernetes.core.k8s_exec:
     namespace: "{{ troshka_namespace }}"
     pod: "{{ _backend_pod }}"
+    container: backend
     command: >-
       curl -sf http://localhost:8200/api/v1/hosts/{{ _host_id }}
       -H "X-Forwarded-Email: {{ _requester_identity }}"

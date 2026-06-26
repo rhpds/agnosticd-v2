@@ -52,6 +52,7 @@
       kubernetes.core.k8s_exec:
         namespace: "{{ troshka_namespace }}"
         pod: "{{ _backend_pod }}"
+        container: backend
         command: >-
           curl -sf -X POST http://localhost:8200/api/v1/library/
           -H "Content-Type: application/json"
@@ -65,6 +66,7 @@
       kubernetes.core.k8s_exec:
         namespace: "{{ troshka_namespace }}"
         pod: "{{ _backend_pod }}"
+        container: backend
         command: >-
           curl -sf -X POST http://localhost:8200/api/v1/library/{{ (item.stdout | from_json).id }}/finalize-seed
           -H "Content-Type: application/json"
