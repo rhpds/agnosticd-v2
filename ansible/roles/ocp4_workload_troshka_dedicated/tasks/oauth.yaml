@@ -1,0 +1,132 @@
+---
+- name: Annotate SA for OAuth redirect
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: troshka-sa
+        namespace: "{{ troshka_namespace }}"
+        annotations:
+          serviceaccounts.openshift.io/oauth-redirectreference.primary: >-
+            {"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"troshka"}}
+
+- name: Generate OAuth cookie secret
+  ansible.builtin.command: python3 -c "import os, base64; print(base64.b64encode(os.urandom(32)).decode())"
+  register: _cookie_secret_result
+  changed_when: false
+
+- name: Create OAuth proxy secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: troshka-oauth-proxy
+        namespace: "{{ troshka_namespace }}"
+      type: Opaque
+      stringData:
+        cookie-secret: "{{ _cookie_secret_result.stdout }}"
+
+- name: Deploy OAuth proxy
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: troshka-oauth-proxy
+        namespace: "{{ troshka_namespace }}"
+        labels:
+          app.kubernetes.io/name: troshka-oauth-proxy
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app.kubernetes.io/name: troshka-oauth-proxy
+        template:
+          metadata:
+            labels:
+              app.kubernetes.io/name: troshka-oauth-proxy
+          spec:
+            serviceAccountName: troshka-sa
+            containers:
+              - name: oauth-proxy
+                image: registry.redhat.io/openshift4/ose-oauth-proxy-rhel9:latest
+                ports:
+                  - containerPort: 8443
+                    name: proxy
+                args:
+                  - --provider=openshift
+                  - --https-address=:8443
+                  - --http-address=
+                  - --upstream=http://troshka-frontend.{{ troshka_namespace }}.svc:3000
+                  - --tls-cert=/etc/tls/private/tls.crt
+                  - --tls-key=/etc/tls/private/tls.key
+                  - --cookie-secret-file=/etc/oauth/cookie-secret
+                  - --client-id=system:serviceaccount:{{ troshka_namespace }}:troshka-sa
+                  - --client-secret-file=/var/run/secrets/kubernetes.io/serviceaccount/token
+                  - --openshift-service-account=troshka-sa
+                  - --openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+                  - --pass-user-headers=true
+                  - --pass-access-token=false
+                  - --skip-auth-regex=^/api/v1/health
+                  - --skip-auth-regex=^/api/v1/auth/config
+                volumeMounts:
+                  - name: tls
+                    mountPath: /etc/tls/private
+                  - name: oauth-secrets
+                    mountPath: /etc/oauth
+                resources:
+                  requests:
+                    cpu: 50m
+                    memory: 64Mi
+                  limits:
+                    memory: 128Mi
+            volumes:
+              - name: tls
+                secret:
+                  secretName: troshka-oauth-tls  # pragma: allowlist secret
+              - name: oauth-secrets
+                secret:
+                  secretName: troshka-oauth-proxy  # pragma: allowlist secret
+
+- name: Create OAuth proxy Service
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: troshka-oauth-proxy
+        namespace: "{{ troshka_namespace }}"
+        annotations:
+          service.beta.openshift.io/serving-cert-secret-name: troshka-oauth-tls
+      spec:
+        selector:
+          app.kubernetes.io/name: troshka-oauth-proxy
+        ports:
+          - port: 8443
+            targetPort: 8443
+            name: proxy
+
+- name: Create Route
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: route.openshift.io/v1
+      kind: Route
+      metadata:
+        name: troshka
+        namespace: "{{ troshka_namespace }}"
+      spec:
+        host: "{{ _troshka_route_host }}"
+        to:
+          kind: Service
+          name: troshka-oauth-proxy
+        port:
+          targetPort: proxy
+        tls:
+          termination: reencrypt

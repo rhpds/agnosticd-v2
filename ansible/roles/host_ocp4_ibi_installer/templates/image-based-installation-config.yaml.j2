@@ -1,0 +1,31 @@
+apiVersion: v1beta1
+kind: ImageBasedInstallationConfig
+metadata:
+  name: ibi-config
+seedImage: {{ host_ocp4_ibi_seed_image }}
+seedVersion: "{{ host_ocp4_ibi_seed_version }}"
+installationDisk: {{ host_ocp4_ibi_installation_disk }}
+pullSecret: '{{ host_ocp4_pull_secret }}'
+{% if host_ocp4_ibi_extra_partition_start | default('') | length > 0 %}
+extraPartitionStart: "{{ host_ocp4_ibi_extra_partition_start }}"
+{% endif %}
+{% if host_ocp4_ssh_key | length > 0 %}
+sshKey: '{{ host_ocp4_ssh_key }}'
+{% endif %}
+{% if _ibi_network_config is defined %}
+networkConfig:
+{{ _ibi_network_config | indent(2, first=true) }}
+{% endif %}
+{% if _ibi_ignition_override is defined %}
+ignitionConfigOverride: '{{ _ibi_ignition_override }}'
+{% endif %}
+{% if host_ocp4_ibi_image_digest_sources | default([]) | length > 0 %}
+imageDigestSources:
+{% for source in host_ocp4_ibi_image_digest_sources %}
+  - source: "{{ source.source }}"
+    mirrors:
+{% for mirror in source.mirrors %}
+      - "{{ mirror }}"
+{% endfor %}
+{% endfor %}
+{% endif %}

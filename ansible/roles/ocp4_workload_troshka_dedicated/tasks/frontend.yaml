@@ -1,0 +1,51 @@
+---
+- name: Deploy frontend
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: troshka-frontend
+        namespace: "{{ troshka_namespace }}"
+        labels:
+          app.kubernetes.io/name: troshka-frontend
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app.kubernetes.io/name: troshka-frontend
+        template:
+          metadata:
+            labels:
+              app.kubernetes.io/name: troshka-frontend
+          spec:
+            containers:
+              - name: frontend
+                image: "{{ troshka_frontend_image }}"
+                ports:
+                  - containerPort: 3000
+                env:
+                  - name: BACKEND_URL
+                    value: "http://troshka-backend.{{ troshka_namespace }}.svc:8200"
+                resources:
+                  requests:
+                    cpu: "{{ troshka_frontend_cpu_request }}"
+                  limits:
+                    memory: "{{ troshka_frontend_memory_limit }}"
+
+- name: Create frontend Service
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: troshka-frontend
+        namespace: "{{ troshka_namespace }}"
+      spec:
+        selector:
+          app.kubernetes.io/name: troshka-frontend
+        ports:
+          - port: 3000
+            targetPort: 3000

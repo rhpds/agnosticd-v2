@@ -1,0 +1,363 @@
+---
+# OCP Image-Based Install (IBI) — deploys a SNO from a pre-captured seed image.
+# Supported platforms: Troshka (KVM) and OCP Virt only (requires ISO boot).
+#
+# Flow:
+#   1. Generate installation ISO from seed image
+#   2. Boot target VM from ISO via Redfish BMC
+#   3. Wait for RHCOS install + seed restore
+#   4. Generate configuration ISO with site-specific details
+#   5. Attach config ISO, reboot
+#   6. Wait for cluster to come up
+
+- name: Validate IBI parameters
+  ansible.builtin.assert:
+    that:
+      - host_ocp4_ibi_seed_image | length > 0
+      - host_ocp4_ibi_seed_version | length > 0
+    fail_msg: "host_ocp4_ibi_seed_image and host_ocp4_ibi_seed_version are required"
+
+- name: Check if cluster already installed
+  ansible.builtin.command:
+    cmd: oc --kubeconfig={{ host_ocp4_ibi_install_dir }}/auth/kubeconfig cluster-info
+  register: _ibi_cluster_info
+  failed_when: false
+  changed_when: false
+
+- name: Install OCP via IBI
+  when: _ibi_cluster_info.rc != 0
+  block:
+    - name: Determine OCP version URLs
+      ansible.builtin.set_fact:
+        _ocp_install_url: >-
+          {{ host_ocp4_installer_root_url }}/stable-{{ host_ocp4_installer_version }}/openshift-install-linux.tar.gz
+        _ocp_client_url: >-
+          {{ host_ocp4_installer_root_url }}/stable-{{ host_ocp4_installer_version }}/openshift-client-linux.tar.gz
+
+    - name: Download openshift-install
+      ansible.builtin.unarchive:
+        src: "{{ _ocp_install_url }}"
+        dest: /usr/bin
+        remote_src: true
+        creates: /usr/bin/openshift-install
+      retries: 3
+      delay: 10
+
+    - name: Download oc client
+      ansible.builtin.unarchive:
+        src: "{{ _ocp_client_url }}"
+        dest: /usr/bin
+        remote_src: true
+        creates: /usr/bin/oc
+      retries: 3
+      delay: 10
+
+    - name: Get deployed topology from Troshka
+      troshka.cloud.project_info:
+        api_url: "{{ troshka_api_url }}"
+        api_key: "{{ troshka_api_key }}"
+        project_id: "{{ troshka_project_id }}"
+      register: _project_topo
+      delegate_to: localhost
+      become: false
+
+    - name: Find target SNO VM in topology
+      ansible.builtin.set_fact:
+        _ibi_target_vm: >-
+          {{ _project_topo.topology.nodes
+             | selectattr('type', 'equalto', 'vmNode')
+             | selectattr('data.os', 'equalto', 'blank')
+             | selectattr('data.bmcEnabled', 'defined')
+             | first | default({}) }}
+
+    - name: Set IBI target facts
+      ansible.builtin.set_fact:
+        _ibi_target_ip: "{{ _ibi_target_vm.data.nics[0].ip }}"
+        _ibi_target_mac: "{{ _ibi_target_vm.data.nics[0].mac }}"
+        _ibi_target_hostname: "{{ _ibi_target_vm.data.name | default('sno') }}"
+        _ibi_bmc_ip: "{{ _ibi_target_vm.data.bmcIp }}"
+        _ibi_bmc_port: "{{ _ibi_target_vm.data.bmcPort | default(8000) }}"
+
+    - name: Build network config (NMState format)
+      ansible.builtin.set_fact:
+        _ibi_network_config: |
+          interfaces:
+            - name: enp1s0
+              type: ethernet
+              state: up
+              mac-address: "{{ _ibi_target_mac }}"
+              ipv4:
+                dhcp: false
+                enabled: true
+                address:
+                  - ip: {{ _ibi_target_ip }}
+                    prefix-length: {{ host_ocp4_machine_network_cidr | ansible.utils.ipaddr('prefix') }}
+              ipv6:
+                enabled: false
+          dns-resolver:
+            config:
+              server:
+                - {{ host_ocp4_machine_network_cidr | ansible.utils.ipaddr('1') | ansible.utils.ipaddr('address') }}
+          routes:
+            config:
+              - destination: 0.0.0.0/0
+                next-hop-address: {{ host_ocp4_machine_network_cidr | ansible.utils.ipaddr('1') | ansible.utils.ipaddr('address') }}
+                next-hop-interface: enp1s0
+
+    # ── Phase 1: Generate installation ISO ──────────────────────────────────
+    - name: Create IBI install directory
+      ansible.builtin.file:
+        path: "{{ host_ocp4_ibi_install_dir }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        mode: "0755"
+
+    - name: Generate ignition config override for debugging
+      when: host_ocp4_ibi_debug_password | default('') | length > 0
+      block:
+        - name: Hash debug password
+          ansible.builtin.shell:
+            cmd: >-
+              python3 -c "import crypt; print(crypt.crypt('{{ host_ocp4_ibi_debug_password }}', crypt.mksalt(crypt.METHOD_SHA512)))"
+          register: _ibi_password_hash
+          changed_when: false
+          no_log: true
+
+        - name: Build ignition override JSON
+          ansible.builtin.set_fact:
+            _ibi_ignition_override: >-
+              {"ignition":{"version":"3.2.0"},"passwd":{"users":[{"name":"root","passwordHash":"{{ _ibi_password_hash.stdout }}"}]}}
+          no_log: true
+
+    - name: Generate image-based-installation-config.yaml
+      ansible.builtin.template:
+        src: image-based-installation-config.yaml.j2
+        dest: "{{ host_ocp4_ibi_install_dir }}/image-based-installation-config.yaml"
+        owner: "{{ ansible_user }}"
+        mode: "0644"
+
+    - name: Create installation ISO
+      ansible.builtin.shell:
+        cmd: >-
+          openshift-install image-based create image
+          --dir {{ host_ocp4_ibi_install_dir }} --log-level debug
+          2>&1 | tee -a ~{{ ansible_user }}/ibi-install.log
+      become_user: "{{ ansible_user }}"
+      register: _ibi_create_iso
+      changed_when: true
+
+    - name: Copy SSH private key to bastion for SNO access
+      ansible.builtin.copy:
+        content: "{{ ssh_provision_key_content | default('') }}\n"
+        dest: "/home/{{ ansible_user }}/.ssh/ibi_key"
+        owner: "{{ ansible_user }}"
+        mode: "0600"
+      when: ssh_provision_key_content | default('') | length > 0
+
+    # ── Phase 2: Boot from installation ISO ─────────────────────────────────
+    - name: Open HTTP port
+      ansible.builtin.shell:
+        cmd: >-
+          firewall-cmd --add-port={{ host_ocp4_iso_http_port }}/tcp &&
+          firewall-cmd --add-port={{ host_ocp4_iso_http_port }}/tcp --permanent
+      changed_when: true
+      failed_when: false
+
+    - name: Start HTTP server for ISO
+      ansible.builtin.shell:
+        cmd: >-
+          cd {{ host_ocp4_ibi_install_dir }} &&
+          nohup python3 -m http.server {{ host_ocp4_iso_http_port }}
+          > /tmp/ibi-http.log 2>&1 &
+          echo $!
+      register: _http_pid
+      changed_when: true
+
+    - name: Set bastion IP for ISO serving
+      ansible.builtin.set_fact:
+        _bastion_ip: "{{ ansible_facts['default_ipv4']['address'] | default(ansible_host) }}"
+
+    - name: Build BMC IP list
+      ansible.builtin.set_fact:
+        _bmc_ip_list: "{{ host_ocp4_bmc_ips if host_ocp4_bmc_ips | length > 0 else [_ibi_bmc_ip] }}"
+
+    - name: Boot target VM from installation ISO via BMC
+      ansible.builtin.include_tasks: boot_via_bmc.yml
+      loop: "{{ _bmc_ip_list }}"
+      loop_control:
+        loop_var: _bmc_ip
+
+    - name: Wait for IBI seed restore to complete
+      ansible.builtin.shell:
+        cmd: >-
+          ssh -i /home/{{ ansible_user }}/.ssh/ibi_key
+          -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5
+          core@{{ _ibi_target_ip }}
+          "journalctl -u install-rhcos-and-restore-seed --no-pager -q 2>/dev/null | tail -3"
+          2>&1
+      register: _ibi_seed_check
+      until: >-
+        'finished successfully' in (_ibi_seed_check.stdout | default(''))
+        or 'IBI preparation process finished' in (_ibi_seed_check.stdout | default(''))
+      retries: 80
+      delay: 15
+      changed_when: false
+
+    # ── Phase 3: Generate and attach configuration ISO ──────────────────────
+    - name: Create IBI config directory
+      ansible.builtin.file:
+        path: "{{ host_ocp4_ibi_config_dir }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        mode: "0755"
+
+    - name: Generate install-config.yaml for config ISO
+      ansible.builtin.template:
+        src: install-config.yaml.j2
+        dest: "{{ host_ocp4_ibi_config_dir }}/install-config.yaml"
+        owner: "{{ ansible_user }}"
+        mode: "0644"
+
+    - name: Generate image-based-config.yaml
+      ansible.builtin.template:
+        src: image-based-config.yaml.j2
+        dest: "{{ host_ocp4_ibi_config_dir }}/image-based-config.yaml"
+        owner: "{{ ansible_user }}"
+        mode: "0644"
+
+    - name: Create configuration ISO
+      ansible.builtin.shell:
+        cmd: >-
+          openshift-install image-based create config-image
+          --dir {{ host_ocp4_ibi_config_dir }} --log-level debug
+          2>&1 | tee -a ~{{ ansible_user }}/ibi-install.log
+      become_user: "{{ ansible_user }}"
+      register: _ibi_config_iso
+      changed_when: true
+
+    - name: Eject installation ISO from BMC
+      ansible.builtin.include_tasks: eject_iso.yml
+      loop: "{{ _bmc_ip_list }}"
+      loop_control:
+        loop_var: _bmc_ip
+
+    - name: Serve config ISO via HTTP
+      ansible.builtin.shell:
+        cmd: >-
+          cp {{ host_ocp4_ibi_config_dir }}/imagebasedconfig.iso
+          {{ host_ocp4_ibi_install_dir }}/imagebasedconfig.iso
+      changed_when: true
+
+    - name: Power off VM before attaching config ISO
+      ansible.builtin.uri:
+        url: "http://{{ _bmc_ip_list[0] }}:{{ _ibi_bmc_port }}/redfish/v1/Systems"
+        user: "{{ host_ocp4_bmc_user }}"
+        password: "{{ host_ocp4_bmc_password }}"
+        force_basic_auth: true
+        return_content: true
+      register: _sys_for_off
+
+    - name: Send ForceOff to VM
+      ansible.builtin.uri:
+        url: "http://{{ _bmc_ip_list[0] }}:{{ _ibi_bmc_port }}/redfish/v1/Systems/{{ _sys_for_off.json.Members[0]['@odata.id'].split('/')[-1] }}/Actions/ComputerSystem.Reset"
+        method: POST
+        user: "{{ host_ocp4_bmc_user }}"
+        password: "{{ host_ocp4_bmc_password }}"
+        force_basic_auth: true
+        body_format: json
+        body:
+          ResetType: ForceOff
+        status_code: [200, 204]
+      failed_when: false
+
+    - name: Wait for VM to power off
+      ansible.builtin.pause:
+        seconds: 10
+
+    - name: Eject any existing virtual media before config ISO
+      ansible.builtin.include_tasks: eject_iso.yml
+      loop: "{{ _bmc_ip_list }}"
+      loop_control:
+        loop_var: _bmc_ip
+
+    - name: Insert config ISO and power on VM
+      ansible.builtin.include_tasks: boot_via_bmc.yml
+      loop: "{{ _bmc_ip_list }}"
+      loop_control:
+        loop_var: _bmc_ip
+      vars:
+        _bmc_iso_name: imagebasedconfig.iso
+
+    # ── Phase 4: Wait for cluster ready ─────────────────────────────────────
+    - name: Wait for OCP cluster to come up
+      ansible.builtin.shell:
+        cmd: >-
+          oc --kubeconfig={{ host_ocp4_ibi_config_dir }}/auth/kubeconfig
+          get clusterversion version
+          -o jsonpath='{.status.conditions[?(@.type=="Available")].status}'
+          2>/dev/null
+      register: _ibi_cluster_ready
+      until: _ibi_cluster_ready.stdout == "True"
+      retries: 60
+      delay: 30
+      changed_when: false
+
+    - name: Eject config ISO from BMC
+      ansible.builtin.include_tasks: eject_iso.yml
+      loop: "{{ _bmc_ip_list }}"
+      loop_control:
+        loop_var: _bmc_ip
+
+    - name: Stop HTTP server
+      ansible.builtin.shell:
+        cmd: kill {{ _http_pid.stdout | trim }} 2>/dev/null || true
+      changed_when: false
+
+# ── Set up kubeconfig (runs regardless of whether install was needed) ─────
+- name: Set up kubeconfig
+  block:
+    - name: Check for kubeconfig in config dir
+      ansible.builtin.stat:
+        path: "{{ host_ocp4_ibi_config_dir }}/auth/kubeconfig"
+      register: _ibi_config_kubeconfig
+
+    - name: Set kubeconfig source
+      ansible.builtin.set_fact:
+        _ibi_kubeconfig_src: >-
+          {{ host_ocp4_ibi_config_dir }}/auth/kubeconfig
+          if _ibi_config_kubeconfig.stat.exists
+          else host_ocp4_ibi_install_dir ~ '/auth/kubeconfig'
+
+    - name: Create .kube directory
+      ansible.builtin.file:
+        path: "~{{ item }}/.kube"
+        state: directory
+        owner: "{{ item }}"
+        mode: "0700"
+      loop:
+        - "{{ ansible_user }}"
+        - root
+
+    - name: Copy kubeconfig
+      ansible.builtin.copy:
+        src: "{{ _ibi_kubeconfig_src }}"
+        dest: "~{{ item }}/.kube/config"
+        remote_src: true
+        owner: "{{ item }}"
+        mode: "0600"
+      loop:
+        - "{{ ansible_user }}"
+        - root
+
+    - name: Read cluster version
+      ansible.builtin.shell:
+        cmd: oc get clusterversion version -o jsonpath='{.status.desired.version}'
+      register: _ibi_version
+      changed_when: false
+
+    - name: Display cluster info
+      ansible.builtin.debug:
+        msg:
+          - "IBI SNO cluster installed successfully"
+          - "Version: {{ _ibi_version.stdout }}"
+          - "Console: https://console-openshift-console.apps.{{ host_ocp4_cluster_name }}.{{ host_ocp4_base_domain }}"
