@@ -16,7 +16,12 @@
             containers:
               - name: migrate
                 image: "{{ troshka_backend_image }}"
-                command: ["python3", "-m", "alembic", "upgrade", "head"]
+                command:
+                  - /bin/sh
+                  - -c
+                  - |
+                    python3 -c "from app.core.database import engine, Base; from app.models import *; Base.metadata.create_all(bind=engine)"
+                    python3 -m alembic stamp head
                 env:
                   - name: TROSHKA_DATABASE__URL
                     valueFrom:
