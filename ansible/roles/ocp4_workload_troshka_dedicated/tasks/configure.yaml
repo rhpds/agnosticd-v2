@@ -69,4 +69,4 @@
       troshka_url: "https://{{ _troshka_route_host }}"
     msg: |-
       Troshka URL: https://{{ _troshka_route_host }}
-      Login with your OpenShift credentials.
+      Login with your SSO credentials.
