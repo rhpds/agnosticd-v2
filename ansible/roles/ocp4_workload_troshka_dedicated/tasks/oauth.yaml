@@ -72,8 +72,7 @@
                   - --openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
                   - --pass-user-headers=true
                   - --pass-access-token=false
-                  - --skip-auth-regex=^/api/v1/health
-                  - --skip-auth-regex=^/api/v1/auth/config
+                  - --skip-auth-regex=^/api/v1/
                 volumeMounts:
                   - name: tls
                     mountPath: /etc/tls/private

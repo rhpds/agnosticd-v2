@@ -49,30 +49,31 @@
       delay: 15
 
     - name: Create library items via API
-      kubernetes.core.k8s_exec:
-        namespace: "{{ troshka_namespace }}"
-        pod: "{{ _backend_pod }}"
-        container: backend
-        command: >-
-          curl -sf -X POST http://localhost:8200/api/v1/library/
-          -H "Content-Type: application/json"
-          -H "X-Forwarded-Email: {{ _requester_identity }}"
-          -H "X-Forwarded-User: {{ _requester_identity }}"
-          -d '{"name":"{{ item.name }}","type":"{{ item.type }}","format":"{{ item.format }}"}'
+      ansible.builtin.uri:
+        url: "{{ _troshka_api }}/library/"
+        method: POST
+        headers: "{{ _api_headers }}"
+        body_format: json
+        body:
+          name: "{{ item.name }}"
+          type: "{{ item.type }}"
+          format: "{{ item.format }}"
+        status_code: [200, 201]
+        validate_certs: false
       register: _lib_items
       loop: "{{ troshka_seed_images }}"
 
     - name: Finalize seed items
-      kubernetes.core.k8s_exec:
-        namespace: "{{ troshka_namespace }}"
-        pod: "{{ _backend_pod }}"
-        container: backend
-        command: >-
-          curl -sf -X POST http://localhost:8200/api/v1/library/{{ (item.stdout | from_json).id }}/finalize-seed
-          -H "Content-Type: application/json"
-          -H "X-Forwarded-Email: {{ _requester_identity }}"
-          -H "X-Forwarded-User: {{ _requester_identity }}"
-          -d '{"seed_key":"seed/{{ troshka_seed_images[idx].s3_object }}","tags":{{ troshka_seed_images[idx].tags | default([]) | to_json }}}'
+      ansible.builtin.uri:
+        url: "{{ _troshka_api }}/library/{{ item.json.id }}/finalize-seed"
+        method: POST
+        headers: "{{ _api_headers }}"
+        body_format: json
+        body:
+          seed_key: "seed/{{ troshka_seed_images[idx].s3_object }}"
+          tags: "{{ troshka_seed_images[idx].tags | default([]) }}"
+        status_code: [200, 201]
+        validate_certs: false
       loop: "{{ _lib_items.results }}"
       loop_control:
         index_var: idx
