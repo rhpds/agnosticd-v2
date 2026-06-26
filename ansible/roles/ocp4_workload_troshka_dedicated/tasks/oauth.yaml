@@ -25,6 +25,36 @@
       stringData:
         cookie-secret: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode }}"
 
+- name: Create OAuth proxy Service (triggers serving cert generation)
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: troshka-oauth-proxy
+        namespace: "{{ troshka_namespace }}"
+        annotations:
+          service.beta.openshift.io/serving-cert-secret-name: troshka-oauth-tls
+      spec:
+        selector:
+          app.kubernetes.io/name: troshka-oauth-proxy
+        ports:
+          - port: 8443
+            targetPort: 8443
+            name: proxy
+
+- name: Wait for serving cert to be generated
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: troshka-oauth-tls
+    namespace: "{{ troshka_namespace }}"
+  register: _tls_secret
+  until: _tls_secret.resources | length > 0
+  retries: 30
+  delay: 5
+
 - name: Deploy OAuth proxy
   kubernetes.core.k8s:
     state: present
@@ -86,25 +116,6 @@
               - name: oauth-secrets
                 secret:
                   secretName: troshka-oauth-proxy  # pragma: allowlist secret
-
-- name: Create OAuth proxy Service
-  kubernetes.core.k8s:
-    state: present
-    definition:
-      apiVersion: v1
-      kind: Service
-      metadata:
-        name: troshka-oauth-proxy
-        namespace: "{{ troshka_namespace }}"
-        annotations:
-          service.beta.openshift.io/serving-cert-secret-name: troshka-oauth-tls
-      spec:
-        selector:
-          app.kubernetes.io/name: troshka-oauth-proxy
-        ports:
-          - port: 8443
-            targetPort: 8443
-            name: proxy
 
 - name: Create Route
   kubernetes.core.k8s:
