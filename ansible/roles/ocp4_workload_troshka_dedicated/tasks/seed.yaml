@@ -50,7 +50,7 @@
 
     - name: Create library items via API
       ansible.builtin.uri:
-        url: "{{ _troshka_api }}/library"
+        url: "{{ _troshka_api }}/library/"
         method: POST
         headers: "{{ _api_headers }}"
         body_format: json
