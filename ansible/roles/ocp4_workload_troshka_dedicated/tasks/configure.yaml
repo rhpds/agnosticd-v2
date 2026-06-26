@@ -62,4 +62,11 @@
   until: _host_status.json.state == "connected"
   retries: 60
   delay: 15
-  # ~15 min timeout for VM provision + boot + troshkad install
+
+- name: Set user info for catalog UI
+  agnosticd.core.agnosticd_user_info:
+    data:
+      troshka_url: "https://{{ _troshka_route_host }}"
+    msg: |-
+      Troshka URL: https://{{ _troshka_route_host }}
+      Login with your OpenShift credentials.
