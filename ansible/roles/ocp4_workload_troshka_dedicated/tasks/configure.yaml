@@ -23,7 +23,7 @@
 
 - name: Register OCP Virt provider
   ansible.builtin.uri:
-    url: "{{ _troshka_api }}/providers/"
+    url: "{{ _troshka_api }}/providers"
     method: POST
     headers: "{{ _api_headers }}"
     body_format: json
@@ -41,7 +41,7 @@
 
 - name: Create agent host
   ansible.builtin.uri:
-    url: "{{ _troshka_api }}/hosts/"
+    url: "{{ _troshka_api }}/hosts"
     method: POST
     headers: "{{ _api_headers }}"
     body_format: json
@@ -58,7 +58,7 @@
 
 - name: Wait for host to connect
   ansible.builtin.uri:
-    url: "{{ _troshka_api }}/hosts/{{ _host.json.id }}"
+    url: "{{ _troshka_api }}/hosts{{ _host.json.id }}"
     method: GET
     headers: "{{ _api_headers }}"
     validate_certs: false
