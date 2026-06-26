@@ -2,8 +2,8 @@
 # Action: provision or remove
 ACTION: provision
 
-# Namespace (set by agnosticv, typically guid-based)
-troshka_namespace: "troshka-{{ guid }}"
+# Namespace — use the sandbox-provisioned namespace
+troshka_namespace: "{{ sandbox_openshift_namespace }}"
 
 # Container images
 troshka_backend_image: "quay.io/redhat-gpte/troshka-backend:latest"
