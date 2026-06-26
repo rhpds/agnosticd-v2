@@ -1,18 +1,8 @@
 ---
-- name: Get cluster apps domain
-  kubernetes.core.k8s_info:
-    api_version: config.openshift.io/v1
-    kind: Ingress
-    name: cluster
-  register: _ingress_config
-
-- name: Set cluster apps domain
+- name: Set cluster apps domain and requester identity
   ansible.builtin.set_fact:
-    _cluster_apps_domain: "{{ _ingress_config.resources[0].spec.domain }}"
-    _troshka_route_host: "troshka-{{ troshka_namespace }}.{{ _ingress_config.resources[0].spec.domain }}"
-
-- name: Set requester identity
-  ansible.builtin.set_fact:
+    _cluster_apps_domain: "{{ sandbox_openshift_apps_domain }}"
+    _troshka_route_host: "troshka-{{ troshka_namespace }}.{{ sandbox_openshift_apps_domain }}"
     _requester_identity: "{{ requester_email | default(user) | default('admin@troshka') }}"
 
 - name: Create backend ConfigMap
