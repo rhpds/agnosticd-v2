@@ -1,18 +1,34 @@
 ---
-- name: Set Troshka API base URL
+- name: Set Troshka route URL and requester identity
   ansible.builtin.set_fact:
     _troshka_api: "https://{{ _troshka_route_host }}/api/v1"
-    _api_headers:
-      Content-Type: "application/json"
-      X-Forwarded-Email: "{{ _requester_identity }}"
-      X-Forwarded-User: "{{ _requester_identity }}"
+
+- name: Get backend pod name
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: "{{ troshka_namespace }}"
+    label_selectors:
+      - app.kubernetes.io/name=troshka-backend
+    field_selectors:
+      - status.phase=Running
+  register: _backend_pods
+  until: _backend_pods.resources | length > 0
+  retries: 30
+  delay: 10
+
+- name: Set backend pod name
+  ansible.builtin.set_fact:
+    _backend_pod: "{{ _backend_pods.resources[0].metadata.name }}"
 
 - name: Wait for backend health
-  ansible.builtin.uri:
-    url: "{{ _troshka_api }}/health"
-    validate_certs: false
+  kubernetes.core.k8s_exec:
+    namespace: "{{ troshka_namespace }}"
+    pod: "{{ _backend_pod }}"
+    container: backend
+    command: curl -sf http://localhost:8200/api/v1/health
   register: _health
-  until: _health.status == 200
+  until: _health.return_code == 0
   retries: 30
   delay: 10
   ignore_errors: true
@@ -22,55 +38,57 @@
     _cluster_api_url: "{{ sandbox_openshift_api_url | default(lookup('env', 'K8S_AUTH_HOST')) }}"
 
 - name: Register OCP Virt provider
-  ansible.builtin.uri:
-    url: "{{ _troshka_api }}/providers/"
-    method: POST
-    headers: "{{ _api_headers }}"
-    body_format: json
-    body:
-      name: "Local OCP Virt"
-      type: "ocpvirt"
-      default_region: "{{ troshka_namespace }}"
-      default_image: "rhel10"
-      token: "{{ _troshka_sa_token }}"
-      namespace: "{{ troshka_namespace }}"
-      api_url: "{{ _cluster_api_url }}"
-    status_code: [200, 201]
-    validate_certs: false
-    follow_redirects: all
-  register: _provider
+  kubernetes.core.k8s_exec:
+    namespace: "{{ troshka_namespace }}"
+    pod: "{{ _backend_pod }}"
+    container: backend
+    command: >-
+      curl -sf -X POST http://localhost:8200/api/v1/providers/
+      -H "Content-Type: application/json"
+      -H "X-Forwarded-Email: {{ _requester_identity }}"
+      -d '{"name":"Local OCP Virt","type":"ocpvirt","default_region":"{{ troshka_namespace }}","default_image":"rhel10","token":"{{ _troshka_sa_token }}","namespace":"{{ troshka_namespace }}","api_url":"{{ _cluster_api_url }}"}'
+  register: _provider_result
+  failed_when: _provider_result.return_code != 0
+
+- name: Parse provider response
+  ansible.builtin.set_fact:
+    _provider_id: "{{ (_provider_result.stdout | from_json).id }}"
 
 - name: Create agent host
-  ansible.builtin.uri:
-    url: "{{ _troshka_api }}/hosts/"
-    method: POST
-    headers: "{{ _api_headers }}"
-    body_format: json
-    body:
-      provider_id: "{{ _provider.json.id }}"
-      name: "dedicated-host"
-      instance_type: "{{ troshka_host_vcpus }}c-{{ troshka_host_memory_gb }}g"
-      disk_gb: "{{ troshka_host_disk_gb }}"
-    status_code: [200, 201]
-    validate_certs: false
-    follow_redirects: all
-    validate_certs: false
-    follow_redirects: all
-  register: _host
+  kubernetes.core.k8s_exec:
+    namespace: "{{ troshka_namespace }}"
+    pod: "{{ _backend_pod }}"
+    container: backend
+    command: >-
+      curl -sf -X POST http://localhost:8200/api/v1/hosts/
+      -H "Content-Type: application/json"
+      -H "X-Forwarded-Email: {{ _requester_identity }}"
+      -d '{"provider_id":"{{ _provider_id }}","name":"dedicated-host","instance_type":"{{ troshka_host_vcpus }}c-{{ troshka_host_memory_gb }}g","disk_gb":{{ troshka_host_disk_gb }}}'
+  register: _host_result
+  failed_when: _host_result.return_code != 0
+
+- name: Parse host response
+  ansible.builtin.set_fact:
+    _host_id: "{{ (_host_result.stdout | from_json).id }}"
 
 - name: Wait for host to connect
-  ansible.builtin.uri:
-    url: "{{ _troshka_api }}/hosts/{{ _host.json.id }}"
-    method: GET
-    headers: "{{ _api_headers }}"
-    validate_certs: false
-    follow_redirects: all
+  kubernetes.core.k8s_exec:
+    namespace: "{{ troshka_namespace }}"
+    pod: "{{ _backend_pod }}"
+    container: backend
+    command: >-
+      curl -sf http://localhost:8200/api/v1/hosts/{{ _host_id }}
+      -H "X-Forwarded-Email: {{ _requester_identity }}"
   register: _host_status
-  until: _host_status.json.agent_status == "connected"
+  until: (_host_status.stdout | from_json).agent_status == "connected"
   retries: 80
   delay: 15
 
-## TEMP: replaced for local testing — restore agnosticd.core.agnosticd_user_info before commit
 - name: Set user info for catalog UI
-  ansible.builtin.debug:
-    msg: "Troshka URL: https://{{ _troshka_route_host }}"
+  agnosticd.core.agnosticd_user_info:
+    data:
+      troshka_url: "https://{{ _troshka_route_host }}"
+    msg: |-
+      Troshka URL: https://{{ _troshka_route_host }}
+      Login with your SSO credentials.
+  tags: [user_info]

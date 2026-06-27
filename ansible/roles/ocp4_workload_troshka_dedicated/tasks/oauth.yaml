@@ -120,7 +120,8 @@
                   - --openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
                   - --pass-user-headers=true
                   - --pass-access-token=false
-                  - --skip-auth-regex=^/api/v1/
+                  - --skip-auth-regex=^/api/v1/health$
+                  - --skip-auth-regex=^/api/v1/auth/config$
                   - --upstream-timeout=600s
                 volumeMounts:
                   - name: tls
