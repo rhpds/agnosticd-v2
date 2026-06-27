@@ -49,9 +49,7 @@
     body:
       provider_id: "{{ _provider.json.id }}"
       name: "dedicated-host"
-      instance_type: "custom"
-      vcpus: "{{ troshka_host_vcpus }}"
-      memory_gb: "{{ troshka_host_memory_gb }}"
+      instance_type: "{{ troshka_host_vcpus }}c-{{ troshka_host_memory_gb }}g"
       disk_gb: "{{ troshka_host_disk_gb }}"
     status_code: [200, 201]
     validate_certs: false
