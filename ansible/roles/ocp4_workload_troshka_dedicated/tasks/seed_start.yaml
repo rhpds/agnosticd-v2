@@ -1,0 +1,31 @@
+---
+- name: Start seed download job (runs in background while other tasks proceed)
+  when: troshka_seed_minio_endpoint | default('') != '' and troshka_seed_images | length > 0
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: "troshka-seed-library"
+        namespace: "{{ troshka_namespace }}"
+      spec:
+        ttlSecondsAfterFinished: 600
+        template:
+          spec:
+            restartPolicy: Never
+            containers:
+              - name: seed
+                image: quay.io/minio/mc:latest
+                command:
+                  - /bin/sh
+                  - -c
+                  - |
+                    export HOME=/tmp
+                    mc alias set central {{ troshka_seed_minio_endpoint }} {{ troshka_seed_minio_access_key }} {{ troshka_seed_minio_secret_key }}
+                    mc alias set local http://troshka-minio:9000 {{ _minio_root_user }} {{ _minio_root_password }}
+                    {% for img in troshka_seed_images %}
+                    echo "Copying {{ img.s3_object }}..."
+                    mc cp central/{{ troshka_seed_minio_bucket }}/{{ img.s3_object }} local/troshka-images/seed/{{ img.s3_object }}
+                    {% endfor %}
+                    echo "Seed copy complete"

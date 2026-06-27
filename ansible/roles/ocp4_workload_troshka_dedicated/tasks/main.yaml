@@ -5,6 +5,7 @@
     - ansible.builtin.include_tasks: serviceaccount.yaml
     - ansible.builtin.include_tasks: postgres.yaml
     - ansible.builtin.include_tasks: minio.yaml
+    - ansible.builtin.include_tasks: seed_start.yaml
     - ansible.builtin.include_tasks: secrets.yaml
     - ansible.builtin.include_tasks: backend.yaml
     - ansible.builtin.include_tasks: migrate.yaml
