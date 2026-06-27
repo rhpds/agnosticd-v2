@@ -17,13 +17,27 @@
           -H "X-Forwarded-Email: {{ _requester_identity }}"
       register: _existing_library
 
-    - name: Parse existing items
+    - name: Build existing items lookup
       ansible.builtin.set_fact:
-        _existing_names: "{{ (_existing_library.stdout | from_json) | map(attribute='name') | list }}"
+        _existing_by_name: "{{ dict((_existing_library.stdout | from_json) | map(attribute='name') | zip(_existing_library.stdout | from_json)) }}"
 
     - name: Determine which images need seeding
       ansible.builtin.set_fact:
-        _images_to_seed: "{{ troshka_seed_images | rejectattr('name', 'in', _existing_names) | list }}"
+        _images_to_seed: "{{ troshka_seed_images | rejectattr('name', 'in', _existing_by_name.keys() | list) | list }}"
+
+    - name: Update tags on existing items
+      kubernetes.core.k8s_exec:
+        namespace: "{{ troshka_namespace }}"
+        pod: "{{ _backend_pod }}"
+        container: backend
+        command: >-
+          curl -sf -X PATCH http://localhost:8200/api/v1/library/{{ _existing_by_name[item.name].id }}
+          -H "Content-Type: application/json"
+          -H "X-Forwarded-Email: {{ _requester_identity }}"
+          -d '{"tags":{"{{ item.tags[0] }}":true}}'
+      loop: "{{ troshka_seed_images | selectattr('name', 'in', _existing_by_name.keys() | list) | list }}"
+      when: item.tags | default([]) | length > 0
+      ignore_errors: true
 
     - name: Run seed job for missing images
       when: _images_to_seed | length > 0
@@ -98,4 +112,4 @@
 
     - name: Report seed status
       ansible.builtin.debug:
-        msg: "{{ _images_to_seed | length }} new images seeded, {{ _existing_names | intersect(troshka_seed_images | map(attribute='name') | list) | length }} already existed"
+        msg: "{{ _images_to_seed | length }} new, {{ troshka_seed_images | length - _images_to_seed | length }} already existed"
