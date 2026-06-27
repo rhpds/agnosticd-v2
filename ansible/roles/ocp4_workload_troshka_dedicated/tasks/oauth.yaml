@@ -32,7 +32,6 @@
       secret: "{{ _oauth_client_secret }}"
       redirectURIs:
         - "https://{{ _troshka_route_host }}/oauth/callback"
-  ignore_errors: true
 
 - name: Create OAuth proxy secret
   kubernetes.core.k8s:
