@@ -11,6 +11,7 @@
     - ansible.builtin.include_tasks: frontend.yaml
     - ansible.builtin.include_tasks: oauth.yaml
     - ansible.builtin.include_tasks: configure.yaml
+    - ansible.builtin.include_tasks: user_settings.yaml
     - ansible.builtin.include_tasks: seed.yaml
 
 - name: Run remove tasks

@@ -1,0 +1,14 @@
+---
+- name: Configure pull-through registry
+  when: pull_through_registry_url | default('') != ''
+  kubernetes.core.k8s_exec:
+    namespace: "{{ troshka_namespace }}"
+    pod: "{{ _backend_pod }}"
+    container: backend
+    command: >-
+      curl -sf -X PUT http://localhost:8200/api/v1/auth/ocp-pull-secret
+      -H "Content-Type: application/json"
+      -H "X-Forwarded-Email: {{ _requester_identity }}"
+      -d '{"pull_through_registry":true,"pull_through_registry_url":"{{ pull_through_registry_url }}","pull_through_registry_user":"{{ pull_through_registry_user }}","pull_through_registry_password":"{{ pull_through_registry_password }}"}'
+  register: _ptr_result
+  failed_when: _ptr_result.return_code != 0
