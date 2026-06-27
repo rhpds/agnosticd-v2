@@ -26,17 +26,9 @@
         template:
           spec:
             restartPolicy: Never
-            volumes:
-              - name: iso-pvc
-                persistentVolumeClaim:
-                  claimName: rhel-10.2-dvd-iso
             containers:
               - name: seed
                 image: quay.io/minio/mc:latest
-                volumeMounts:
-                  - name: iso-pvc
-                    mountPath: /mnt/iso
-                    readOnly: true
                 command:
                   - /bin/sh
                   - -c
@@ -45,13 +37,7 @@
                     mc alias set central {{ troshka_seed_minio_endpoint }} {{ troshka_seed_minio_access_key }} {{ troshka_seed_minio_secret_key }}
                     mc alias set local http://troshka-minio:9000 {{ _minio_root_user }} {{ _minio_root_password }}
                     {% for img in troshka_seed_images %}
-                    {% if img.format == 'iso' %}
-                    echo "Copying {{ img.s3_object }} from local ISO PVC..."
-                    ls -la /mnt/iso/
-                    mc cp /mnt/iso/disk.img local/troshka-images/seed/{{ img.s3_object }}
-                    {% else %}
-                    echo "Downloading {{ img.s3_object }} from central MinIO..."
+                    echo "Copying {{ img.s3_object }}..."
                     mc cp central/{{ troshka_seed_minio_bucket }}/{{ img.s3_object }} local/troshka-images/seed/{{ img.s3_object }}
-                    {% endif %}
                     {% endfor %}
                     echo "Seed copy complete"
