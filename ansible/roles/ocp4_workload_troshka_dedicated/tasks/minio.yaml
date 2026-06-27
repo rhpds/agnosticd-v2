@@ -88,6 +88,29 @@
             targetPort: 9001
             name: console
 
+- name: Create MinIO S3 Route
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: route.openshift.io/v1
+      kind: Route
+      metadata:
+        name: troshka-minio-s3
+        namespace: "{{ troshka_namespace }}"
+      spec:
+        host: "troshka-minio-{{ troshka_namespace }}.{{ sandbox_openshift_apps_domain }}"
+        to:
+          kind: Service
+          name: troshka-minio
+        port:
+          targetPort: s3
+        tls:
+          termination: edge
+
+- name: Set MinIO S3 endpoint URL
+  ansible.builtin.set_fact:
+    _minio_s3_endpoint: "https://troshka-minio-{{ troshka_namespace }}.{{ sandbox_openshift_apps_domain }}"
+
 - name: Wait for MinIO to be ready
   kubernetes.core.k8s_info:
     api_version: apps/v1

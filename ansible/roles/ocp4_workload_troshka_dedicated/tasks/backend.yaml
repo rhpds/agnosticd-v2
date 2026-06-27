@@ -29,7 +29,7 @@
             allowed_users: "{{ _requester_identity }}"
             operator_users: ""
           s3:
-            endpoint_url: "http://troshka-minio.{{ troshka_namespace }}.svc:9000"
+            endpoint_url: "{{ _minio_s3_endpoint }}"
             bucket: "troshka-images"
             region: "us-east-1"
           defaults:
