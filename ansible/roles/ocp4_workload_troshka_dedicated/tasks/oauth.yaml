@@ -12,26 +12,9 @@
           serviceaccounts.openshift.io/oauth-redirectreference.primary: >-
             {"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"troshka"}}
 
-- name: Generate OAuth secrets
+- name: Generate OAuth cookie secret
   ansible.builtin.set_fact:
-    _oauth_client_secret: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') }}"
     _oauth_cookie_secret: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode }}"
-
-- name: Create OAuthClient with auto-grant
-  kubernetes.core.k8s:
-    api_key: "{{ openshift_api_key | default(omit) }}"
-    host: "{{ sandbox_openshift_api_url | default(omit) }}"
-    validate_certs: false
-    state: present
-    definition:
-      apiVersion: oauth.openshift.io/v1
-      kind: OAuthClient
-      metadata:
-        name: "troshka-{{ troshka_namespace }}"
-      grantMethod: auto
-      secret: "{{ _oauth_client_secret }}"
-      redirectURIs:
-        - "https://{{ _troshka_route_host }}/oauth/callback"
 
 - name: Create OAuth proxy secret
   kubernetes.core.k8s:
@@ -44,7 +27,6 @@
         namespace: "{{ troshka_namespace }}"
       type: Opaque
       stringData:
-        client-secret: "{{ _oauth_client_secret }}"
         cookie-secret: "{{ _oauth_cookie_secret }}"
 
 - name: Create OAuth proxy Service (triggers serving cert generation)
@@ -114,8 +96,7 @@
                   - --tls-cert=/etc/tls/private/tls.crt
                   - --tls-key=/etc/tls/private/tls.key
                   - --cookie-secret-file=/etc/oauth/cookie-secret
-                  - --client-id=troshka-{{ troshka_namespace }}
-                  - --client-secret-file=/etc/oauth/client-secret
+                  - --client-id=system:serviceaccount:{{ troshka_namespace }}:troshka-sa
                   - --openshift-service-account=troshka-sa
                   - --openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
                   - --pass-user-headers=true
@@ -126,7 +107,7 @@
                 volumeMounts:
                   - name: tls
                     mountPath: /etc/tls/private
-                  - name: oauth-secrets
+                  - name: cookie-secret
                     mountPath: /etc/oauth
                 resources:
                   requests:
@@ -138,7 +119,7 @@
               - name: tls
                 secret:
                   secretName: troshka-oauth-tls  # pragma: allowlist secret
-              - name: oauth-secrets
+              - name: cookie-secret
                 secret:
                   secretName: troshka-oauth-proxy  # pragma: allowlist secret
 

@@ -1,17 +1,4 @@
 ---
-- name: Delete OAuthClient
-  kubernetes.core.k8s:
-    api_key: "{{ openshift_api_key | default(omit) }}"
-    host: "{{ sandbox_openshift_api_url | default(omit) }}"
-    validate_certs: false
-    state: absent
-    definition:
-      apiVersion: oauth.openshift.io/v1
-      kind: OAuthClient
-      metadata:
-        name: "troshka-{{ troshka_namespace }}"
-  ignore_errors: true
-
 - name: Delete namespace (cascading delete)
   kubernetes.core.k8s:
     state: absent
