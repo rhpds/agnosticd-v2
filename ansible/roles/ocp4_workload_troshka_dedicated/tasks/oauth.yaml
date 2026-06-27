@@ -110,6 +110,7 @@
                   - --provider=openshift
                   - --https-address=:8443
                   - --http-address=
+                  - --upstream=http://troshka-backend.{{ troshka_namespace }}.svc:8200/api/v1/
                   - --upstream=http://troshka-frontend.{{ troshka_namespace }}.svc:3000
                   - --tls-cert=/etc/tls/private/tls.crt
                   - --tls-key=/etc/tls/private/tls.key
