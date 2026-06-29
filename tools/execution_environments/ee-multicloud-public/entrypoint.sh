@@ -236,13 +236,21 @@ done
 # Execute based on AAP detection
 if (( AAP == 1 )); then
   log_debug "AAP environment detected. Running with fixed extra-vars"
-  /usr/local/bin/ansible-playbook ./ansible/install_dynamic_dependencies.yml -i /runner/inventory/hosts -e @/runner/env/extravars
+  if [ -f "${INSTALL_PLAYBOOK}" ]; then
+    /usr/local/bin/ansible-playbook "${INSTALL_PLAYBOOK}" -i /runner/inventory/hosts -e @/runner/env/extravars
+  else
+    log_debug "Install playbook ${INSTALL_PLAYBOOK} not found, skipping dynamic dependency install"
+  fi
 else
   # Only shift in non-AAP context -> Ansible Navigator
   shift 2
   log_debug "Non-AAP environment. Running with processed arguments"
   log_debug "Remaining arguments: $*"
-  /usr/local/bin/ansible-playbook ./ansible/install_dynamic_dependencies.yml "$@"
+  if [ -f "${INSTALL_PLAYBOOK}" ]; then
+    /usr/local/bin/ansible-playbook "${INSTALL_PLAYBOOK}" "$@"
+  else
+    log_debug "Install playbook ${INSTALL_PLAYBOOK} not found, skipping dynamic dependency install"
+  fi
 fi
 
 # Chain exec original command
