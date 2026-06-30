@@ -130,7 +130,7 @@
   - name: Call role to destroy the OpenShift cluster
     when:
     - bwait is successful
-    - host_ocp4_deploy_installation_method != 'rosa'
+    - host_ocp4_deploy_installation_method | default('openshift_install') != 'rosa'
     ansible.builtin.include_role:
       name: host_ocp4_destroy
 
@@ -144,7 +144,7 @@
     AWS_DEFAULT_REGION: "{{ aws_region_final | default(aws_region) }}"
   tasks:
   - name: Destroy ROSA cluster
-    when: host_ocp4_deploy_installation_method == 'rosa'
+    when: host_ocp4_deploy_installation_method | default('openshift_install') == 'rosa'
     ansible.builtin.include_role:
       name: host_ocp4_rosa_destroy
 
