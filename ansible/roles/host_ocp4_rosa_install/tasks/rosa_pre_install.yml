@@ -1,0 +1,114 @@
+---
+- name: Init AWS account for ROSA
+  ansible.builtin.command: >-
+    {{ rosa_binary_path }}/rosa init
+  changed_when: true
+
+- name: Get available ROSA regions
+  ansible.builtin.command: >-
+    {{ rosa_binary_path }}/rosa list regions --output json
+  register: r_rosa_regions
+  changed_when: false
+
+- name: Filter regions that support ROSA
+  ansible.builtin.set_fact:
+    _rosa_supported_regions: >-
+      {{ r_rosa_regions.stdout | from_json | json_query(_query) }}
+  vars:
+    _query: "[?supports_hypershift == `true`].id"
+
+- name: Print supported ROSA regions
+  ansible.builtin.debug:
+    msg: "Supported regions: {{ _rosa_supported_regions }}"
+
+- name: Verify requested region supports ROSA
+  when: aws_region not in _rosa_supported_regions
+  ansible.builtin.fail:
+    msg: >-
+      Region '{{ aws_region }}' does not support ROSA.
+      Supported regions: {{ _rosa_supported_regions | join(', ') }}
+
+- name: Get available ROSA versions
+  ansible.builtin.command: >-
+    {{ rosa_binary_path }}/rosa list versions --output json --hosted-cp
+  register: r_rosa_versions
+  changed_when: false
+
+- name: Set default ROSA version for {{ rosa_version_base }}
+  when: rosa_version == "default"
+  vars:
+    _query: >-
+      [?starts_with(id, '{{ rosa_version_base }}')
+      && (hosted_control_plane_default==`true` || default==`true`)] | [0]
+    _default_version: >-
+      {{ r_rosa_versions.stdout | from_json | community.general.json_query(_query) }}
+    _fallback_query: "[?starts_with(id, '{{ rosa_version_base }}')] | [0]"
+    _fallback_version: >-
+      {{ r_rosa_versions.stdout | from_json | community.general.json_query(_fallback_query) }}
+    _resolved: "{{ _default_version if _default_version else _fallback_version }}"
+  ansible.builtin.set_fact:
+    _rosa_version_to_install: "{{ _resolved.raw_id }}"
+    _rosa_ocp_cli_version: "{{ _resolved.raw_id }}"
+
+- name: Set specific ROSA version
+  when: rosa_version not in ("default", "latest", "latest-upgrade")
+  ansible.builtin.set_fact:
+    _rosa_version_to_install: "{{ rosa_version }}"
+    _rosa_ocp_cli_version: "{{ rosa_version }}"
+
+- name: Set latest ROSA version for {{ rosa_version_base }}
+  when: rosa_version == "latest"
+  vars:
+    _query: "[?starts_with(id, '{{ rosa_version_base }}')] | [0]"
+    _latest_version: >-
+      {{ r_rosa_versions.stdout | from_json | community.general.json_query(_query) }}
+  ansible.builtin.set_fact:
+    _rosa_version_to_install: "{{ _latest_version.raw_id }}"
+    _rosa_ocp_cli_version: "{{ _latest_version.raw_id }}"
+
+- name: Set latest upgradable ROSA version for {{ rosa_version_base }}
+  when: rosa_version == "latest-upgrade"
+  vars:
+    _query: "[?starts_with(id, '{{ rosa_version_base }}') && available_upgrades != `null`] | [0]"
+    _latest_upgrade_version: >-
+      {{ r_rosa_versions.stdout | from_json | community.general.json_query(_query) }}
+  block:
+  - name: Fail if no upgradable version found for {{ rosa_version_base }}
+    when: _latest_upgrade_version | default("") == ""
+    ansible.builtin.fail:
+      msg: "No upgradable version found for {{ rosa_version_base }}"
+
+  - name: Set upgradable version facts
+    ansible.builtin.set_fact:
+      _rosa_version_to_install: "{{ _latest_upgrade_version.raw_id }}"
+      _rosa_ocp_cli_version: "{{ _latest_upgrade_version.raw_id }}"
+      _rosa_version_next: "{{ _latest_upgrade_version.available_upgrades[0] }}"
+
+  rescue:
+  - name: Fallback to latest ROSA version for {{ rosa_version_base }}
+    vars:
+      _query: "[?starts_with(id, '{{ rosa_version_base }}')] | [0]"
+      _latest_version: >-
+        {{ r_rosa_versions.stdout | from_json | community.general.json_query(_query) }}
+    ansible.builtin.set_fact:
+      _rosa_version_to_install: "{{ _latest_version.raw_id }}"
+      _rosa_ocp_cli_version: "{{ _latest_version.raw_id }}"
+
+- name: Set cloud_tags_final if not already set
+  when: cloud_tags_final is not defined
+  ansible.builtin.include_role:
+    name: infra_cloud_tags
+
+- name: Convert cloud tags to comma-separated list for ROSA CLI
+  ansible.builtin.set_fact:
+    cloud_tags_list: >-
+      {% for k, v in cloud_tags_final.items() %}{{ k }} {{ v | replace(' ', '-') }}{% if not loop.last %}, {% endif %}{% endfor %}
+
+- name: Print ROSA version information
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+  loop:
+  - "ROSA version to install: {{ _rosa_version_to_install | default('default') }}"
+  - "ROSA upgrade target: {{ _rosa_version_next | default('not set') }}"
+  - "OCP CLI version: {{ _rosa_ocp_cli_version }}"
+  - "Cloud tags: {{ cloud_tags_list }}"

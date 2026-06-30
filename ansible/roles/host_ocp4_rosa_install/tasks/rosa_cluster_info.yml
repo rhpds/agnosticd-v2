@@ -1,0 +1,72 @@
+---
+- name: Determine Web console URL
+  delegate_to: localhost
+  kubernetes.core.k8s_info:
+    api_version: config.openshift.io/v1
+    kind: Console
+    name: cluster
+    kubeconfig: "{{ output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+  register: r_console
+  retries: 30
+  delay: 5
+  until:
+  - r_console.resources | length > 0
+  - r_console.resources[0].status.consoleURL | default('') | length > 0
+
+- name: Determine API server URL
+  delegate_to: localhost
+  kubernetes.core.k8s_info:
+    api_version: config.openshift.io/v1
+    kind: Infrastructure
+    name: cluster
+    kubeconfig: "{{ output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+  register: r_api
+  retries: 30
+  delay: 5
+  until:
+  - r_api.resources | length > 0
+  - r_api.resources[0].status.apiServerURL | default('') | length > 0
+
+- name: Determine OpenShift Ingress Domain
+  delegate_to: localhost
+  kubernetes.core.k8s_info:
+    api_version: config.openshift.io/v1
+    kind: Ingress
+    name: cluster
+    kubeconfig: "{{ output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+  register: r_ingress
+  retries: 30
+  delay: 5
+  until:
+  - r_ingress.resources | length > 0
+  - r_ingress.resources[0].spec.domain | default('') | length > 0
+
+- name: Set standard OpenShift cluster facts
+  ansible.builtin.set_fact:
+    openshift_api_url: "{{ r_api.resources[0].status.apiServerURL | trim }}"
+    openshift_console_url: "{{ r_console.resources[0].status.consoleURL | trim }}"
+    openshift_cluster_ingress_domain: "{{ r_ingress.resources[0].spec.domain | trim }}"
+
+- name: Print OpenShift cluster information
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+  loop:
+  - "OpenShift API: {{ openshift_api_url }}"
+  - "OpenShift Console: {{ openshift_console_url }}"
+  - "OpenShift Ingress Domain: {{ openshift_cluster_ingress_domain }}"
+
+- name: Set user data for OpenShift access
+  delegate_to: localhost
+  agnosticd.core.agnosticd_user_info:
+    data:
+      openshift_api_url: "{{ openshift_api_url }}"
+      openshift_console_url: "{{ openshift_console_url }}"
+      openshift_cluster_ingress_domain: "{{ openshift_cluster_ingress_domain }}"
+
+- name: Show user messages for OpenShift access
+  when: openshift_cluster_show_access_user_info | default(true) | bool
+  delegate_to: localhost
+  agnosticd.core.agnosticd_user_info:
+    msg: |-
+      OpenShift Console: {{ openshift_console_url }}
+      OpenShift API for command line 'oc' client: {{ openshift_api_url }}

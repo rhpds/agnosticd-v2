@@ -1,0 +1,23 @@
+---
+- name: Get ROSA cluster details
+  ansible.builtin.command: >-
+    {{ rosa_binary_path }}/rosa describe cluster
+    --cluster {{ rosa_cluster_name }}
+    --output json
+  register: r_rosa_cluster_info
+  changed_when: false
+
+- name: Set ROSA cluster URLs
+  vars:
+    _cluster: "{{ r_rosa_cluster_info.stdout | from_json }}"
+  ansible.builtin.set_fact:
+    rosa_openshift_api_url: "{{ _cluster.api.url }}"
+    rosa_openshift_console_url: "{{ _cluster.console.url }}"
+
+- name: Print cluster URLs
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+  loop:
+  - "API URL: {{ rosa_openshift_api_url }}"
+  - "Console URL: {{ rosa_openshift_console_url }}"
+

@@ -1,0 +1,62 @@
+---
+- name: Download AWS CLI v2
+  ansible.builtin.get_url:
+    url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+    dest: /tmp/awscliv2.zip
+
+- name: Unzip AWS CLI
+  ansible.builtin.unarchive:
+    src: /tmp/awscliv2.zip
+    dest: /tmp/
+    remote_src: true
+
+- name: Install AWS CLI
+  become: true
+  ansible.builtin.command: /tmp/aws/install -i /usr/local/aws -b /usr/local/bin
+  args:
+    creates: /usr/local/aws
+
+- name: Cleanup AWS CLI archive and tmp files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+  - /tmp/aws
+  - /tmp/awscliv2.zip
+
+- name: Create .aws directory
+  ansible.builtin.file:
+    path: "~{{ ansible_user }}/.aws"
+    state: directory
+    mode: u=rwx,go=
+
+- name: Add AWS credentials for sandbox
+  when:
+  - hostvars.localhost.student_access_key_id | default("") | length > 0
+  - hostvars.localhost.student_secret_access_key | default("") | length > 0
+  ansible.builtin.blockinfile:
+    path: "~{{ ansible_user }}/.aws/credentials"
+    create: true
+    mode: u=rw
+    marker: "# {mark} ANSIBLE MANAGED BLOCK Student Credentials"
+    block: |-
+      [default]
+      aws_access_key_id={{ hostvars.localhost.student_access_key_id }}
+      aws_secret_access_key={{ hostvars.localhost.student_secret_access_key }}
+      region={{ aws_region }}
+
+- name: Add AWS credentials for shared account
+  when:
+  - hostvars.localhost.student_access_key_id | default("") | length == 0
+  - aws_access_key_id | default("") | length > 0
+  - aws_secret_access_key | default("") | length > 0
+  ansible.builtin.blockinfile:
+    path: "~{{ ansible_user }}/.aws/credentials"
+    create: true
+    mode: u=rw
+    marker: "# {mark} ANSIBLE MANAGED BLOCK Default Credentials"
+    block: |-
+      [default]
+      aws_access_key_id={{ aws_access_key_id }}
+      aws_secret_access_key={{ aws_secret_access_key }}
+      region={{ aws_region }}

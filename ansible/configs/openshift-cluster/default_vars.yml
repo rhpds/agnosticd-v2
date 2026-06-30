@@ -119,6 +119,7 @@ cluster_dns_zone: "{{ guid }}.{{ base_domain }}"
 # - openshift_install
 # - openshift_assisted
 # - openshift_hcp_cnv
+# - rosa
 host_ocp4_deploy_installation_method: openshift_install
 
 # Types of Nodes (workers / control_planes) are set in the
@@ -170,3 +171,48 @@ remove_workloads: []
 # Remove mint-mode cloud credentials at end of provision
 # https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/authentication_and_authorization/managing-cloud-provider-credentials
 remove_mint_mode_cloud_provider_credentials: true
+
+# -------------------------------------------------
+# ROSA (Red Hat OpenShift Service on AWS)
+# -------------------------------------------------
+
+# Cluster name for ROSA
+rosa_cluster_name: "rosa-{{ guid }}"
+
+# ROSA token - must come from secrets
+# rosa_token: ""
+
+# Version of ROSA to deploy
+# Options: default, latest, latest-upgrade, or specific (e.g. 4.20.3)
+rosa_version: default
+
+# Base version for latest/latest-upgrade resolution
+rosa_version_base: "openshift-v4.20"
+
+# ROSA CLI version and download URL
+rosa_installer_version: latest
+# rosa_installer_version: "1.2.53"
+rosa_installer_url: >-
+  https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/rosa/{{ rosa_installer_version }}/rosa-linux.tar.gz
+
+# Set up cluster-admin user on the cluster
+rosa_setup_cluster_admin: true
+
+# Log cluster-admin into OpenShift on bastion (creates .kube/config)
+rosa_setup_cluster_admin_login: false
+
+# Terraform for ROSA networking
+rosa_terraform_version: "1.15.3"
+rosa_terraform_url: >-
+  https://releases.hashicorp.com/terraform/{{ rosa_terraform_version }}/terraform_{{ rosa_terraform_version }}_linux_amd64.zip
+rosa_terraform_repo: https://github.com/openshift-cs/terraform-vpc-example
+rosa_terraform_repo_branch: main
+
+# AWS billing account ID (required for ROSA, comes from sandbox)
+# aws_billing_account_id: ""
+
+# Networking CIDRs (empty = use ROSA defaults)
+rosa_machine_cidr: ""
+rosa_service_cidr: ""
+rosa_pod_cidr: ""
+rosa_host_prefix: ""

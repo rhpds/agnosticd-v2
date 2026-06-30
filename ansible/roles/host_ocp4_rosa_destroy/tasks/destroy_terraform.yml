@@ -1,0 +1,42 @@
+---
+- name: Check if terraform archive exists in output dir
+  ansible.builtin.stat:
+    path: "{{ output_dir }}/terraform-vpc.tar.gz"
+  register: r_terraform_archive
+
+- name: Destroy Terraform VPC resources
+  when: r_terraform_archive.stat.exists
+  block:
+  - name: Install Terraform
+    ansible.builtin.unarchive:
+      src: "{{ rosa_terraform_url }}"
+      remote_src: true
+      dest: /tmp
+      mode: u=rwx,go=rx
+
+  - name: Restore terraform-vpc directory from output dir
+    ansible.builtin.unarchive:
+      src: "{{ output_dir }}/terraform-vpc.tar.gz"
+      dest: /tmp/
+      extra_opts:
+      - --no-same-owner
+
+  - name: Run Terraform destroy
+    ansible.builtin.command:
+      cmd: >-
+        /tmp/terraform destroy
+        -var region={{ aws_region }}
+        -var cluster_name={{ rosa_cluster_name }}
+        -auto-approve
+      chdir: /tmp/terraform-vpc/
+    ignore_errors: true
+    register: r_terraform_destroy
+
+  - name: Print Terraform destroy output
+    ansible.builtin.debug:
+      var: r_terraform_destroy
+
+- name: Skip Terraform destroy (no archive found)
+  when: not r_terraform_archive.stat.exists
+  ansible.builtin.debug:
+    msg: "No terraform-vpc.tar.gz found in output_dir, skipping Terraform destroy"

@@ -1,0 +1,8 @@
+---
+- name: Install ROSA cluster on bastion
+  delegate_to: "{{ groups['bastions'][0] }}"
+  block:
+  - name: Call role to install ROSA cluster
+    when: host_ocp4_deploy_install_ocp4 | default(true) | bool
+    ansible.builtin.include_role:
+      name: host_ocp4_rosa_install

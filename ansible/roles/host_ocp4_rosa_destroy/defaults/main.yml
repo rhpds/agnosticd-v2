@@ -1,0 +1,11 @@
+---
+rosa_cluster_name: "rosa-{{ guid }}"
+
+rosa_installer_version: "1.2.53"
+rosa_installer_url: >-
+  https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/rosa/{{ rosa_installer_version }}/rosa-linux.tar.gz
+rosa_binary_path: /usr/local/bin
+
+rosa_terraform_version: "1.11.2"
+rosa_terraform_url: >-
+  https://releases.hashicorp.com/terraform/{{ rosa_terraform_version }}/terraform_{{ rosa_terraform_version }}_linux_amd64.zip

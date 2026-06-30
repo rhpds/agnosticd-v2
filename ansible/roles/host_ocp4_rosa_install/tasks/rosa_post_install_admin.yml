@@ -1,0 +1,29 @@
+---
+- name: Delete existing ROSA admin user if present
+  ansible.builtin.command: >-
+    {{ rosa_binary_path }}/rosa delete admin
+    --cluster {{ rosa_cluster_name }}
+    --yes
+  failed_when: false
+
+- name: Create ROSA admin user
+  ansible.builtin.command: >-
+    {{ rosa_binary_path }}/rosa create admin
+    --cluster {{ rosa_cluster_name }}
+    --yes
+  register: r_rosa_admin_result
+
+- name: Extract cluster-admin password from output
+  vars:
+    _all_output: "{{ r_rosa_admin_result.stdout ~ '\n' ~ r_rosa_admin_result.stderr }}"
+    _password_match: "{{ _all_output | regex_search('--password\\s+(\\S+)', '\\1') }}"
+  ansible.builtin.set_fact:
+    _rosa_cluster_admin_password: "{{ _password_match | first }}"
+
+- name: Fail if password could not be extracted
+  when: _rosa_cluster_admin_password | length == 0
+  ansible.builtin.fail:
+    msg: >-
+      Failed to extract cluster-admin password from rosa create admin output.
+      stdout: {{ r_rosa_admin_result.stdout }}
+      stderr: {{ r_rosa_admin_result.stderr }}

@@ -1,0 +1,47 @@
+---
+- name: Wait for cluster-admin login to succeed
+  ansible.builtin.command: >-
+    /usr/local/bin/oc login
+    -u cluster-admin
+    -p {{ _rosa_cluster_admin_password }}
+    {{ rosa_openshift_api_url }}
+    --insecure-skip-tls-verify=true
+  register: r_oc_login
+  retries: 20
+  delay: 30
+  until: r_oc_login.rc == 0
+  changed_when: false
+
+- name: Create .kube directory
+  ansible.builtin.file:
+    path: "~{{ ansible_user }}/.kube"
+    owner: "{{ ansible_user }}"
+    state: directory
+    mode: u=rwx,og=rx
+
+- name: Set kubeconfig ownership and permissions
+  ansible.builtin.file:
+    path: "~{{ ansible_user }}/.kube/config"
+    owner: "{{ ansible_user }}"
+    mode: u=rw
+
+- name: Create cluster auth directory for compatibility
+  ansible.builtin.file:
+    path: "/home/{{ ansible_user }}/{{ cluster_name }}/auth"
+    owner: "{{ ansible_user }}"
+    state: directory
+    mode: u=rwx,og=rx
+
+- name: Copy kubeconfig to cluster auth directory
+  ansible.builtin.copy:
+    src: "~{{ ansible_user }}/.kube/config"
+    dest: "/home/{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig"
+    remote_src: true
+    owner: "{{ ansible_user }}"
+    mode: u=rw
+
+- name: Fetch kubeconfig to output dir
+  ansible.builtin.fetch:
+    src: "~{{ ansible_user }}/.kube/config"
+    dest: "{{ output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+    flat: true

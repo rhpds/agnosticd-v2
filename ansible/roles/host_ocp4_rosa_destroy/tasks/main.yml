@@ -1,0 +1,21 @@
+---
+- name: Login to ROSA
+  ansible.builtin.command: >-
+    {{ rosa_binary_path }}/rosa login --token {{ rosa_token }}
+
+- name: Get list of ROSA clusters
+  ansible.builtin.command: >-
+    {{ rosa_binary_path }}/rosa list clusters --output json
+  register: r_rosa_list
+  changed_when: false
+
+- name: Print number of clusters to destroy
+  ansible.builtin.debug:
+    msg: "Found {{ r_rosa_list.stdout | from_json | length }} cluster(s) to destroy"
+
+- name: Destroy each ROSA cluster
+  ansible.builtin.include_tasks: destroy_cluster.yml
+  loop: "{{ r_rosa_list.stdout | from_json }}"
+
+- name: Destroy Terraform VPC resources
+  ansible.builtin.include_tasks: destroy_terraform.yml

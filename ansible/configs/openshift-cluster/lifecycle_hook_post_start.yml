@@ -67,6 +67,8 @@
   gather_facts: false
   tasks:
   - name: Approve CertificateSigningRequests
-    when: hostvars[groups['bastions'][0]]['r_wait'] is successful
+    when:
+    - hostvars[groups['bastions'][0]]['r_wait'] is successful
+    - host_ocp4_deploy_installation_method != 'rosa'
     ansible.builtin.include_role:
       name: ocp4_approve_certificate_signing_requests

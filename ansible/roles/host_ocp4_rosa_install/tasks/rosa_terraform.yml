@@ -1,0 +1,51 @@
+---
+- name: Clone ROSA terraform VPC example
+  ansible.builtin.git:
+    accept_hostkey: true
+    repo: "{{ rosa_terraform_repo }}"
+    dest: "~{{ ansible_user }}/terraform-vpc"
+    version: "{{ rosa_terraform_repo_branch }}"
+
+- name: Run terraform init
+  ansible.builtin.command:
+    cmd: /usr/local/bin/terraform init
+    chdir: "~{{ ansible_user }}/terraform-vpc"
+
+- name: Run terraform plan
+  ansible.builtin.command:
+    cmd: >-
+      /usr/local/bin/terraform plan
+      -out rosa.tfplan
+      -var region={{ aws_region }}
+      -var cluster_name={{ rosa_cluster_name }}
+      {% if rosa_machine_cidr | default("") | length > 0 %}-var vpc_cidr={{ rosa_machine_cidr }}{% endif %}
+      {% if rosa_host_prefix | default("") | length > 0 %}-var subnet_cidr_prefix={{ rosa_host_prefix | int }}{% endif %}
+    chdir: "~{{ ansible_user }}/terraform-vpc"
+
+- name: Run terraform apply
+  ansible.builtin.command:
+    cmd: /usr/local/bin/terraform apply rosa.tfplan
+    chdir: "~{{ ansible_user }}/terraform-vpc"
+
+- name: Archive terraform state directory
+  ansible.builtin.archive:
+    path: "~{{ ansible_user }}/terraform-vpc"
+    dest: "~{{ ansible_user }}/terraform-vpc.tar.gz"
+    format: gz
+
+- name: Transfer terraform archive to output dir
+  ansible.builtin.fetch:
+    src: "~{{ ansible_user }}/terraform-vpc.tar.gz"
+    dest: "{{ output_dir }}/"
+    flat: true
+
+- name: Get created subnets
+  ansible.builtin.command:
+    cmd: /usr/local/bin/terraform output -raw cluster-subnets-string
+    chdir: "~{{ ansible_user }}/terraform-vpc"
+  register: r_subnets
+  changed_when: false
+
+- name: Save subnet IDs
+  ansible.builtin.set_fact:
+    _rosa_subnets: "{{ r_subnets.stdout }}"

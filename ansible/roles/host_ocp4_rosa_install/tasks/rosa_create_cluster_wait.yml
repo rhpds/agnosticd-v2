@@ -1,0 +1,25 @@
+---
+- name: Wait for ROSA cluster to be ready with console URL
+  ansible.builtin.shell: |
+    for i in $(seq 1 120); do
+      output=$({{ rosa_binary_path }}/rosa describe cluster --cluster {{ rosa_cluster_name }} --output json 2>/dev/null)
+      if [ $? -eq 0 ]; then
+        state=$(echo "$output" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',{}).get('state',''))" 2>/dev/null)
+        api=$(echo "$output" | python3 -c "import sys,json; print(json.load(sys.stdin).get('api',{}).get('url',''))" 2>/dev/null)
+        console=$(echo "$output" | python3 -c "import sys,json; print(json.load(sys.stdin).get('console',{}).get('url',''))" 2>/dev/null)
+        echo "Attempt $i: state=$state api=$api console=$console"
+        if [ "$state" = "ready" ] && [ -n "$api" ] && [ -n "$console" ]; then
+          echo "$output"
+          exit 0
+        fi
+      else
+        echo "Attempt $i: rosa describe failed, retrying..."
+      fi
+      sleep 60
+    done
+    echo "Timed out waiting for ROSA cluster to be ready"
+    exit 1
+  register: r_rosa_wait
+  changed_when: false
+  async: 10800
+  poll: 30
