@@ -1,0 +1,138 @@
+---
+- name: Generate S4 credentials
+  ansible.builtin.set_fact:
+    _s4_access_key: s4admin
+    _s4_secret_key: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=24') }}"
+
+- name: Create S4 PVC
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: troshka-s4-data
+        namespace: "{{ troshka_namespace }}"
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: "{{ troshka_s4_pvc_size }}"
+
+- name: Deploy S4
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: troshka-s4
+        namespace: "{{ troshka_namespace }}"
+        labels:
+          app.kubernetes.io/name: troshka-s4
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app.kubernetes.io/name: troshka-s4
+        template:
+          metadata:
+            labels:
+              app.kubernetes.io/name: troshka-s4
+          spec:
+            containers:
+              - name: s4
+                image: quay.io/rh-aiservices-bu/s4:latest
+                env:
+                  - name: AWS_ACCESS_KEY_ID
+                    value: "{{ _s4_access_key }}"
+                  - name: AWS_SECRET_ACCESS_KEY
+                    value: "{{ _s4_secret_key }}"
+                ports:
+                  - containerPort: 7480
+                    name: s3
+                  - containerPort: 5000
+                    name: ui
+                volumeMounts:
+                  - name: data
+                    mountPath: /var/lib/ceph/radosgw
+                resources:
+                  requests:
+                    cpu: 250m
+                    memory: 512Mi
+                  limits:
+                    memory: 2Gi
+            volumes:
+              - name: data
+                persistentVolumeClaim:
+                  claimName: troshka-s4-data
+
+- name: Create S4 Service
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: troshka-s4
+        namespace: "{{ troshka_namespace }}"
+      spec:
+        selector:
+          app.kubernetes.io/name: troshka-s4
+        ports:
+          - port: 7480
+            targetPort: 7480
+            name: s3
+          - port: 5000
+            targetPort: 5000
+            name: ui
+
+- name: Wait for S4 to be ready
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: troshka-s4
+    namespace: "{{ troshka_namespace }}"
+  register: _s4
+  until: (_s4.resources[0].status.readyReplicas | default(0)) >= 1
+  retries: 30
+  delay: 10
+
+- name: Create bucket via init Job
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: "s4-init-bucket"
+        namespace: "{{ troshka_namespace }}"
+      spec:
+        ttlSecondsAfterFinished: 300
+        template:
+          spec:
+            restartPolicy: Never
+            containers:
+              - name: awscli
+                image: amazon/aws-cli:latest
+                command:
+                  - /bin/sh
+                  - -c
+                  - |
+                    aws --endpoint-url http://troshka-s4:7480 s3 mb s3://troshka-images || true
+                env:
+                  - name: AWS_ACCESS_KEY_ID
+                    value: "{{ _s4_access_key }}"
+                  - name: AWS_SECRET_ACCESS_KEY
+                    value: "{{ _s4_secret_key }}"
+
+- name: Wait for bucket init job
+  kubernetes.core.k8s_info:
+    api_version: batch/v1
+    kind: Job
+    name: s4-init-bucket
+    namespace: "{{ troshka_namespace }}"
+  register: _init_job
+  until: (_init_job.resources[0].status.succeeded | default(0)) >= 1
+  retries: 12
+  delay: 10

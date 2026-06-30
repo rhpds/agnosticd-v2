@@ -1,0 +1,94 @@
+---
+- name: Skip seeding if no central S3 configured
+  when: troshka_seed_s3_endpoint | default('') == '' or troshka_seed_images | length == 0
+  ansible.builtin.debug:
+    msg: "No seed images configured, skipping library seeding"
+
+- name: Seed library from central S4
+  when: troshka_seed_s3_endpoint | default('') != '' and troshka_seed_images | length > 0
+  block:
+    - name: Get current user info
+      ansible.builtin.uri:
+        url: "http://troshka-backend.{{ troshka_namespace }}.svc:8200/api/v1/auth/me"
+        headers: "{{ _api_headers }}"
+      register: _user_info
+
+    - name: Run seed job
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            name: "troshka-seed-library"
+            namespace: "{{ troshka_namespace }}"
+          spec:
+            ttlSecondsAfterFinished: 600
+            template:
+              spec:
+                restartPolicy: Never
+                containers:
+                  - name: seed
+                    image: amazon/aws-cli:latest
+                    env:
+                      - name: CENTRAL_ACCESS_KEY
+                        value: "{{ troshka_seed_s3_access_key }}"
+                      - name: CENTRAL_SECRET_KEY
+                        value: "{{ troshka_seed_s3_secret_key }}"
+                      - name: LOCAL_ACCESS_KEY
+                        value: "{{ _s4_access_key }}"
+                      - name: LOCAL_SECRET_KEY
+                        value: "{{ _s4_secret_key }}"
+                    command:
+                      - /bin/sh
+                      - -c
+                      - |
+                        {% for img in troshka_seed_images %}
+                        echo "Copying {{ img.s3_object }}..."
+                        AWS_ACCESS_KEY_ID=$CENTRAL_ACCESS_KEY AWS_SECRET_ACCESS_KEY=$CENTRAL_SECRET_KEY \
+                          aws --endpoint-url {{ troshka_seed_s3_endpoint }} s3 cp \
+                          s3://{{ troshka_seed_s3_bucket }}/{{ img.s3_object }} /tmp/{{ img.s3_object }}
+                        AWS_ACCESS_KEY_ID=$LOCAL_ACCESS_KEY AWS_SECRET_ACCESS_KEY=$LOCAL_SECRET_KEY \
+                          aws --endpoint-url http://troshka-s4:7480 s3 cp \
+                          /tmp/{{ img.s3_object }} s3://troshka-images/seed/{{ img.s3_object }}
+                        rm -f /tmp/{{ img.s3_object }}
+                        {% endfor %}
+                        echo "Seed copy complete"
+
+    - name: Wait for seed job to complete
+      kubernetes.core.k8s_info:
+        api_version: batch/v1
+        kind: Job
+        name: troshka-seed-library
+        namespace: "{{ troshka_namespace }}"
+      register: _seed_job
+      until: (_seed_job.resources[0].status.succeeded | default(0)) >= 1
+      retries: 60
+      delay: 15
+
+    - name: Create library items via API
+      ansible.builtin.uri:
+        url: "http://troshka-backend.{{ troshka_namespace }}.svc:8200/api/v1/library/"
+        method: POST
+        headers: "{{ _api_headers }}"
+        body_format: json
+        body:
+          name: "{{ item.name }}"
+          type: "{{ item.type }}"
+          format: "{{ item.format }}"
+        status_code: [200, 201]
+      register: _lib_items
+      loop: "{{ troshka_seed_images }}"
+
+    - name: Move seed files to library paths and finalize
+      ansible.builtin.uri:
+        url: "http://troshka-backend.{{ troshka_namespace }}.svc:8200/api/v1/library/{{ item.json.id }}/finalize-seed"
+        method: POST
+        headers: "{{ _api_headers }}"
+        body_format: json
+        body:
+          seed_key: "seed/{{ troshka_seed_images[idx].s3_object }}"
+          tags: "{{ troshka_seed_images[idx].tags | default([]) }}"
+      loop: "{{ _lib_items.results }}"
+      loop_control:
+        index_var: idx

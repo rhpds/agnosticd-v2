@@ -1,0 +1,44 @@
+---
+- name: Run database migration
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: "troshka-migrate-{{ lookup('password', '/dev/null chars=ascii_lowercase,digits length=6') }}"
+        namespace: "{{ troshka_namespace }}"
+      spec:
+        ttlSecondsAfterFinished: 600
+        template:
+          spec:
+            restartPolicy: Never
+            containers:
+              - name: migrate
+                image: "{{ troshka_backend_image }}"
+                command: ["python3", "-m", "alembic", "upgrade", "head"]
+                env:
+                  - name: TROSHKA_DATABASE__URL
+                    valueFrom:
+                      secretKeyRef:
+                        name: troshka-secrets
+                        key: database-url
+                volumeMounts:
+                  - name: config
+                    mountPath: /opt/app-root/src/config
+            volumes:
+              - name: config
+                configMap:
+                  name: troshka-config
+  register: _migrate_job
+
+- name: Wait for migration to complete
+  kubernetes.core.k8s_info:
+    api_version: batch/v1
+    kind: Job
+    name: "{{ _migrate_job.result.metadata.name }}"
+    namespace: "{{ troshka_namespace }}"
+  register: _migrate_status
+  until: (_migrate_status.resources[0].status.succeeded | default(0)) >= 1
+  retries: 30
+  delay: 10
