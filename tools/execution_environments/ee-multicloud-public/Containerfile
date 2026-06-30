@@ -60,16 +60,37 @@ COPY requirements.yml /tmp/requirements.yml
 # RUN echo Validated Token: ${AAP_VALIDATED_TOKEN}
 # RUN echo --------------------------------------------------
 
+# Fail fast if Automation Hub tokens are missing or expired
+RUN if [ "${AAP_CERTIFIED_TOKEN}" = "notset" ] || [ -z "${AAP_CERTIFIED_TOKEN}" ]; then \
+      echo "ERROR: AAP_CERTIFIED_TOKEN is not set. Generate a new token at:"; \
+      echo "  https://console.redhat.com/ansible/automation-hub/token"; \
+      echo "Then update the GitHub secret and re-run the build."; \
+      exit 1; \
+    fi && \
+    HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' \
+      --data-urlencode "grant_type=refresh_token" \
+      --data-urlencode "client_id=cloud-services" \
+      --data-urlencode "refresh_token=${AAP_CERTIFIED_TOKEN}" \
+      https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token) && \
+    if [ "$HTTP_CODE" != "200" ]; then \
+      echo "ERROR: Automation Hub token is expired or invalid (HTTP $HTTP_CODE)."; \
+      echo "Generate a new token at: https://console.redhat.com/ansible/automation-hub/token"; \
+      echo "Then update AAP_CERTIFIED_TOKEN and AAP_VALIDATED_TOKEN in GitHub secrets."; \
+      exit 1; \
+    else \
+      echo "Automation Hub token validated successfully."; \
+    fi
+
 # Set tokens as environment variables for ansible-galaxy to use with the configured servers
 ENV ANSIBLE_GALAXY_SERVER_CERTIFIED_TOKEN=${AAP_CERTIFIED_TOKEN}
 ENV ANSIBLE_GALAXY_SERVER_VALIDATED_TOKEN=${AAP_VALIDATED_TOKEN}
 
 RUN ansible-galaxy role install -r /tmp/requirements.yml --roles-path "/usr/share/ansible/roles"
 RUN for i in 1 2 3; do \
-      ansible-galaxy collection install -vv -r /tmp/requirements.yml --collections-path "/usr/share/ansible/collections" && break || \
+      ansible-galaxy collection install -vv --no-cache -r /tmp/requirements.yml --collections-path "/usr/share/ansible/collections" && break || \
       { echo "Attempt $i failed. Retrying in 5 seconds..."; sleep 5; }; \
     done && \
-    ansible-galaxy collection list --collections-path "/usr/share/ansible/collections" || \
+    ansible-galaxy collection list --collections-path "/usr/share/ansible/collections" | grep -q ansible.controller || \
     { echo "Failed to install collections after 3 attempts"; exit 1; }
 
 # ----------------------------------------------------------------------------------
