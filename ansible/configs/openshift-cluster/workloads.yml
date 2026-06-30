@@ -15,3 +15,21 @@
     loop: "{{ workloads }}"
     loop_control:
       loop_var: workload_loop_var
+
+- name: Install workloads (multi SNO)
+  hosts: localhost
+  gather_facts: false
+  become: false
+  tasks:
+  - name: Install workloads
+    when:
+    - workloads | default([]) | length > 0
+    - ai_extra_sno_clusters | default([]) | length > 0
+    ansible.builtin.include_tasks:
+      name: workloads_multisno.yaml
+    vars:
+      ACTION: provision
+      workloads: "{{ workloads }}"
+    loop: "{{ ai_extra_sno_clusters }}"
+    loop_control:
+      loop_var: sno_loop_var
