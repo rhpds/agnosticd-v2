@@ -1,0 +1,22 @@
+---
+- name: Install workloads
+  hosts: bastions
+  gather_facts: true
+  become: true
+  tasks:
+    - name: Skip workloads on bare pattern deploy
+      when: troshka_deploy_mode | default('template') == 'pattern'
+      ansible.builtin.debug:
+        msg: "Skipping workloads — bare pattern deploy"
+
+    - name: Install workloads
+      when:
+        - troshka_deploy_mode | default('template') in ['template', 'pattern_workloads']
+        - software_workloads.bastions | default([]) | length > 0
+      ansible.builtin.include_role:
+        name: "{{ _workload_role }}"
+      vars:
+        ACTION: provision
+      loop: "{{ software_workloads.bastions | default([]) }}"
+      loop_control:
+        loop_var: _workload_role

@@ -1,0 +1,66 @@
+---
+# Troshka config — deploys OCP via agent-based installer on nested VMs
+
+purpose: development
+output_dir: /tmp/output_dir
+guid: notset
+project_tag: "{{ config }}-{{ guid }}"
+
+cluster_name: ocp
+
+# Install common packages on bastion
+install_common_packages: true
+host_common_packages_update_all: false
+
+# Extra packages beyond the common set
+host_common_packages_extra:
+  - ansible-core
+  - python3-pip
+  - nmstate
+  - podman
+  - skopeo
+
+# Python packages to install via pip (after python3-pip)
+host_pip_packages:
+  - kubernetes
+
+# Desktop packages — only for template mode (pattern already has them)
+host_common_packages_desktop_group: "Server with GUI"
+host_common_packages_desktop:
+  - firefox
+  - ptyxis
+  - gnome-shell-extension-dash-to-dock
+  - google-noto-sans-fonts
+  - google-noto-sans-mono-fonts
+  - dejavu-sans-fonts
+  - desktop-backgrounds-gnome
+  - dconf
+  - gdm
+
+# Set up student user on bastion
+install_bastion: true
+bastion_setup_student_user: true
+
+# Cloud provider collection — auto-installed by framework
+cloud_provider_repo: https://github.com/rhpds/troshka-ansible-collection.git
+cloud_provider_version: main
+
+# Map disconnected template vars to role vars
+disconnected_registry_hostname: "{{ disconnected.registry.hostname | default('infra.lab.local') }}"
+disconnected_registry_port: "{{ disconnected.registry.port | default(8443) }}"
+disconnected_registry_user: "{{ disconnected.registry.user | default('admin') }}"
+disconnected_registry_password: "{{ common_password }}"
+
+# No satellite/RHN — Troshka VMs use RHEL DVD repos or PAYG images
+install_satellite_repositories: false
+install_rhn_repositories: false
+
+# OCP install method — agent-based installer role
+host_ocp4_deploy_installation_method: agent
+
+# Workloads run after deployment (modes 2 and 3)
+workloads: []
+remove_workloads: []
+
+# Don't try to remove cloud credentials from OCP — Troshka manages this
+remove_mint_mode_cloud_provider_credentials: false

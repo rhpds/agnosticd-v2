@@ -1,0 +1,290 @@
+---
+- name: Step 005 - Post Software
+  hosts: localhost
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Print post software
+      ansible.builtin.debug:
+        msg: "Post-Software Steps starting"
+
+- name: Step 005.1 - OCP Post-Install
+  hosts: bastions
+  become: true
+  gather_facts: true
+  tags: [post_install]
+  tasks:
+    - name: Skip on pattern deploy
+      when: troshka_deploy_mode | default('template') in ['pattern', 'pattern_workloads']
+      ansible.builtin.meta: end_play
+
+    - name: Check if OCP cluster is installed
+      ansible.builtin.stat:
+        path: "/home/{{ ansible_user }}/ocp-install/auth/kubeconfig"
+      register: _kubeconfig
+
+    - name: OCP post-install tasks
+      when: _kubeconfig.stat.exists
+      vars:
+        _cluster_name: "{{ ocp.cluster_name | default('ocp') }}"
+        _base_domain: "{{ ocp.base_domain | default('ocp.local') }}"
+        _console_url: "https://console-openshift-console.apps.{{ _cluster_name }}.{{ _base_domain }}"
+        _kubeconfig_path: "/home/{{ ansible_user }}/ocp-install/auth/kubeconfig"
+      block:
+        - name: Apply disconnected mirror manifests to cluster
+          when: disconnected is defined
+          vars:
+            _registry: "{{ disconnected_mirror_registry | default(disconnected.registry.hostname | default('') + ':' + (disconnected.registry.port | default(8443) | string)) }}"
+            _registry_user: "{{ disconnected_mirror_registry_user | default(disconnected.registry.user | default('admin')) }}"
+            _registry_password: "{{ disconnected_mirror_registry_password | default(common_password) }}"
+          block:
+            - name: Apply cluster-resources manifests
+              ansible.builtin.shell:
+                cmd: "find /root/working-dir/cluster-resources/ -name '*.yaml' -o -name '*.yml' | head -20"
+              register: _manifest_files
+              changed_when: false
+              failed_when: false
+
+            - name: Apply each manifest
+              kubernetes.core.k8s:
+                kubeconfig: "{{ _kubeconfig_path }}"
+                src: "{{ item }}"
+                state: present
+              loop: "{{ _manifest_files.stdout_lines | default([]) }}"
+              failed_when: false
+
+            - name: Read oc-mirror generated catalog source image
+              ansible.builtin.shell:
+                cmd: >-
+                  cat /root/working-dir/cluster-resources/cs-redhat-operator-index-*.yaml 2>/dev/null
+                  | grep 'image:' | head -1 | awk '{print $2}'
+              register: _oc_mirror_catalog_image
+              changed_when: false
+              failed_when: false
+
+            - name: Create catalog source alias
+              when: disconnected_mirror_catalog_alias | default('') | length > 0
+              kubernetes.core.k8s:
+                kubeconfig: "{{ _kubeconfig_path }}"
+                state: present
+                definition:
+                  apiVersion: operators.coreos.com/v1alpha1
+                  kind: CatalogSource
+                  metadata:
+                    name: "{{ disconnected_mirror_catalog_alias }}"
+                    namespace: openshift-marketplace
+                  spec:
+                    displayName: Red Hat Operators
+                    image: "{{ _oc_mirror_catalog_image.stdout | default(_registry + '/redhat/redhat-operator-index:v4.20') }}"
+                    publisher: Red Hat
+                    sourceType: grpc
+                    updateStrategy:
+                      registryPoll:
+                        interval: 1h
+
+            - name: Get current cluster pull secret
+              kubernetes.core.k8s_info:
+                kubeconfig: "{{ _kubeconfig_path }}"
+                api_version: v1
+                kind: Secret
+                name: pull-secret
+                namespace: openshift-config
+              register: _cluster_pull_secret
+
+            - name: Build merged pull secret
+              ansible.builtin.set_fact:
+                _merged_pull_secret: >-
+                  {{ (_cluster_pull_secret.resources[0].data['.dockerconfigjson'] | b64decode | from_json)
+                     | combine({'auths': (_cluster_pull_secret.resources[0].data['.dockerconfigjson'] | b64decode | from_json).auths
+                       | combine({_registry: {'auth': (_registry_user + ':' + _registry_password) | b64encode}})}, recursive=true)
+                     | to_json }}
+
+            - name: Update cluster pull secret
+              kubernetes.core.k8s:
+                kubeconfig: "{{ _kubeconfig_path }}"
+                state: present
+                definition:
+                  apiVersion: v1
+                  kind: Secret
+                  metadata:
+                    name: pull-secret
+                    namespace: openshift-config
+                  type: kubernetes.io/dockerconfigjson
+                  data:
+                    .dockerconfigjson: "{{ _merged_pull_secret | b64encode }}"
+
+            - name: Read registry certificate
+              ansible.builtin.slurp:
+                src: /opt/registry/certs/registry-cert.pem
+              register: _reg_cert
+
+            - name: Create registry CA configmap
+              kubernetes.core.k8s:
+                kubeconfig: "{{ _kubeconfig_path }}"
+                state: present
+                definition: "{{ _cm_def }}"
+              vars:
+                _reg_key: "{{ _registry | replace(':', '..') }}"
+                _cm_def:
+                  apiVersion: v1
+                  kind: ConfigMap
+                  metadata:
+                    name: registry-cas
+                    namespace: openshift-config
+                  data: "{{ {_reg_key: _reg_cert.content | b64decode} }}"
+
+            - name: Trust registry CA on cluster
+              kubernetes.core.k8s:
+                kubeconfig: "{{ _kubeconfig_path }}"
+                state: present
+                definition:
+                  apiVersion: config.openshift.io/v1
+                  kind: Image
+                  metadata:
+                    name: cluster
+                  spec:
+                    additionalTrustedCA:
+                      name: registry-cas
+
+            - name: Configure DNS forwarding for lab domain
+              kubernetes.core.k8s:
+                kubeconfig: "{{ _kubeconfig_path }}"
+                state: present
+                merge_type: merge
+                definition:
+                  apiVersion: operator.openshift.io/v1
+                  kind: DNS
+                  metadata:
+                    name: default
+                  spec:
+                    servers:
+                      - name: lab-dns
+                        zones:
+                          - "{{ networks.cluster.domain | default('lab.local') }}"
+                        forwardPlugin:
+                          upstreams:
+                            - "{{ networks.cluster.cidr | default('192.168.125.0/24') | ansible.utils.ipaddr('1') | ansible.utils.ipaddr('address') }}"
+
+    - name: Mark post-install complete
+      ansible.builtin.set_fact:
+        _troshka_post_install_ok: true
+
+- name: Step 005.2 - Deploy Workloads
+  ansible.builtin.import_playbook: workloads.yml
+  tags: [workloads]
+
+- name: Step 005.2b - Configure MOTD and Firefox
+  hosts: bastions
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Check if OCP cluster is installed
+      ansible.builtin.stat:
+        path: "/home/{{ ansible_user }}/ocp-install/auth/kubeconfig"
+      register: _kubeconfig
+
+    - name: Configure access credentials
+      when: _kubeconfig.stat.exists
+      vars:
+        _cluster_name: "{{ ocp.cluster_name | default('ocp') }}"
+        _base_domain: "{{ ocp.base_domain | default('ocp.local') }}"
+        _console_url: "https://console-openshift-console.apps.{{ _cluster_name }}.{{ _base_domain }}"
+        _kubeconfig_path: "/home/{{ ansible_user }}/ocp-install/auth/kubeconfig"
+        _ocp_user: "{{ strong_admin_password | default('') | ternary('admin', 'kubeadmin') }}"
+      block:
+        - name: Read kubeadmin password
+          ansible.builtin.slurp:
+            src: "/home/{{ ansible_user }}/ocp-install/auth/kubeadmin-password"
+          register: _kubeadmin_pw
+
+        - name: Write MOTD with cluster credentials
+          ansible.builtin.copy:
+            dest: /etc/motd
+            mode: "0644"
+            content: |
+
+              OpenShift Console: {{ _console_url }}
+              Username:          {{ _ocp_user }}
+              Password:          {{ strong_admin_password | default(_kubeadmin_pw.content | b64decode) }}
+
+        - name: Configure Firefox with OCP integration
+          ansible.builtin.include_role:
+            name: rhpds.demo_workloads.bastion_configure_firefox
+          vars:
+            bastion_firefox_homepage: "{{ _console_url }}"
+            bastion_firefox_ocp_console_url: "{{ _console_url }}"
+            bastion_firefox_ocp_kubeconfig: "{{ _kubeconfig_path }}"
+            bastion_firefox_ocp_user: "{{ _ocp_user }}"
+            bastion_firefox_ocp_password: "{{ strong_admin_password | default(_kubeadmin_pw.content | b64decode) }}"
+
+- name: Step 005.2c - Post-Software Final Workloads (Showroom, etc.)
+  hosts: bastions
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Install post-software final workloads
+      when: post_software_final_workloads.bastions | default([]) | length > 0
+      ansible.builtin.include_role:
+        name: "{{ _final_workload }}"
+      vars:
+        ACTION: provision
+      loop: "{{ post_software_final_workloads.bastions | default([]) }}"
+      loop_control:
+        loop_var: _final_workload
+
+    - name: Restart showroom to ensure all containers are running
+      when: post_software_final_workloads.bastions | default([]) | length > 0
+      ansible.builtin.systemd:
+        name: showroom
+        state: restarted
+      failed_when: false
+
+    - name: Verify showroom is serving content
+      when:
+        - post_software_final_workloads.bastions | default([]) | length > 0
+        - showroom_host | default('') | length > 0
+      ansible.builtin.uri:
+        url: "http://localhost:80/"
+        status_code: [200, 302]
+        headers:
+          Host: "{{ showroom_host }}"
+      register: _showroom_check
+      retries: 10
+      delay: 5
+      until: _showroom_check.status in [200, 302]
+      failed_when: false
+
+- name: Step 005.3 - Capture Pattern
+  hosts: localhost
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Capture project as pattern
+      when:
+        - troshka_capture_on_complete | default(false) | bool
+        - hostvars[groups.bastions | first]._troshka_post_install_ok | default(false) | bool
+      block:
+        - name: Start capture
+          troshka.cloud.pattern:
+            api_url: "{{ troshka_api_url }}"
+            api_key: "{{ troshka_api_key }}"
+            state: present
+            name: "{{ troshka_capture_pattern_name }}"
+            source_project_id: "{{ troshka_project_id }}"
+            visibility: "{{ troshka_capture_visibility | default('private') }}"
+          register: _capture
+
+        - name: Wait for capture to complete
+          troshka.cloud.pattern_info:
+            api_url: "{{ troshka_api_url }}"
+            api_key: "{{ troshka_api_key }}"
+            pattern_id: "{{ _capture.pattern_id }}"
+          register: _capture_status
+          until: _capture_status.state in ['available', 'error']
+          retries: 120
+          delay: 15
+
+        - name: Fail if capture failed
+          ansible.builtin.fail:
+            msg: "Pattern capture failed"
+          when: _capture_status.state == 'error'

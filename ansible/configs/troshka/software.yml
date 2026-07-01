@@ -1,0 +1,31 @@
+---
+- name: Step 004 - Software (OCP Install)
+  hosts: bastions
+  gather_facts: true
+  become: true
+  tags: [ocp]
+  vars:
+    troshka_timeout: 3600
+  tasks:
+    - name: Skip OCP install on pattern deploy
+      when: troshka_deploy_mode | default('template') in ['pattern', 'pattern_workloads']
+      ansible.builtin.debug:
+        msg: "Skipping OCP install — pattern already has OCP"
+
+    - name: Install OCP via Agent-Based Installer
+      when:
+        - troshka_deploy_mode | default('template') == 'template'
+        - auto_install_ocp | default(true) | bool
+        - ocp is defined
+        - install_method | default('agent') == 'agent'
+      ansible.builtin.include_role:
+        name: agnosticd.core_workloads.host_ocp4_agent_installer
+
+    - name: Install OCP via Image-Based Install (IBI)
+      when:
+        - troshka_deploy_mode | default('template') == 'template'
+        - auto_install_ocp | default(true) | bool
+        - ocp is defined
+        - install_method | default('agent') == 'ibi'
+      ansible.builtin.include_role:
+        name: agnosticd.core_workloads.host_ocp4_ibi_installer
