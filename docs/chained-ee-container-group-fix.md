@@ -4,7 +4,7 @@
 
 All `chained-*` EE images fail 100% of jobs on AAP 2.4 container groups (OCP/k8s).
 The same images work fine on bare-metal AAP. The fix is in
-[agnosticd/agnosticd-v2#133](https://github.com/agnosticd/agnosticd-v2/pull/133).
+[agnosticd/agnosticd-v2#133](https://github.com/rhpds/agnosticd-v2/pull/133).
 
 ## Background: How AAP Runs Jobs
 

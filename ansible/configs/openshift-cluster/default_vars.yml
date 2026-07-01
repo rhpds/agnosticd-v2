@@ -30,7 +30,7 @@ base_domain: dynamic.redhatworkshops.io
 # requirements_content:
 #   collections:
 #   # Core OpenShift Workloads
-#   - name: https://github.com/agnosticd/core_workloads.git
+#   - name: https://github.com/rhpds/core_workloads.git
 #     type: git
 #     version: main
 

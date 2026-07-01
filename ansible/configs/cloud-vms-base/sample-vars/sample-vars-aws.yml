@@ -10,7 +10,7 @@ tag: main
 config: cloud-vms-base
 cloud_provider: aws
 # Only override repo if you need to use your own fork for testing
-# cloud_provider_repo: "https://github.com/agnosticd/cloud_provider_{{ cloud_provider }}.git"
+# cloud_provider_repo: "https://github.com/rhpds/cloud_provider_{{ cloud_provider }}.git"
 cloud_provider_version: "{{ tag }}"
 
 # ===================================================================
@@ -18,11 +18,11 @@ cloud_provider_version: "{{ tag }}"
 # ===================================================================
 requirements_content:
   collections:
-  - name: https://github.com/agnosticd/cloud_vm_workloads.git
+  - name: https://github.com/rhpds/cloud_vm_workloads.git
     type: git
     version: "{{ tag }}"
   # For Showroom
-  - name: https://github.com/agnosticd/core_workloads.git
+  - name: https://github.com/rhpds/core_workloads.git
     type: git
     version: "{{ tag }}"
 

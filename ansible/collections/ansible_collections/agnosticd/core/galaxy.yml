@@ -12,8 +12,8 @@ license:
 - GPL-2.0-or-later
 tags:
 - infrastructure
-repository: https://github.com/agnosticd/agnosticd-v2
-homepage: https://github.com/agnosticd/agnosticd-v2
-issues: https://github.com/agnosticd/agnosticd-v2/issues
+repository: https://github.com/rhpds/agnosticd-v2
+homepage: https://github.com/rhpds/agnosticd-v2
+issues: https://github.com/rhpds/agnosticd-v2/issues
 dependencies: {}
 build_ignore: []
