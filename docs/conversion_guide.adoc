@@ -130,7 +130,7 @@ Update the following Babylon `__meta__` settings:
 [source,yaml]
 ----
 deployer:
-  scm_url: https://github.com/agnosticd/agnosticd_v2
+  scm_url: https://github.com/rhpds/agnosticd_v2
   scm_ref: main
 ----
 
@@ -153,7 +153,7 @@ Add the required collections (minimum configuration):
 requirements_content:
   collections:
   # Core OpenShift Workloads
-  - name: https://github.com/agnosticd/core_workloads.git
+  - name: https://github.com/rhpds/core_workloads.git
     type: git
     version: main
 ----

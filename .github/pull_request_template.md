@@ -2,7 +2,7 @@
 
 <!--- Please read first:
 
-https://github.com/agnosticd/agnosticd-v2/blob/main/docs/contributing.adoc
+https://github.com/rhpds/agnosticd-v2/blob/main/docs/contributing.adoc
 
 -->
 

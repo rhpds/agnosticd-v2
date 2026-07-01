@@ -25,7 +25,7 @@ requirements_content:
     version: v0.0.8
 
   # Core OpenShift Workloads
-  - name: https://github.com/agnosticd/core_workloads.git
+  - name: https://github.com/rhpds/core_workloads.git
     type: git
     version: "{{ tag }}"
 

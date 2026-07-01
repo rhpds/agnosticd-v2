@@ -120,7 +120,7 @@ cd ~/Development
 +
 [source,sh]
 ----
-git clone https://github.com/agnosticd/agnosticd-v2
+git clone https://github.com/rhpds/agnosticd-v2
 
 # Or use SSH authentication
 # git clone git@github.com:agnosticd/agnosticd-v2

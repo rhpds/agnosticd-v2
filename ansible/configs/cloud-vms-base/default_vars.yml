@@ -48,7 +48,7 @@ tower_run: false
 # requirements_content:
 #   collections:
 #   # Cloud VMs Workloads
-#   - name: https://github.com/agnosticd/cloud_vm.git
+#   - name: https://github.com/rhpds/cloud_vm.git
 #     type: git
 #     version: main
 

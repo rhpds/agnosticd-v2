@@ -7,7 +7,7 @@ These are our contribution guidelines for helping out with the project. Any sugg
 === General rules
 
 * The Ansible link:https://docs.ansible.com/ansible/latest/community/code_of_conduct.html[Code of Conduct] still applies.
-* For git messages, branch names, etc., follow link:https://github.com/agnosticd/agnosticd-v2/blob/main/docs/git-style-guide.adoc[Git Style Guide].
+* For git messages, branch names, etc., follow link:https://github.com/rhpds/agnosticd-v2/blob/main/docs/git-style-guide.adoc[Git Style Guide].
 * Pull Requests should reference an *issue* whenever possible.
 * Pull Requests must contain a well crafted description.
 ** In your Pull Request, specify `closes #NUM` to automatically close the issue when the PR is merged.
@@ -158,7 +158,7 @@ labels: bug,urgent
 
 === Git
 
-Please follow the link:https://github.com/agnosticd/agnosticd-v2/blob/main/docs/git-style-guide.adoc[Git Style Guide].
+Please follow the link:https://github.com/rhpds/agnosticd-v2/blob/main/docs/git-style-guide.adoc[Git Style Guide].
 
 Note: during the review process, you may add new commits to address review comments or change existing commits. However, before getting your PR merged, please squash commits to a minimum set of meaningful commits. This can be done directly in the github web UI.
 
