@@ -4,6 +4,12 @@
     {{ rosa_binary_path }}/rosa init
   changed_when: true
 
+- name: Create and link OCM role
+  ansible.builtin.command: >-
+    {{ rosa_binary_path }}/rosa create ocm-role
+      --mode auto
+      --yes
+
 - name: Get available ROSA regions
   ansible.builtin.command: >-
     {{ rosa_binary_path }}/rosa list regions --output json
