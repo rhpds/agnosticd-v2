@@ -19,6 +19,14 @@
 #   openshift_db:
 #     api_url: ...
 #     api_token: ...
+# Credentials typically propagated from a multi-component openshift cluster.
+# Default to empty so that destroy_env.yml does not fail with undefined
+# variable errors when the component provision never completed.
+# The destroyer role tests connectivity and skips unreachable clusters.
+openshift_api_key: ""
+openshift_api_url: ""
+openshift_cluster_admin_token: ""
+
 clusters: {}
 
 # List of workloads to apply to clusters with cluster selector
