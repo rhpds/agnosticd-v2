@@ -56,4 +56,3 @@ collections:
 # requirements.txt from the collection
 - name: community.vmware
 - name: vmware.vmware_rest
-
