@@ -50,7 +50,7 @@ subprocess-tee==0.4.2
 toml==0.10.2
 tomlkit==0.13.3
 tox==4.30.3
-virtualenv==20.34.0
+virtualenv==20.36.1
 wcmatch==10.1
 wrapt==1.17.3
 yamllint==1.37.1
