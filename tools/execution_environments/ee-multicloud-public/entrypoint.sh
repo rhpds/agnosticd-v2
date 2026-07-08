@@ -259,3 +259,4 @@ fi
 # Chain exec original command
 log_debug "chain exec-ing requested command: ${ORIGINAL_ARGUMENTS[*]}"
 exec "${ORIGINAL_ARGUMENTS[@]}"
+
