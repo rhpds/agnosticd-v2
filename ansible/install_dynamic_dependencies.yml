@@ -63,6 +63,8 @@
       {%- else -%}
       {{ playbook_dir | default('.') }}/configs/{{ config }}/roles
       {%- endif -%}"
+    environment:
+      GIT_TERMINAL_PROMPT: "0"
     when: >-
       r_requirements_stat.stat.exists
       and r_requirements_content | default([]) | length > 0

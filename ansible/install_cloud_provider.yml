@@ -20,6 +20,16 @@
   ansible.builtin.set_fact:
     _collections_path: "{{ lookup('config', 'COLLECTIONS_PATHS') }}"
 
+- name: Validate cloud provider git URL is reachable
+  ansible.builtin.command:
+    cmd: >-
+      git ls-remote
+      {{ cloud_provider_repo | default('https://github.com/rhpds/cloud_provider_' ~ cloud_provider ~ '.git') }}
+  environment:
+    GIT_TERMINAL_PROMPT: "0"
+  changed_when: false
+  timeout: 30
+
 - name: Install collections from requirements.yml
   vars:
     __collections_path: "{{ lookup('config', 'COLLECTIONS_PATHS')[0] }}"
@@ -28,6 +38,8 @@
     --requirements-file "{{ r_tempfile.path }}"
     --collections-path "{{ __collections_path | quote }}"
     --force-with-deps
+  environment:
+    GIT_TERMINAL_PROMPT: "0"
   register: r_ansible_galaxy_install_collections
   until: r_ansible_galaxy_install_collections is successful
   retries: 3

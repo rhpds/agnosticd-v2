@@ -22,6 +22,24 @@
       | to_yaml }}
     mode: ug=rw,o=r
 
+- name: Validate git-based collection URLs are reachable
+  ansible.builtin.command:
+    cmd: git ls-remote {{ item.name }}
+  environment:
+    GIT_TERMINAL_PROMPT: "0"
+  loop: >-
+    {{ r_requirements_content.collections
+       | default([])
+       | selectattr('type', 'defined')
+       | selectattr('type', 'equalto', 'git')
+       | list }}
+  loop_control:
+    label: "{{ item.name }}"
+  register: r_git_url_check
+  changed_when: false
+  failed_when: r_git_url_check.rc != 0
+  timeout: 30
+
 - name: Get COLLECTIONS_PATHS
   ansible.builtin.set_fact:
     _collections_path: "{{ lookup('config', 'COLLECTIONS_PATHS') }}"
@@ -36,6 +54,8 @@
     --requirements-file "{{ r_tempfile.path }}"
     --collections-path "{{ _collections_path[0] | quote }}"
     --force-with-deps
+  environment:
+    GIT_TERMINAL_PROMPT: "0"
   register: r_ansible_galaxy_install_collections
   until: r_ansible_galaxy_install_collections is successful
   retries: 3
