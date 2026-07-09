@@ -281,8 +281,8 @@
             pattern_id: "{{ _capture.pattern_id }}"
           register: _capture_status
           until: _capture_status.state in ['available', 'error']
-          retries: 120
-          delay: 15
+          retries: 360
+          delay: 30
 
         - name: Fail if capture failed
           ansible.builtin.fail:
