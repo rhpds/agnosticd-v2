@@ -9,13 +9,7 @@
         K8S_AUTH_VERIFY_SSL: false
       module_defaults:
         agnosticd.core.agnosticd_user_info:
-          # Add data_prefix to agnosticd_user_info data if specified in the workload.
-          # If running worload on multiple clusters then add cluster name as prefix if not default cluster.
-          data_prefix: >-
-            {{
-              (workload_item.data_prefix if workload_item.data_prefix is defined else "") ~
-              ((_cluster_name ~ "_") if _cluster_name != 'default' and (workload_item.clusters | default(['default']) | length) > 1 else "")
-            }}
+          data_prefix: "{{ _workload_data_prefix }}"
   loop: "{{ workload_item.clusters | default(['default']) }}"
   loop_control:
     loop_var: _cluster_name
@@ -23,3 +17,10 @@
     openshift_api_url: "{{ _openshift_workload_deployer_cluster_info[_cluster_name].api_url }}"
     openshift_console_url: "{{ _openshift_workload_deployer_cluster_info[_cluster_name].console_url }}"
     openshift_cluster_ingress_domain: "{{ _openshift_workload_deployer_cluster_info[_cluster_name].ingress_domain }}"
+    # Compute data_prefix in vars where Jinja2 filters resolve correctly.
+    # Avoids ansible-core issue with | default() inside apply -> module_defaults.
+    _workload_data_prefix: >-
+      {{
+        (workload_item.data_prefix if workload_item.data_prefix is defined else "") ~
+        ((_cluster_name ~ "_") if _cluster_name != 'default' and (workload_item.clusters | default(['default']) | length) > 1 else "")
+      }}
