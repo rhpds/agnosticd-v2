@@ -9,8 +9,9 @@
   ignore_errors: true
 
 - name: Ping hosts
-  ansible.builtin.ping:
+  ansible.builtin.raw: echo pong  
   register: r_ping
   retries: "{{ infra_generic_wait_for_linux_hosts_retries }}"
   delay: "{{ infra_generic_wait_for_linux_hosts_delay }}"
   until: r_ping is succeeded
+  changed_when: false
