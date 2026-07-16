@@ -1,0 +1,11 @@
+---
+- name: Lifecycle not supported
+  hosts: localhost
+  gather_facts: false
+  become: false
+  tasks:
+  - name: Lifecycle actions not implemented for minimal config
+    ansible.builtin.fail:
+      msg: >-
+        Lifecycle actions (start/stop) are not supported by the minimal config.
+        Workload roles must handle their own lifecycle if needed.

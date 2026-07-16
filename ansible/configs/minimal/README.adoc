@@ -1,0 +1,39 @@
+= Minimal Config
+
+The `minimal` config provides zero deployment logic. By itself it runs through
+all stage playbooks and does nothing.
+
+All provisioning and teardown logic comes from workload roles specified in the
+catalog item's `workloads` and `remove_workloads` lists.
+
+== Workloads
+
+Workloads are specified as a flat list of fully-qualified collection role names:
+
+[source,yaml]
+----
+workloads:
+  - rhpds.ibm_workloads.ibm_instructlab_service
+
+remove_workloads:
+  - rhpds.ibm_workloads.ibm_instructlab_service
+----
+
+Each role is called with `ACTION: provision` during software deployment
+and `ACTION: destroy` during teardown. If `remove_workloads` is not set,
+`workloads` is reversed and used for destroy.
+
+== Use Cases
+
+* Cloud service provisioning (IBM Cloud, AWS services) without cluster or VM infrastructure
+* Immutable operating systems (e.g. RHEL AI) where traditional configs assume mutability
+* Highly customized infrastructure bypassing a traditional cloud_provider
+
+== Lifecycle
+
+Start/stop lifecycle is not supported. Workloads that need lifecycle management
+should use a different config.
+
+== Cloud Support
+
+None — `cloud_provider` should be set to `none`.

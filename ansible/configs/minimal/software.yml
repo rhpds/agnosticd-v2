@@ -1,0 +1,19 @@
+---
+- name: Step 004 Software
+  hosts: localhost
+  gather_facts: false
+  become: false
+  tasks:
+  - name: Print stage message
+    ansible.builtin.debug:
+      msg: "Step 004 Software - provisioning workloads"
+
+  - name: Provision workload "{{ workload_loop_var | default('None') }}"
+    when: workloads | default([]) | length > 0
+    ansible.builtin.include_role:
+      name: "{{ workload_loop_var }}"
+    vars:
+      ACTION: provision
+    loop: "{{ workloads }}"
+    loop_control:
+      loop_var: workload_loop_var

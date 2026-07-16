@@ -1,0 +1,33 @@
+---
+# -------------------------------------------------
+# General variables
+# -------------------------------------------------
+
+# Why is this config being deployed? Override for specific environments
+# Valid options are: development, test, production, event
+purpose: development
+
+# The output_dir holds all of the files generated during the deployment
+# This must be an absolute path and no vars (like $HOME or ~)
+output_dir: /tmp/output_dir
+
+# The {{ guid }} is used everywhere and it is what differentiates otherwise
+# identical environments. Make this unique. Usually they are 4 characters, but
+# it can be any reasonable length.
+guid: notset
+
+# Used to add metadata (tags) to cloud objects created
+project_tag: "{{ config }}-{{ guid }}"
+
+email: "{{ config }}@opentlc.com"
+
+student_name: "{{ requester_username | default('lab-user') }}"
+
+# -------------------------------------------------
+# Workloads
+# -------------------------------------------------
+
+# All provisioning and teardown logic comes from workload roles.
+# cloud_provider should be set to none. No VMs, clusters, or cloud infra.
+workloads: []
+remove_workloads: []

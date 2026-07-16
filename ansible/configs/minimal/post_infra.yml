@@ -1,0 +1,10 @@
+---
+- name: Step 002 Post Infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+  - name: Print stage message
+    ansible.builtin.debug:
+      msg: "Step 002 Post-Infrastructure"
