@@ -183,6 +183,12 @@
       infra_env_id: "{{ newinfraenv.result.id }}"
       configure_hosts: "{{ ai_configure_hosts }}"
       wait_timeout: 600
+    register: r_wait_for_hosts
+    # the module crashes on a transient empty/non-JSON response from the
+    # assisted-installer API instead of retrying internally
+    until: r_wait_for_hosts is succeeded
+    retries: 3
+    delay: 20
 
 - name: Initialize CSR approval iteration counter
   ansible.builtin.set_fact:
