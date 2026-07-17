@@ -17,6 +17,15 @@
     openshift_api_url: "{{ _openshift_workload_deployer_cluster_info[_cluster_name].api_url }}"
     openshift_console_url: "{{ _openshift_workload_deployer_cluster_info[_cluster_name].console_url }}"
     openshift_cluster_ingress_domain: "{{ _openshift_workload_deployer_cluster_info[_cluster_name].ingress_domain }}"
+    # Pass through user data set by authentication workloads so that
+    # downstream workloads (e.g. gitops bootstrap) can consume it
+    # without needing the agnosticd_user_data lookup directly.
+    openshift_cluster_user_password: >-
+      {{ lookup('agnosticd_user_data', 'openshift_cluster_user_password') | default('', true) }}
+    openshift_cluster_user_base: >-
+      {{ lookup('agnosticd_user_data', 'openshift_cluster_user_base') | default('user', true) }}
+    openshift_cluster_num_users: >-
+      {{ lookup('agnosticd_user_data', 'openshift_cluster_num_users') | default(0, true) }}
     # Compute data_prefix in vars where Jinja2 filters resolve correctly.
     # Avoids ansible-core issue with | default() inside apply -> module_defaults.
     _workload_data_prefix: >-
