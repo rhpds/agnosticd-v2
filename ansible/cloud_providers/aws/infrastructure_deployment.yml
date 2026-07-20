@@ -28,7 +28,7 @@
       name: agnosticd.cloud_provider_aws.capacity_reservation
 
   - name: Rerun detection
-    when: agnosticd_aws_capacity_reservation_results.reservations | default({}) | length > 0
+    when: r_agnosticd_aws_capacity_reservation.reservations | default({}) | length > 0
     block:
     - name: Empty the agnosticd_images and run the detection again
       ansible.builtin.set_fact:
