@@ -1,0 +1,22 @@
+---
+- name: Step 004 - Software
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  tasks:
+  - name: Validate workloads variable
+    when: workloads is not defined or workloads is not sequence
+    ansible.builtin.fail:
+      msg: "workloads variable is either not defined or is not a list"
+
+  - name: Provision workloads
+    when: workloads | length > 0
+    ansible.builtin.include_role:
+      name: "{{ _workload }}"
+    vars:
+      ACTION: provision
+    loop: "{{ workloads }}"
+    loop_control:
+      loop_var: _workload
+      label: "{{ _workload }}"

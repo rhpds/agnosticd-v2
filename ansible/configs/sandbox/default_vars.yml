@@ -1,0 +1,33 @@
+---
+# -------------------------------------------------
+# General variables
+# -------------------------------------------------
+purpose: development
+
+output_dir: /tmp/output_dir
+
+guid: notset
+
+project_tag: "{{ config }}-{{ guid }}"
+
+base_domain: dynamic.redhatworkshops.io
+
+# -------------------------------------------------
+# Sandbox config uses no cloud provider infrastructure.
+# AWS credentials come from the sandbox API, not from
+# cloud provider provisioning.
+# -------------------------------------------------
+cloud_provider: none
+
+# -------------------------------------------------
+# Sandbox defaults
+# -------------------------------------------------
+sandbox_enable_ui: true
+sandbox_user_info_messages_enable: true
+sandbox_user_info_data_enable: true
+
+# -------------------------------------------------
+# Workloads
+# -------------------------------------------------
+workloads: []
+remove_workloads: []
