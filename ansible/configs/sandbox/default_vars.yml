@@ -13,11 +13,10 @@ project_tag: "{{ config }}-{{ guid }}"
 base_domain: dynamic.redhatworkshops.io
 
 # -------------------------------------------------
-# Sandbox config uses no cloud provider infrastructure.
-# AWS credentials come from the sandbox API, not from
-# cloud provider provisioning.
+# Workloads run on localhost. Infrastructure deployment
+# is a no-op — cloud credentials come from the sandbox API.
+# Set cloud_provider in the AgnosticV CI (e.g. aws).
 # -------------------------------------------------
-cloud_provider: none
 
 # -------------------------------------------------
 # Sandbox defaults

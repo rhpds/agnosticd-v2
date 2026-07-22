@@ -8,8 +8,9 @@ and other account-level resources within a sandbox-managed cloud account.
 
 == Supported Cloud Providers
 
-* `none` — Cloud credentials come from the sandbox API, not from
-  agnosticd cloud provider provisioning.
+* `aws` — AWS sandbox account. Credentials come from the sandbox API.
+  Infrastructure deployment is a no-op (no VMs or CloudFormation stacks
+  from the cloud provider level).
 
 == Workloads
 
@@ -29,7 +30,7 @@ list is reversed automatically.
 [source,yaml]
 ----
 config: sandbox
-cloud_provider: none
+cloud_provider: aws
 
 workloads:
 - agnosticd.core_workloads.aws_open_environment
