@@ -14,4 +14,5 @@
     ansible_port: "{{ bastion_ansible_port | default(omit) }}"
     ansible_ssh_pass: "{{ bastion_ansible_ssh_pass }}"
     ansible_ssh_pipelining: "{{ ansible_ssh_pipelining }}"
+    ansible_ssh_common_args: "-F /dev/null"
     ansible_user: "{{ bastion_ansible_user }}"
