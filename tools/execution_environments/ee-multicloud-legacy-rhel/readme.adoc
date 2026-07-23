@@ -1,130 +1,78 @@
-For release cycle, see link:release_cycle.adoc[release_cycle]
+= ee-multicloud-legacy-rhel
 
-== Changelog ==
+Fork of `ee-multicloud-public` with `ansible-core` pinned to `>=2.16,<2.18`
+for CIs that manage RHEL 7 or RHEL 8 (default Python 3.6) nodes.
 
-=== chained-2026-05-04 ===
+== Why this exists
 
-* Add missing `netaddr>=0.8.0` Python library to requirements.txt
-** Required by `ansible.utils.ipaddr` filter plugin
-** Absence caused `ModuleNotFoundError` on Python 3.12 in `chained-2026-04-20`
-** Affected roles: `host_ocp4_assisted_installer` (and any other that uses `ipaddr`)
+ansible-core 2.18+ dropped support for Python < 3.7 on managed nodes. The
+standard `ee-multicloud` ships ansible-core 2.20+ and generates module wrapper
+code (`from __future__ import annotations`) that fails on:
 
-=== v0.1.2 ===
+- **RHEL 7**: Python 2.7 / 3.6 (no Python 3.7+ available in standard repos)
+- **RHEL 8**: default `/usr/libexec/platform-python` is Python 3.6
 
-* size: +37MiB -- 724.9 MiB total
-* EE v0.1.2-rc.2 Add equinix.metal new collection link:https://github.com/redhat-cop/agnosticd/pull/8034[#8034] and link:https://github.com/redhat-cop/agnosticd/pull/8006[#8006]
-* Add ansible.windows to ee-multicloud-public reqs.yml link:https://github.com/redhat-cop/agnosticd/pull/7751[#7751]
-* Add python petname library link:https://github.com/redhat-cop/agnosticd/pull/7735[#7735]
-* Add kubevirt core link:https://github.com/redhat-cop/agnosticd/pull/7387[#7387]
-* link:https://gist.github.com/fridim/103093519c516e6ac48e3db8758314d3[ee-report diff with v0.1.1]
-* link:https://gist.github.com/fridim/0fcbdc8d0b274ccb03e7b70e49f48d6c[full ee-report]
+CIs like `automating-ripu-with-ansible` provision these VMs for upgrade demos
+and need an EE that can manage them.
 
-=== v0.1.1 ===
+== Why not use ee-ubi9-aap2.5?
 
-* size -5M
-* Add OpenStack missing clients link:https://github.com/redhat-cop/agnosticd/pull/6916[#6916]
-* Pin the version of `openstacksdk` python module, see this link:https://storyboard.openstack.org/#!/story/2010908[upstream issue] and link:https://github.com/redhat-cop/agnosticd/pull/6963[#6963]
-* Use latest prod version of Ansible Builder's entrypoint link:https://github.com/redhat-cop/agnosticd/pull/6981[#6981]
-** Patch it to be able to dynamically install collections: link:https://github.com/redhat-cop/agnosticd/pull/7111[#7111]
-* link:https://gist.github.com/fridim/226f62f3a028d734e25c8480722c2ce6[ee-report diff with v0.1.0]
-* link:https://gist.github.com/fridim/1b2726bb22c7944ee180aa866966e1e4[full ee-report]
+The `ee-ubi9-aap2.5` image has compatible ansible-core (2.15) but uses the
+standard ansible-builder entrypoint. It does not run
+`install_dynamic_dependencies.yml` before the main playbook, which is required
+by agnosticd-v2 CIs to install cloud provider collections and CI-specific
+requirements at runtime.
 
-=== v0.1.0 ===
+The chained entrypoint in this EE detects the AAP environment and runs
+`install_dynamic_dependencies.yml` automatically before chain-executing the
+deployer playbook.
 
-* Add community.okd collection
-* size +5M
-* link:https://gist.github.com/fridim/c420ed8c415694a389bbc9e204b650b0[ee-report diff with v0.0.18]
-* link:https://gist.github.com/fridim/a12d0ac2387d030d07a2c6bf1e5c7b53[full ee-report]
+== What's different from ee-multicloud-public
 
-=== v0.0.18 ===
+Only the ansible-core version pin in `requirements.txt`:
 
-* Fix requirements_collections path, see link:https://github.com/redhat-cop/agnosticd/pull/6746[#6746]
-* size +16M
-* link:https://gist.github.com/fridim/03ff4cff5183b323e6245fa95219122e[ee-report diff with v0.0.17]
-* link:https://gist.github.com/fridim/dfc2de437375ba437b1b41ffa57912a9[full ee-report]
+  ansible-core            (unpinned, latest)     # ee-multicloud-public
+  ansible-core>=2.16,<2.18                       # ee-multicloud-legacy-rhel
 
+Everything else is identical: same entrypoint, same collections, same binaries,
+same Python 3.12 runtime in the EE itself. The Containerfile has minor layer
+optimizations (collapsed RUN statements) but is functionally equivalent.
 
-=== v0.0.17 ===
+== When to use this EE
 
-* Add `passlib` python module, needed for htpasswd
-* size +32M
-* link:https://gist.github.com/fridim/4cd6787ea0f8d27cc46fd9fc74573b15[ee-report diff with v0.0.17]
-* link:https://gist.github.com/fridim/c89614dfec5609f56ae881ddc5fc0f90[full ee-report]
+Use `ee-multicloud-legacy-rhel` when your CI:
 
-=== v0.0.16 ===
+1. Uses agnosticd-v2 as the deployer (`scm_url: https://github.com/rhpds/agnosticd-v2`)
+2. Manages RHEL 7 or RHEL 8 nodes with default Python (2.7 or 3.6)
+3. Runs on OCP-based AAP2 controllers (prod0/prod1, event0/event1)
 
-* Update Containerfile with new azure-cli install because microsoft no longer supports the repo we were using. See link:https://github.com/redhat-cop/agnosticd/pull/6441[#6441]
-* size -30M
-* link:https://gist.github.com/fridim/4d861b4669ac7fc71abcfc797b309dde[ee-report diff with v0.0.15]
-* link:https://gist.github.com/fridim/0106869a00320dfc9f5557a0d28ef436[full ee-report]
+Set in your agnosticv config:
 
-=== V0.0.15 ===
+  __meta__:
+    deployer:
+      execution_environment:
+        image: quay.io/redhat-gpte/ee-multicloud-legacy-rhel:<tag>
+        pull: missing
 
-* entrypoint.sh restored
+== When to stop using this EE
 
-=== v0.0.14 ===
+When the CI no longer needs to manage RHEL 7 nodes (RHEL 7 is EOL), switch
+to the standard `ee-multicloud` and set `ansible_python_interpreter` to
+`/usr/bin/python3.9` or later for any remaining RHEL 8 nodes.
 
-* Broken: missing entrypoint.sh. Fixed by link:https://github.com/redhat-cop/agnosticd/pull/6344[#6344]
-* Simple update of collections and versions
-* size +20M
-* link:https://gist.github.com/fridim/ada8692af2438d5371d3a0d617409e62[ee-report diff with v0.0.13]
-* link:https://gist.github.com/fridim/922ff2e55c37959c5df3194c7ac97e69[full ee-report]
+== Building
 
+Manual dispatch:
 
-=== v0.0.13 ===
+  gh workflow run manual-build-ee-legacy-rhel -f tag=chained-legacy-rhel-YYYY-MM-DD
 
-* Add community.crypto collection, needed for htpasswd
-* link:https://gist.github.com/fridim/9ca51d337537368237810548ed5cd51e[ee-report diff with v0.0.12]
-* link:https://gist.github.com/fridim/a2a3fa3c1088e18f509fcb6b70c2cbd0[Full ee-report]
+PR builds trigger automatically on changes to this directory.
 
+== Changelog
 
-=== v0.0.12 ===
+=== chained-legacy-rhel-2026-07-23
 
-* Size -49MB
-* Remove receptor binary
-* link:https://gist.github.com/0984b305dde5eae9f046688dd6f19bfa[ee-report diff with v0.0.11]
-* link:https://gist.github.com/d2b392f0ac8c5e7520b6469fdd35afa5[Full ee-report]
-
-=== v0.0.11 ===
-
-* Install requirements of all collections
-* Add openstack client (`python-openstackclient`)
-* Add awx.awx collection as a dependency
-* Add ee-report.sh script for changelog and troubleshooting
-* link:https://gist.github.com/ca48b893f2f7e35c58248f320076063d[ee-report diff with v0.0.10]
-* link:https://gist.github.com/6ed859903ad8376aabea134ab0dab314[Full ee-report]
-
-=== v0.0.10 ===
-* Add infra.controller_configuration collection
-* Add google.cloud collection
-* Add community.vmware collection
-* Add equinix.metal collection
-* link:https://gist.github.com/1785ceaa542aba17ce05b14f8947d13a[ee-report diff with v0.0.9]
-
-
-=== v0.0.9 ===
-* `ansible-galaxy collection install`: Do not disable GPG verification
-* More cleanup of build and cache files
-* Don't cache pip files
-* Fix alternatives python3 was pointing to python3.6 and that can fail in some edge cases. Switch it to python3.9
-* link:https://gist.github.com/3c92afcb5f17914f33ec3ba27cb7a1d8[ee-report diff with v0.0.8]
-
-=== v0.0.8 ===
-* Migrate to a simple Containerfile using UBI8 image, see https://github.com/redhat-cop/agnosticd/pull/5926
-
-=== v0.0.7 ===
-
-* add `openssl` binaries
-
-=== v0.0.6 ===
-
-* Cleanup requirements.txt file, let builder pull the dependencies from collections
-* add `azure.azcollection` collection
-* add `ansible.utils` collection
-* add ansible-core package (rpm) to fix collection routing
-* add vim and find binary
-* add `dnspython` to python requirements.txt
-
-=== v0.0.5 ===
-
-* add `gnupg2` to EE
+* Initial build
+* Fork of ee-multicloud-public at commit 8242fb367dd8
+* Pin `ansible-core>=2.16,<2.18` for RHEL 7/8 managed node support
+* Optimize Containerfile layers (collapse RUN statements, remove dead code)
