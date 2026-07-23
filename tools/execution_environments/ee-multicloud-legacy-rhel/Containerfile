@@ -1,0 +1,160 @@
+# ----------------------------------------------------------------------------------
+# Build base image
+# ----------------------------------------------------------------------------------
+# Build 5/04 EE
+ARG EE_BASE_IMAGE="registry.access.redhat.com/ubi9/ubi:latest"
+
+# Building base
+FROM $EE_BASE_IMAGE as base
+
+USER root
+WORKDIR /root
+
+RUN dnf install -y \
+        bind-utils \
+        findutils \
+        gcc \
+        git \
+        gnupg2 \
+        jq \
+        krb5-devel \
+        krb5-libs \
+        libcurl-devel \
+        libxml2-devel \
+        openssl \
+        openssl-devel \
+        python3.12 \
+        python3.12-devel \
+        python3.12-pip \
+        rsync \ 
+        sshpass \
+        tar \
+        unzip \
+        vim \
+        curl-minimal \
+        wget \
+        httpd-tools
+RUN dnf clean all
+
+# Python
+RUN alternatives --install /usr/bin/python python /usr/bin/python3.12 1 \
+    && alternatives --set python /usr/bin/python3.12 \
+    && alternatives --install /usr/bin/pip pip /usr/bin/pip3.12 1
+RUN pip install --no-cache-dir --upgrade pip
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+# ----------------------------------------------------------------------------------
+# Build Galaxy image from base image
+# ----------------------------------------------------------------------------------
+FROM base as galaxy
+
+ARG AAP_CERTIFIED_TOKEN=notset
+ARG AAP_VALIDATED_TOKEN=notset
+
+COPY ansible.cfg /root/.ansible.cfg
+COPY requirements.yml /tmp/requirements.yml
+
+# RUN echo --------------------------------------------------
+# RUN echo Certified Token: ${AAP_CERTIFIED_TOKEN}
+# RUN echo Validated Token: ${AAP_VALIDATED_TOKEN}
+# RUN echo --------------------------------------------------
+
+# Fail fast if Automation Hub tokens are missing or expired
+RUN if [ "${AAP_CERTIFIED_TOKEN}" = "notset" ] || [ -z "${AAP_CERTIFIED_TOKEN}" ]; then \
+      echo "ERROR: AAP_CERTIFIED_TOKEN is not set. Generate a new token at:"; \
+      echo "  https://console.redhat.com/ansible/automation-hub/token"; \
+      echo "Then update the GitHub secret and re-run the build."; \
+      exit 1; \
+    fi && \
+    HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' \
+      --data-urlencode "grant_type=refresh_token" \
+      --data-urlencode "client_id=cloud-services" \
+      --data-urlencode "refresh_token=${AAP_CERTIFIED_TOKEN}" \
+      https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token) && \
+    if [ "$HTTP_CODE" != "200" ]; then \
+      echo "ERROR: Automation Hub token is expired or invalid (HTTP $HTTP_CODE)."; \
+      echo "Generate a new token at: https://console.redhat.com/ansible/automation-hub/token"; \
+      echo "Then update AAP_CERTIFIED_TOKEN and AAP_VALIDATED_TOKEN in GitHub secrets."; \
+      exit 1; \
+    else \
+      echo "Automation Hub token validated successfully."; \
+    fi
+
+# Set tokens as environment variables for ansible-galaxy to use with the configured servers
+ENV ANSIBLE_GALAXY_SERVER_CERTIFIED_TOKEN=${AAP_CERTIFIED_TOKEN}
+ENV ANSIBLE_GALAXY_SERVER_VALIDATED_TOKEN=${AAP_VALIDATED_TOKEN}
+
+RUN ansible-galaxy role install -r /tmp/requirements.yml --roles-path "/usr/share/ansible/roles"
+RUN for i in 1 2 3; do \
+      ansible-galaxy collection install -vv --no-cache -r /tmp/requirements.yml --collections-path "/usr/share/ansible/collections" && break || \
+      { echo "Attempt $i failed. Retrying in 5 seconds..."; sleep 5; }; \
+    done && \
+    ansible-galaxy collection list --collections-path "/usr/share/ansible/collections" | grep -q ansible.controller || \
+    { echo "Failed to install collections after 3 attempts"; exit 1; }
+
+# ----------------------------------------------------------------------------------
+# Build Execution Environment image from base & galaxy images
+# ----------------------------------------------------------------------------------
+FROM base as final
+
+ENV DESCRIPTION="Chained EE with ansible-core <2.18 for CIs managing RHEL 7/8 nodes"
+LABEL ansible-execution-environment=true \
+      name="agnosticd/ee-multicloud-legacy-rhel" \
+      maintainer="Red Hat CoP" \
+      description="${DESCRIPTION}" \
+      summary="${DESCRIPTION}"
+
+COPY --from=galaxy /usr/share/ansible /usr/share/ansible
+RUN pip install --no-cache-dir -r /usr/share/ansible/collections/ansible_collections/community/vmware/requirements.txt
+RUN pip install --no-cache-dir -r /usr/share/ansible/collections/ansible_collections/kubernetes/core/requirements.txt
+# RUN pip install --no-cache-dir -r /usr/share/ansible/collections/ansible_collections/azure/azcollection/requirements.txt
+# RUN pip install --no-cache-dir -r /usr/share/ansible/collections/ansible_collections/google/cloud/requirements.txt
+
+# AWS, Bitwarden, OC client
+COPY install_binaries.sh /tmp/install_binaries.sh
+RUN /tmp/install_binaries.sh
+
+# Azure CLI
+# RUN rpm --import https://packages.microsoft.com/keys/microsoft.asc \
+#     && dnf install -y https://packages.microsoft.com/config/rhel/9/packages-microsoft-prod.rpm \
+#     && dnf install -y azure-cli \
+#     && dnf clean all
+
+RUN rm -rf /tmp/* /root/.cache /root/*
+
+# In OpenShift, container will run as a random uid number and gid 0. Make sure things
+# are writeable by the root group.
+RUN for dir in \
+      /home/runner/.ansible \
+      /home/runner/.ansible/tmp \
+      /home/runner \
+      /runner/env \
+      /runner/inventory \
+      /runner/project \
+      /runner/artifacts \
+      /runner/requirements_collections/ansible_collections \
+      /runner ; \
+    do mkdir -m 0775 -p $dir ; chmod -R g+rwx $dir ; chgrp -R root $dir ; done && \
+    for file in \
+      /home/runner/.ansible/galaxy_token \
+      /etc/passwd \
+      /etc/group ; \
+    do touch $file ; chmod g+rw $file ; chgrp root $file ; done
+
+ENV HOME=/home/runner
+
+# Add report script for changelog and troubleshooting
+COPY ee-report.sh /usr/local/bin/ee-report
+
+RUN ln -sf /opt/ibmcloud/.bluemix /runner/.bluemix && \
+    ln -sf /opt/ibmcloud/.bluemix /home/runner/.bluemix
+
+# Add entrypoint script
+COPY entrypoint.sh /usr/local/bin/entrypoint
+RUN chmod 755 /usr/local/bin/entrypoint
+
+WORKDIR /runner
+
+ENTRYPOINT ["entrypoint"]
+CMD ["/usr/local/bin/ansible-runner", "run", "/runner"]
