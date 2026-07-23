@@ -1,0 +1,58 @@
+---
+collections:
+- name: ansible.netcommon
+- name: ansible.posix
+- name: ansible.utils
+- name: ansible.windows
+
+# cryptography
+- name: community.crypto
+- name: community.general
+
+- name: containers.podman
+
+# kubernetes>=12.0.0
+# requests-oauthlib
+# jsonpatch
+- name: kubernetes.core
+- name: kubevirt.core
+- name: community.okd
+
+# -----------------------------------------
+# Red Hat certified collections
+# -----------------------------------------
+- name: ansible.controller
+- name: ansible.eda
+- name: ansible.hub
+- name: ansible.platform
+- name: redhat.rhbk
+- name: redhat.trusted_profile_analyzer
+- name: redhat.insights
+- name: redhat.rhel_system_roles
+- name: redhat.artifact_signer
+- name: redhat.satellite
+- name: redhat.openshift
+- name: redhat.openshift_virtualization
+# -----------------------------------------
+
+# Ansible stuff
+- name: awx.awx
+# Needs awx.awx collection
+- name: infra.aap_configuration
+- name: infra.controller_configuration
+- name: infra.eda_configuration
+
+# Cloud Provider Collections
+# boto3 >= 1.18.0
+# botocore >= 1.21.0
+- name: amazon.aws
+
+# requirements-azure.txt from the collection
+# - name: azure.azcollection
+
+# requirements.txt from the collection
+# - name: google.cloud
+
+# requirements.txt from the collection
+- name: community.vmware
+- name: vmware.vmware_rest

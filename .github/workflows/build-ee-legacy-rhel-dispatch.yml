@@ -1,0 +1,69 @@
+---
+name: manual-build-ee-legacy-rhel
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'image tag'
+        required: true
+        type: string
+      labels:
+        description: 'Quay labels (ex: quay.expires-after=2d human=tony)'
+        default: ''
+        required: false
+        type: string
+
+jobs:
+  build-and-push:
+    if: contains('["fridim", "tonykay", "jkupferer", "wkulhanek", "rut31337"]', github.actor)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system binfmt-support
+
+      - name: Setup QEMU for multi-platform builds
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: all
+
+      - name: Cache Buildah layers
+        uses: actions/cache@v4
+        with:
+          path: /var/lib/containers/storage
+          key: ${{ runner.os }}-buildah-cache-legacy-rhel-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildah-cache-legacy-rhel-
+
+      - name: Buildah Action
+        uses: redhat-actions/buildah-build@v2
+        id: build-image
+        with:
+          image: ee-multicloud-legacy-rhel
+          tags: ${{ inputs.tag }} ${{ github.sha }}
+          labels: ${{ inputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          context: tools/execution_environments/ee-multicloud-legacy-rhel
+          containerfiles: |-
+            tools/execution_environments/ee-multicloud-legacy-rhel/Containerfile
+          layers: true
+          build-args: |
+            AAP_CERTIFIED_TOKEN=${{ secrets.AAP_CERTIFIED_TOKEN }}
+            AAP_VALIDATED_TOKEN=${{ secrets.AAP_VALIDATED_TOKEN }}
+
+      - name: Push To quay.io
+        id: push-to-quay
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build-image.outputs.image }}
+          tags: ${{ steps.build-image.outputs.tags }}
+          registry: quay.io/agnosticd
+          username: ${{ secrets.QUAY_EE_MULTICLOUD_USER }}
+          password: ${{ secrets.QUAY_EE_MULTICLOUD_TOKEN }}
