@@ -1,10 +1,8 @@
 # ----------------------------------------------------------------------------------
 # Build base image
 # ----------------------------------------------------------------------------------
-# Build 5/04 EE
 ARG EE_BASE_IMAGE="registry.access.redhat.com/ubi9/ubi:latest"
 
-# Building base
 FROM $EE_BASE_IMAGE as base
 
 USER root
@@ -26,23 +24,25 @@ RUN dnf install -y \
         python3.12 \
         python3.12-devel \
         python3.12-pip \
-        rsync \ 
+        rsync \
         sshpass \
         tar \
         unzip \
         vim \
         curl-minimal \
         wget \
-        httpd-tools
-RUN dnf clean all
+        httpd-tools \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
 
-# Python
 RUN alternatives --install /usr/bin/python python /usr/bin/python3.12 1 \
     && alternatives --set python /usr/bin/python3.12 \
     && alternatives --install /usr/bin/pip pip /usr/bin/pip3.12 1
-RUN pip install --no-cache-dir --upgrade pip
+
 COPY requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r /tmp/requirements.txt \
+    && rm -f /tmp/requirements.txt
 
 # ----------------------------------------------------------------------------------
 # Build Galaxy image from base image
@@ -54,11 +54,6 @@ ARG AAP_VALIDATED_TOKEN=notset
 
 COPY ansible.cfg /root/.ansible.cfg
 COPY requirements.yml /tmp/requirements.yml
-
-# RUN echo --------------------------------------------------
-# RUN echo Certified Token: ${AAP_CERTIFIED_TOKEN}
-# RUN echo Validated Token: ${AAP_VALIDATED_TOKEN}
-# RUN echo --------------------------------------------------
 
 # Fail fast if Automation Hub tokens are missing or expired
 RUN if [ "${AAP_CERTIFIED_TOKEN}" = "notset" ] || [ -z "${AAP_CERTIFIED_TOKEN}" ]; then \
@@ -106,25 +101,15 @@ LABEL ansible-execution-environment=true \
       summary="${DESCRIPTION}"
 
 COPY --from=galaxy /usr/share/ansible /usr/share/ansible
-RUN pip install --no-cache-dir -r /usr/share/ansible/collections/ansible_collections/community/vmware/requirements.txt
-RUN pip install --no-cache-dir -r /usr/share/ansible/collections/ansible_collections/kubernetes/core/requirements.txt
-# RUN pip install --no-cache-dir -r /usr/share/ansible/collections/ansible_collections/azure/azcollection/requirements.txt
-# RUN pip install --no-cache-dir -r /usr/share/ansible/collections/ansible_collections/google/cloud/requirements.txt
+RUN pip install --no-cache-dir \
+        -r /usr/share/ansible/collections/ansible_collections/community/vmware/requirements.txt \
+        -r /usr/share/ansible/collections/ansible_collections/kubernetes/core/requirements.txt
 
-# AWS, Bitwarden, OC client
 COPY install_binaries.sh /tmp/install_binaries.sh
-RUN /tmp/install_binaries.sh
+RUN /tmp/install_binaries.sh \
+    && rm -rf /tmp/* /root/.cache /root/*
 
-# Azure CLI
-# RUN rpm --import https://packages.microsoft.com/keys/microsoft.asc \
-#     && dnf install -y https://packages.microsoft.com/config/rhel/9/packages-microsoft-prod.rpm \
-#     && dnf install -y azure-cli \
-#     && dnf clean all
-
-RUN rm -rf /tmp/* /root/.cache /root/*
-
-# In OpenShift, container will run as a random uid number and gid 0. Make sure things
-# are writeable by the root group.
+# In OpenShift, container will run as a random uid number and gid 0.
 RUN for dir in \
       /home/runner/.ansible \
       /home/runner/.ansible/tmp \
@@ -144,15 +129,11 @@ RUN for dir in \
 
 ENV HOME=/home/runner
 
-# Add report script for changelog and troubleshooting
 COPY ee-report.sh /usr/local/bin/ee-report
-
-RUN ln -sf /opt/ibmcloud/.bluemix /runner/.bluemix && \
-    ln -sf /opt/ibmcloud/.bluemix /home/runner/.bluemix
-
-# Add entrypoint script
 COPY entrypoint.sh /usr/local/bin/entrypoint
-RUN chmod 755 /usr/local/bin/entrypoint
+RUN chmod 755 /usr/local/bin/entrypoint \
+    && ln -sf /opt/ibmcloud/.bluemix /runner/.bluemix \
+    && ln -sf /opt/ibmcloud/.bluemix /home/runner/.bluemix
 
 WORKDIR /runner
 
