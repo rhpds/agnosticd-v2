@@ -27,6 +27,16 @@ openshift_api_key: ""
 openshift_api_url: ""
 openshift_cluster_admin_token: ""
 
+# If run standalone it is possible to provide connection details to a bastion host
+# This allows executing tasks (like installing tools) on the bastion rather than in the
+# Execution Environment
+# The check is if bastion_ansible_host is defined. If so then the bastion is added to the Ansible group "bastions".
+#
+# bastion_ansible_host: ...
+# bastion_ansible_port:
+# bastion_ansible_user: ...
+# bastion_ansible_ssh_pass: ...
+
 clusters: {}
 
 # List of workloads to apply to clusters with cluster selector
