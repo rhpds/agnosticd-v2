@@ -1,21 +1,15 @@
 ---
-name: manual-build-ee-legacy-rhel
+name: build-ee-legacy-rhel-push
+
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'image tag'
-        required: true
-        type: string
-      labels:
-        description: 'Quay labels (ex: quay.expires-after=2d human=tony)'
-        default: ''
-        required: false
-        type: string
+  push:
+    branches:
+    - main
+    paths:
+    - tools/execution_environments/ee-multicloud-legacy-rhel/**
 
 jobs:
   build-and-push:
-    if: contains('["fridim", "tonykay", "jkupferer", "wkulhanek", "rut31337"]', github.actor)
     runs-on: ubuntu-latest
 
     steps:
@@ -32,13 +26,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildah-cache-legacy-rhel-
 
+      - name: Generate date tag
+        id: tag
+        run: echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
       - name: Buildah Action
         uses: redhat-actions/buildah-build@v2
         id: build-image
         with:
           image: ee-multicloud-legacy-rhel
-          tags: ${{ inputs.tag }} ${{ github.sha }}
-          labels: ${{ inputs.labels }}
+          tags: chained-legacy-rhel-${{ steps.tag.outputs.date }} chained-legacy-rhel-latest ${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.event.repository.html_url }}
+            org.opencontainers.image.revision=${{ github.sha }}
           platforms: linux/amd64
           context: tools/execution_environments/ee-multicloud-legacy-rhel
           containerfiles: |-
