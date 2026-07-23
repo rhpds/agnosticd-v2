@@ -1,0 +1,9 @@
+---
+- name: Step 004 - Software
+  hosts: localhost
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Print debug message
+      ansible.builtin.debug:
+        msg: "Step 004 - Software (Troshka — OCP deployed via pattern/template, nothing to install)"

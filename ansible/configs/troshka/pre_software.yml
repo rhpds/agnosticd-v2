@@ -1,0 +1,159 @@
+---
+- name: Step 003 - Pre Software
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Skip pre-software on pattern deploy
+      when: troshka_deploy_mode | default('template') in ['pattern', 'pattern_workloads']
+      ansible.builtin.debug:
+        msg: "Skipping pre-software — pattern deploy includes bastion services"
+
+- name: Step 003.0 - Check for pre-built bastion image
+  hosts: bastions
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Check for bastion-built sentinel
+      ansible.builtin.stat:
+        path: /etc/troshka-bastion-built
+      register: _bastion_built
+
+    - name: Set bastion_prebuilt fact
+      ansible.builtin.set_fact:
+        bastion_prebuilt: "{{ _bastion_built.stat.exists | default(false) }}"
+
+- name: Step 003.1 - Mount RHEL DVD repos
+  hosts: bastions
+  become: true
+  gather_facts: false
+  tags: [repos]
+  roles:
+    - name: Mount DVD repos for local package install
+      when:
+        - troshka_deploy_mode | default('template') == 'template'
+        - not bastion_prebuilt | default(false) | bool
+      role: rhpds.demo_workloads.bastion_dvd_repos
+
+- name: Step 003.2 - Install common packages on bastion
+  hosts: bastions
+  become: true
+  gather_facts: false
+  tags: [packages]
+  vars:
+    troshka_timeout: 600
+  roles:
+    - name: Install common packages
+      when:
+        - install_common_packages | default(false) | bool
+        - troshka_deploy_mode | default('template') == 'template'
+        - not bastion_prebuilt | default(false) | bool
+      role: host_common_packages
+
+  tasks:
+    - name: Install pip packages
+      ansible.builtin.pip:
+        name: "{{ host_pip_packages }}"
+      when:
+        - host_pip_packages | default([]) | length > 0
+        - troshka_deploy_mode | default('template') == 'template'
+        - not bastion_prebuilt | default(false) | bool
+
+- name: Step 003.3 - Install desktop packages on bastion
+  hosts: bastions
+  become: true
+  gather_facts: false
+  tags: [packages, desktop]
+  tasks:
+    - name: Install desktop package group
+      when:
+        - troshka_deploy_mode | default('template') == 'template'
+        - not bastion_prebuilt | default(false) | bool
+        - host_common_packages_desktop_group | default('') | length > 0
+      ansible.builtin.shell:
+        cmd: "dnf group install -y '{{ host_common_packages_desktop_group }}'"
+      register: _group_install
+      changed_when: "'Complete!' in _group_install.stdout"
+      timeout: 600
+      vars:
+        troshka_timeout: 600
+
+    - name: Install desktop packages
+      when:
+        - troshka_deploy_mode | default('template') == 'template'
+        - not bastion_prebuilt | default(false) | bool
+        - host_common_packages_desktop | default([]) | length > 0
+      ansible.builtin.shell:
+        cmd: "dnf install -y {{ host_common_packages_desktop | join(' ') }}"
+      register: _desktop_pkgs
+      changed_when: "'Complete!' in _desktop_pkgs.stdout"
+      timeout: 600
+      vars:
+        troshka_timeout: 600
+
+- name: Step 003.4 - Set up bastion
+  hosts: bastions
+  become: true
+  gather_facts: false
+  tags: [bastion]
+  roles:
+    - name: Set up bastion
+      when:
+        - install_bastion | default(false) | bool
+        - troshka_deploy_mode | default('template') == 'template'
+      role: bastion
+
+- name: Step 003.4.1 - Update GDM auto-login for student user (prebuilt bastion)
+  hosts: bastions
+  become: true
+  gather_facts: false
+  tags: [bastion, desktop]
+  vars:
+    _login_user: "{{ student_name | default(bastion_student_user_name | default('cloud-user')) }}"
+  tasks:
+    - name: Set GDM auto-login to student user
+      when:
+        - bastion_prebuilt | default(false) | bool
+        - troshka_deploy_mode | default('template') == 'template'
+      ansible.builtin.lineinfile:
+        path: /etc/gdm/custom.conf
+        regexp: '^AutomaticLogin='
+        line: "AutomaticLogin={{ _login_user }}"
+      register: _gdm_login_changed
+
+    - name: Restart GDM to apply new login user
+      when: _gdm_login_changed is changed
+      ansible.builtin.systemd:
+        name: gdm
+        state: restarted
+      ignore_errors: true
+
+- name: Step 003.5 - Configure desktop
+  hosts: bastions
+  become: true
+  gather_facts: true
+  tags: [desktop]
+  roles:
+    - name: Configure GNOME desktop
+      when:
+        - troshka_deploy_mode | default('template') == 'template'
+        - not bastion_prebuilt | default(false) | bool
+      role: rhpds.demo_workloads.bastion_desktop
+
+- name: Step 003.6 - Pre-software workloads (disconnected services)
+  hosts: bastions
+  become: true
+  gather_facts: false
+  tags: [services]
+  vars:
+    troshka_timeout: 600
+  tasks:
+    - name: Run pre-software workloads
+      when: troshka_deploy_mode | default('template') == 'template'
+      ansible.builtin.include_role:
+        name: "{{ _workload_role }}"
+      loop: "{{ pre_software_workloads | default([]) }}"
+      loop_control:
+        loop_var: _workload_role
+
