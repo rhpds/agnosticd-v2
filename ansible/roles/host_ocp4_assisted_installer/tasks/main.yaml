@@ -54,12 +54,13 @@
 
   - name: Configure extra SNO clusters
     when: ai_extra_sno_clusters | default([]) | length > 0
-    ansible.builtin.include_tasks: configure_sno_compact_cluster.yml
+    ansible.builtin.include_tasks: configure_sno_extra_sno_clusters.yml
     loop: "{{ ai_extra_sno_clusters }}"
     loop_control:
       loop_var: extra_sno_cluster
     vars:
       _cluster_name: "cluster-{{ guid }}-{{ extra_sno_cluster.name }}"
+      _sno_cluster_name: "{{ extra_sno_cluster.name }}"
       ai_network_prefix: "{{ extra_sno_cluster.ai_network_prefix }}"
 
   - name: Configure a SNO/Compact cluster
@@ -86,6 +87,7 @@
     loop_control:
       loop_var: extra_sno_cluster
     vars:
+      _sno_cluster_name: "{{ extra_sno_cluster.name }}"
       _cluster_name: "cluster-{{ guid }}-{{ extra_sno_cluster.name }}"
       ai_network_prefix: "{{ extra_sno_cluster.ai_network_prefix }}"
       _ai_control_plane_cores: "{{ extra_sno.ai_control_plane_cores | default(ai_control_plane_cores) }}"

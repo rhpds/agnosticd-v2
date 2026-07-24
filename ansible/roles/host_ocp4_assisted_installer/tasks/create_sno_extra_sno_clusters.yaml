@@ -1,8 +1,8 @@
 - name: Create OpenShift cluster using Assisted Installer
   rhpds.assisted_installer.create_cluster:
-    name: "{{ _cluster_name }}"
+    name: "{{ _sno_cluster_name }}"
     openshift_version: "{{ ai_cluster_version }}"
-    base_dns_domain: "{{ cluster_dns_zone }}"
+    base_dns_domain: "cluster-{{ guid }}.{{ cluster_dns_zone }}"
     offline_token: "{{ ai_offline_token }}"
     pull_secret: "{{ ai_pull_secret }}"
     high_availability_mode: "{{ 'Full' if control_plane_instance_count | int > 1 else 'None' }}"
