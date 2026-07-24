@@ -68,6 +68,8 @@
   tasks:
   - name: Approve CertificateSigningRequests
     when:
+    - "'bastions' in groups"
+    - groups['bastions'] | length > 0
     - hostvars[groups['bastions'][0]]['r_wait'] is successful
     - host_ocp4_deploy_installation_method != 'rosa'
     ansible.builtin.include_role:
