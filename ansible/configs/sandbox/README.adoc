@@ -1,0 +1,39 @@
+== Overview
+
+The *sandbox* config provides a minimal lifecycle for blank cloud sandbox
+environments (AWS, etc.) where no VMs or clusters are provisioned.
+
+It runs workload roles on localhost to set up IAM users, credentials, DNS,
+and other account-level resources within a sandbox-managed cloud account.
+
+== Supported Cloud Providers
+
+* `aws` — AWS sandbox account. Credentials come from the sandbox API.
+  Infrastructure deployment is a no-op (no VMs or CloudFormation stacks
+  from the cloud provider level).
+
+== Workloads
+
+Workloads are specified as a flat list of fully qualified role names:
+
+[source,yaml]
+----
+workloads:
+- agnosticd.core_workloads.aws_open_environment
+----
+
+On destroy, `remove_workloads` is used if set; otherwise the `workloads`
+list is reversed automatically.
+
+== Example
+
+[source,yaml]
+----
+config: sandbox
+cloud_provider: aws
+
+workloads:
+- agnosticd.core_workloads.aws_open_environment
+
+sandbox_enable_ui: true
+----

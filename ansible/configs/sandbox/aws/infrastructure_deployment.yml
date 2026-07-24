@@ -1,0 +1,12 @@
+---
+- name: Step 001 - Sandbox Infrastructure (no-op)
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  tasks:
+  - name: Sandbox config does not deploy cloud infrastructure
+    ansible.builtin.debug:
+      msg: >-
+        Sandbox config skips infrastructure deployment.
+        AWS credentials are provided by the sandbox API.
