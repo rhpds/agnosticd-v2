@@ -1,4 +1,4 @@
-ansible-core>=2.16,<2.18
+ansible-core>=2.15,<2.16
 ansible-runner
 ansible-specdoc
 boto3>=1.18.0
