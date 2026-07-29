@@ -312,6 +312,39 @@ ocp4_workload_cert_manager_install_ingress_certificates: true
 ocp4_workload_cert_manager_install_api_certificates: false
 ----
 
+=== Ansible Vault Support
+
+The `agd` script supports Ansible Vault for encrypting sensitive values in your configuration and secrets files. If a vault password file exists at `~/.vault_password`, the script automatically mounts it into the execution environment and passes it to `ansible-navigator`. No additional flags are needed.
+
+==== Setting Up Vault Support
+
+. *Create the vault password file*:
++
+[source,sh]
+----
+echo 'your-vault-password' > ~/.vault_password
+chmod 0600 ~/.vault_password
+----
+
+. *Encrypt a file* (variables, secrets, or binary files like license ZIPs):
++
+[source,sh]
+----
+ansible-vault encrypt path/to/file.yml
+ansible-vault encrypt path/to/license.zip
+----
+
+. *Encrypt a single variable* for use in a YAML file:
++
+[source,sh]
+----
+ansible-vault encrypt_string 'secret-value' --name 'my_variable'
+----
++
+Paste the output into your variables or secrets YAML file.
+
+Ansible decrypts vaulted values and files transparently at runtime. If `~/.vault_password` does not exist, the script runs without vault support and no error is raised.
+
 == Deployment Operations
 
 The `agd` script supports multiple operations using consistent parameter syntax. All operations require three parameters (in any order):
