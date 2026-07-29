@@ -219,6 +219,15 @@ run_ansible_navigator() {
   export ANSIBLE_LOG_PATH="/output_dir_root/${GUID}/${GUID}.log"
   export ANSIBLE_NAVIGATOR_PLAYBOOK_ARTIFACT_SAVE_AS=/output_dir_root/${GUID}
 
+  # ponytail: vault password file support — mount and pass only if file exists
+  VAULT_ARGS=()
+  if [ -f ~/.vault_password ]; then
+    VAULT_ARGS=(
+      --execution-environment-volume-mounts "${HOME}/.vault_password:/vault_password:Z"
+      --vault-password-file /vault_password
+    )
+  fi
+
   ansible-navigator run "ansible/${playbook}" \
     --extra-vars "ACTION=${action}" \
     --extra-vars "guid=${GUID}" \
@@ -231,6 +240,7 @@ run_ansible_navigator() {
     --execution-environment-volume-mounts ${SECRETS_DIR}:/secrets:Z \
     --execution-environment-volume-mounts ${OUTPUT_DIR_ROOT}:/output_dir_root:Z \
     --execution-environment-volume-mounts ${OUTPUT_DIR_ROOT}/${GUID}/requirements_collections:/home/runner/.ansible/collections:Z \
+    "${VAULT_ARGS[@]}" \
     --mode stdout
 }
 
