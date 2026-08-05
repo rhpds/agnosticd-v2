@@ -20,12 +20,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v7
 
       - name: Cache Buildah layers
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /var/lib/containers/storage
           key: ${{ runner.os }}-buildah-cache-legacy-rhel-${{ hashFiles('tools/execution_environments/ee-multicloud-legacy-rhel/Containerfile', 'tools/execution_environments/ee-multicloud-legacy-rhel/requirements.*') }}
@@ -33,7 +33,7 @@ jobs:
             ${{ runner.os }}-buildah-cache-legacy-rhel-
 
       - name: Buildah Action
-        uses: redhat-actions/buildah-build@v2
+        uses: redhat-actions/buildah-build@v3
         id: build-image
         with:
           image: ee-multicloud-legacy-rhel
