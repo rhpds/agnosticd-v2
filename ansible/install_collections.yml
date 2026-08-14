@@ -24,7 +24,10 @@
 
 - name: Validate git-based collection URLs are reachable
   ansible.builtin.command:
-    cmd: git ls-remote {{ item.name }}
+    # Strip any '#/subdirectory' fragment before checking reachability;
+    # git ls-remote doesn't understand ansible-galaxy's subdirectory
+    # fragment syntax and would otherwise fail on a valid URL.
+    cmd: "git ls-remote {{ item.name | split('#') | first | quote }}"
   environment:
     GIT_TERMINAL_PROMPT: "0"
   loop: >-
