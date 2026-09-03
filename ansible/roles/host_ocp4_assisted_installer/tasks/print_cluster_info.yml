@@ -62,10 +62,10 @@
     data:
       openshift_api_url: "{{ openshift_api_url }}"
       openshift_console_url: "{{ openshift_console_url }}"
-      openshift_client_download_url: "{{ openshift_client_download_url }}"
+      openshift_client_download_url: "{{ _host_ocp4_client_url }}"
       openshift_cluster_ingress_domain: "{{ openshift_cluster_ingress_domain }}"
       openshift_kubeadmin_password: "{{ openshift_kubeadmin_password }}"
     msg: |-
       OpenShift Console: {{ openshift_console_url }}
       OpenShift API for command line 'oc' client: {{ openshift_api_url }}
-      Download oc client from {{ openshift_client_download_url }}
+      Download oc client from {{ _host_ocp4_client_url }}
