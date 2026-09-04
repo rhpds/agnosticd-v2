@@ -9,6 +9,36 @@
       msg: "Step 004 Software"
 
 # ----------------------------------------------------------------------
+# Install packages defined in the instances
+# ----------------------------------------------------------------------
+# Parity with redhat-cop/agnosticd's zero-touch-base-rhel/software.yml,
+# which every catalog item declaring a per-instance `packages:` list
+# (e.g. from a content repo's config/instances.yaml) relies on to get
+# those packages actually installed on the guest - this step was missing
+# entirely from cloud-vms-base (GPTEINFRA-17880). Uses ansible.builtin.package
+# (generic, cross-platform) rather than hardcoding ansible.builtin.dnf,
+# since cloud-vms-base guests aren't guaranteed to all be RHEL/Fedora-family.
+# Runs after pre_software.yml (where Satellite/subscription registration
+# happens for catalog items that need it) so package repos are available
+# by the time this runs.
+- name: Install packages defined in the instances
+  hosts: all:!windows:!network:!isolated
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Install packages declared on this instance
+      when: >-
+        instances | default([]) | selectattr('name', 'equalto', ansible_host)
+        | selectattr('packages', 'defined') | map(attribute='packages') | flatten | length > 0
+      ansible.builtin.package:
+        state: present
+        name: "{{ instances | selectattr('name', 'equalto', ansible_host) | map(attribute='packages') | flatten }}"
+      register: r_instance_packages
+      until: r_instance_packages is succeeded
+      retries: 5
+      delay: 10
+
+# ----------------------------------------------------------------------
 # Software Workloads as role
 # ----------------------------------------------------------------------
 - name: Import software workloads
