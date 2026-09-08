@@ -3,6 +3,22 @@
 # Follows the same 4-play pattern as cloud_providers/aws/infrastructure_deployment.yml
 # Roles are from the agnosticd.cloud_provider_gcp collection.
 
+- name: Step 001.0 Install GCP Python dependencies
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+  - name: Install google-auth and google-api-python-client for GCP modules
+    ansible.builtin.pip:
+      name:
+      - google-auth
+      - google-api-python-client
+      - google-cloud-compute
+      - google-cloud-dns
+      state: present
+      extra_args: --quiet
+
 - name: Step 001.1 Deploy GCP Infrastructure
   hosts: localhost
   connection: local
