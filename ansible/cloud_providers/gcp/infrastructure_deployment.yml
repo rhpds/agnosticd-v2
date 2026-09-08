@@ -100,6 +100,7 @@
       ansible_ssh_extra_args: >-
         {{ ansible_ssh_extra_args | default() }}
         -F {{ output_dir }}/{{ config }}_{{ guid }}_ssh_conf
+      ansible_ssh_private_key_file: "{{ output_dir }}/ssh_provision_{{ guid }}"
 
   - name: Wait for Linux hosts
     ansible.builtin.include_role:
