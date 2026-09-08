@@ -21,18 +21,46 @@
 # Runs after pre_software.yml (where Satellite/subscription registration
 # happens for catalog items that need it) so package repos are available
 # by the time this runs.
+#
+# FOUND LIVE (GPTEINFRA-17880, guids 7zpgq/rdpc7): this task always
+# skipped, on every host, every time - confirmed via rpm -q that
+# cockpit/sssd-proxy/pcp/python3-pcp were never installed. Root cause: the
+# bare `instances` variable is only ever set via rhpds.zerotouch.zt_base_config's
+# set_fact (pre_infra_workloads.localhost), which runs on `hosts: localhost` -
+# every other consumer of `instances` in this repo (infrastructure_deployment.yml
+# for both aws and openshift_cnv) also runs on `hosts: localhost`. This task
+# was the only one referencing bare `instances` from a REMOTE host's own play
+# (hosts: all:!windows:!network:!isolated) - Ansible does not share a
+# set_fact'd variable across hosts within one run (cacheable: true is only
+# load-bearing for cross-*process* reuse, e.g. Molecule's separate converge/
+# verify runs, not cross-host sharing in a single run), so `instances`
+# evaluated as undefined on every VM host, `default([])` silently produced
+# `[]`, and the whole condition was always false. Fixed by reading it via
+# hostvars['localhost'].instances instead - matches how every other
+# consumer already resolves it (skipping: [rhel], no error, exactly matches
+# an empty list, not a mismatched match).
+#
+# Also switched the name-match from ansible_host to inventory_hostname:
+# create_inventory.yaml (rhpds/cloud_provider_openshift_cnv) only ever sets
+# ansible_ssh_host (a connection-plugin-specific override), never the
+# generic ansible_host - not guaranteed to alias for arbitrary Jinja use
+# elsewhere. inventory_hostname is guaranteed correct by construction
+# instead (add_host: name: "{{ item.metadata.name }}"), matching
+# instances[].name exactly.
 - name: Install packages defined in the instances
   hosts: all:!windows:!network:!isolated
   gather_facts: false
   become: true
   tasks:
     - name: Install packages declared on this instance
+      vars:
+        _instances: "{{ hostvars['localhost'].instances | default([]) }}"
       when: >-
-        instances | default([]) | selectattr('name', 'equalto', ansible_host)
+        _instances | selectattr('name', 'equalto', inventory_hostname)
         | selectattr('packages', 'defined') | map(attribute='packages') | flatten | length > 0
       ansible.builtin.package:
         state: present
-        name: "{{ instances | selectattr('name', 'equalto', ansible_host) | map(attribute='packages') | flatten }}"
+        name: "{{ _instances | selectattr('name', 'equalto', inventory_hostname) | map(attribute='packages') | flatten }}"
       register: r_instance_packages
       until: r_instance_packages is succeeded
       retries: 5
