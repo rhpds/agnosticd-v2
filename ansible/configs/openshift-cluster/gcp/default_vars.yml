@@ -1,0 +1,90 @@
+---
+# -------------------------------------------------------------------
+# Default variables for Google Cloud Platform (GCP)
+# -------------------------------------------------------------------
+
+# Ansible connection user for bastion
+ansible_user: ec2-user
+
+# -------------------------------------------------------------------
+# GCP Infrastructure
+# -------------------------------------------------------------------
+
+# GCP region and zone
+gcp_region: us-east1
+gcp_zone: "{{ gcp_region }}-b"
+
+# Cloud provider identifier (used by agnosticd for playbook resolution)
+cloud_provider: gcp
+
+# -------------------------------------------------------------------
+# Compute Architecture
+# -------------------------------------------------------------------
+ocp4_architecture_cluster: x86_64
+
+# -------------------------------------------------------------------
+# Project tag
+# -------------------------------------------------------------------
+project_tag: "{{ config }}-{{ guid }}"
+
+# -------------------------------------------------------------------
+# GCP Networking
+# -------------------------------------------------------------------
+gcp_network_name: "{{ project_tag }}-network"
+gcp_subnet_cidr: "10.0.0.0/16"
+
+# -------------------------------------------------------------------
+# GCP Compute Instances
+# -------------------------------------------------------------------
+
+# Bastion configuration
+bastion_instance_type: n2-standard-4
+bastion_instance_image_family: rhel-9
+bastion_rootfs_size: 50
+
+# Control plane instances
+control_plane_instance_type: n2-standard-8
+control_plane_instance_count: 3
+control_plane_storage_type: pd-ssd
+control_plane_storage_size: 100
+
+# Worker instances
+worker_instance_type: n2-standard-16
+worker_instance_count: 2
+worker_storage_type: pd-ssd
+worker_storage_size: 100
+
+# GCP instances list (bastion only — OCP nodes managed by openshift-install)
+instances:
+- name: bastion
+  count: 1
+  unique: true
+  public_ip: true
+  image_family: "{{ bastion_instance_image_family }}"
+  instance_type: "{{ bastion_instance_type }}"
+  rootfs_size: "{{ bastion_rootfs_size }}"
+  tags:
+  - bastion
+  - "{{ project_tag }}"
+
+# -------------------------------------------------------------------
+# GCP DNS
+# -------------------------------------------------------------------
+# DNS records are typically managed by the openshift-install IPI flow
+# and do not need explicit gcp_dns_records for base cluster deployment.
+gcp_dns_records: []
+
+# -------------------------------------------------------------------
+# GCP-specific OpenShift settings
+# -------------------------------------------------------------------
+# The openshift-install IPI flow on GCP handles:
+# - VPC and subnet creation for the cluster
+# - DNS zone and records in Cloud DNS
+# - GCE instances for control plane and workers
+# - Load balancers for API and ingress
+#
+# The bastion VM above is provisioned by agnosticd before openshift-install
+# runs, providing a jumpbox with the installer and oc CLI.
+
+# Remove GCP credentials from bastion after install
+# (handled in post_software.yml)

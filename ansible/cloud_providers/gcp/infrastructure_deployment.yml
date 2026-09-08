@@ -1,0 +1,116 @@
+---
+# GCP Infrastructure Deployment
+# Follows the same 4-play pattern as cloud_providers/aws/infrastructure_deployment.yml
+# Roles are from the agnosticd.cloud_provider_gcp collection.
+
+- name: Step 001.1 Deploy GCP Infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+  - name: Set up GCP credentials
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_gcp.credentials_file
+
+  - name: Check for GCP SDK
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_gcp.install_sdk
+
+  - name: Create SSH provision key
+    when:
+    - instances | default([]) | length > 0
+    - ssh_provision_key_name is undefined
+    ansible.builtin.include_role:
+      name: infra_create_ssh_provision_key
+
+  - name: Locate environment SSH key
+    when: instances | default([]) | length > 0
+    ansible.builtin.include_role:
+      name: locate_env_authorized_key
+
+  - name: Create GCP SSH key metadata
+    when: instances | default([]) | length > 0
+    vars:
+      ACTION: provision
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_gcp.ssh_key
+
+  - name: Run GCP open environment role
+    when: agnosticd_open_environment | default(false) | bool
+    vars:
+      ACTION: provision
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_gcp.open_environment
+
+  - name: Create GCP network
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_gcp.create_network
+
+  - name: Create GCP instances
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_gcp.create_instances
+
+- name: Step 001.2 Create inventory
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+  - name: Run GCP create inventory role
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_gcp.create_inventory
+
+  - name: Run common SSH config generator role
+    when:
+    - groups.bastions is defined
+    - groups.bastions | length > 0
+    ansible.builtin.include_role:
+      name: infra_common_ssh_config_generate
+
+- name: Include global vars again for all hosts now that inventory is built
+  ansible.builtin.import_playbook: ../../include_vars.yml
+
+- name: Step 001.3 Configure Linux hosts and wait for connection
+  hosts:
+  - all:!windows:!network
+  gather_facts: false
+  any_errors_fatal: true
+  ignore_errors: false
+  become: true
+  tasks:
+  - name: Set facts for remote access
+    ansible.builtin.set_fact:
+      ansible_ssh_extra_args: >-
+        {{ ansible_ssh_extra_args | default() }}
+        -F {{ output_dir }}/{{ config }}_{{ guid }}_ssh_conf
+
+  - name: Wait for Linux hosts
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_gcp.wait_for_linux_hosts
+
+  - name: Set Linux hostname
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_gcp.linux_set_hostname
+
+  - name: Add authorized_keys
+    when: host_ssh_authorized_keys | default([]) | length > 0
+    ansible.builtin.include_role:
+      name: host_ssh_authorized_keys
+
+- name: Step 001.4 DNS and user info
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+  - name: Create DNS records
+    when: gcp_dns_records | default([]) | length > 0
+    vars:
+      ACTION: provision
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_gcp.dns
+
+  - name: Report GCP user info
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_gcp.user_info
