@@ -3,8 +3,8 @@
 # Default variables for Google Cloud Platform (GCP)
 # -------------------------------------------------------------------
 
-# Ansible connection user for bastion
-ansible_user: ec2-user
+# Ansible connection user for bastion (must match gcp_ssh_key_user in instance metadata)
+ansible_user: gcp-user
 
 # -------------------------------------------------------------------
 # GCP Infrastructure
