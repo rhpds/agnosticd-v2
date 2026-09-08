@@ -66,7 +66,9 @@
     block:
     - name: Create secret for SSH Key
       ansible.builtin.include_role:
-        name: infra_gcp_ssh_key
+        name: agnosticd.cloud_provider_gcp.ssh_key
+      vars:
+        ACTION: provision
 
   - name: Azure Post Infrastructure
     when: cloud_provider is match("azure")
