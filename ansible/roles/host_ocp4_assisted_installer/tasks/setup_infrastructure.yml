@@ -89,6 +89,17 @@
     wait: true
     wait_timeout: 300
 
+- name: Wait for installation ISO DataVolume to be ready
+  kubernetes.core.k8s_info:
+    api_version: cdi.kubevirt.io/v1beta1
+    kind: DataVolume
+    name: "installation-iso-{{ _cluster_name }}"
+    namespace: "{{ ai_ocp_namespace }}"
+  register: r_installation_iso_dv
+  until: r_installation_iso_dv.resources[0].status.phase == "Succeeded"
+  retries: 60
+  delay: 10
+
 - name: Create three control plane VMs for full cluster
   vars:
     vmname: "{{ ai_ocp_vmname_control_plane_prefix }}-{{ _index }}"
