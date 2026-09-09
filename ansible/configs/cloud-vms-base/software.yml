@@ -58,6 +58,17 @@
 # `shortname | default(inventory_hostname)` instead - correct on both
 # providers, falling back to inventory_hostname if shortname is ever
 # unset.
+#
+# KNOWN LIMITATION (inherited unchanged from v1's zero-touch-base-rhel/
+# software.yml, not a regression introduced here): instances[] entries
+# declared with count > 1 get VM names suffixed with a per-replica index
+# (e.g. "web1", "web2", ... - see cloud_provider_openshift_cnv's
+# create_instance task) while instances[].name itself stays the
+# unsuffixed base ("web"). Since the match above is an exact-equality
+# selectattr('name', 'equalto', ...), none of a multi-count instance's
+# replicas will ever match their own instances[] entry, so packages:
+# declared on a count > 1 instance silently won't install on any
+# replica. Matches v1's identical behavior; not addressed here.
 - name: Install packages defined in the instances
   hosts: all:!windows:!network:!isolated
   gather_facts: false
