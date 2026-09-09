@@ -47,6 +47,17 @@
 # elsewhere. inventory_hostname is guaranteed correct by construction
 # instead (add_host: name: "{{ item.metadata.name }}"), matching
 # instances[].name exactly.
+#
+# inventory_hostname alone is not enough for cross-provider correctness,
+# though: on the AWS provider, inventory_hostname is the EC2 internal DNS
+# name (create_inventory's add_host: name: "{{ item.tags.internaldns |
+# default(item.private_dns_name) }}"), not instances[].name. Both
+# providers do set `shortname` to the actual instance name
+# (openshift_cnv: "{{ item.metadata.name }}"; aws: "{{ item.tags.Name |
+# default(item.private_dns_name) }}"), so match on
+# `shortname | default(inventory_hostname)` instead - correct on both
+# providers, falling back to inventory_hostname if shortname is ever
+# unset.
 - name: Install packages defined in the instances
   hosts: all:!windows:!network:!isolated
   gather_facts: false
@@ -55,12 +66,13 @@
     - name: Install packages declared on this instance
       vars:
         _instances: "{{ hostvars['localhost'].instances | default([]) }}"
+        _match_name: "{{ shortname | default(inventory_hostname) }}"
       when: >-
-        _instances | selectattr('name', 'equalto', inventory_hostname)
+        _instances | selectattr('name', 'equalto', _match_name)
         | selectattr('packages', 'defined') | map(attribute='packages') | flatten | length > 0
       ansible.builtin.package:
         state: present
-        name: "{{ _instances | selectattr('name', 'equalto', inventory_hostname) | map(attribute='packages') | flatten }}"
+        name: "{{ _instances | selectattr('name', 'equalto', _match_name) | map(attribute='packages') | flatten }}"
       register: r_instance_packages
       until: r_instance_packages is succeeded
       retries: 5
