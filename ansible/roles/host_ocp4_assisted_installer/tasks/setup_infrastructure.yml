@@ -96,9 +96,16 @@
     name: "installation-iso-{{ _cluster_name }}"
     namespace: "{{ ai_ocp_namespace }}"
   register: r_installation_iso_dv
-  until: r_installation_iso_dv.resources[0].status.phase == "Succeeded"
+  until:
+  - r_installation_iso_dv.resources | length > 0
+  - r_installation_iso_dv.resources[0].status.phase is defined
+  - r_installation_iso_dv.resources[0].status.phase == "Succeeded"
   retries: 60
   delay: 10
+  failed_when:
+  - r_installation_iso_dv.resources | length > 0
+  - r_installation_iso_dv.resources[0].status.phase is defined
+  - r_installation_iso_dv.resources[0].status.phase == "Failed"
 
 - name: Create three control plane VMs for full cluster
   vars:
