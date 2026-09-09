@@ -67,12 +67,13 @@
       vars:
         _instances: "{{ hostvars['localhost'].instances | default([]) }}"
         _match_name: "{{ shortname | default(inventory_hostname) }}"
-      when: >-
-        _instances | selectattr('name', 'equalto', _match_name)
-        | selectattr('packages', 'defined') | map(attribute='packages') | flatten | length > 0
+        _matched_packages: >-
+          {{ _instances | selectattr('name', 'equalto', _match_name)
+            | selectattr('packages', 'defined') | map(attribute='packages') | flatten(levels=1) }}
+      when: _matched_packages | length > 0
       ansible.builtin.package:
         state: present
-        name: "{{ _instances | selectattr('name', 'equalto', _match_name) | map(attribute='packages') | flatten }}"
+        name: "{{ _matched_packages }}"
       register: r_instance_packages
       until: r_instance_packages is succeeded
       retries: 5
