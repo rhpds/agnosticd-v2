@@ -1,0 +1,6 @@
+---
+# Internal state variables
+_rosa_cluster_admin_password: ""
+_rosa_supported_regions: ""
+_rosa_version_to_install: ""
+_rosa_ocp_cli_version: ""
