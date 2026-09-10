@@ -23,3 +23,8 @@ worker_only: false
 # CSR approval retry settings
 approve_csr_retries: 90
 approve_csr_delay: 10
+
+# Assisted Installer API retry settings
+# SSO token exchange can fail transiently with "invalid_grant"
+ai_api_retries: 5
+ai_api_delay: 30

@@ -66,6 +66,9 @@
       offline_token: "{{ ai_offline_token }}"
       owner: true
     register: r_list_clusters
+    retries: "{{ ai_api_retries }}"
+    delay: "{{ ai_api_delay }}"
+    until: r_list_clusters is not failed
 
   - name: Filter the created clusters
     ansible.builtin.set_fact:
@@ -82,6 +85,9 @@
       api_vip_dnsname: "{{ ai_network_prefix + '.100' if current_instance_workers | int > 1 else ai_network_prefix + '.10' }}"
       openshift_cluster_id: "{{ cluster.openshift_cluster_id }}"
     register: r_import_cluster
+    retries: "{{ ai_api_retries }}"
+    delay: "{{ ai_api_delay }}"
+    until: r_import_cluster is not failed
 
   - name: Set base_dns_domain update data
     ansible.builtin.set_fact:
@@ -94,6 +100,10 @@
       offline_token: "{{ ai_offline_token }}"
       cluster_id: "{{ r_import_cluster.result.id }}"
       cluster_update_params: "{{ _update_dns_domain | to_json if _update_dns_domain is mapping else _update_dns_domain }}"
+    register: _r_update_cluster
+    retries: "{{ ai_api_retries }}"
+    delay: "{{ ai_api_delay }}"
+    until: _r_update_cluster is not failed
 
   - name: Generate mac addresses for workers
     ansible.builtin.set_fact:
@@ -121,6 +131,9 @@
       pull_secret: "{{ ai_pull_secret }}"
       static_network_config: "{{ static_network_config }}"
     register: newinfraenv
+    retries: "{{ ai_api_retries }}"
+    delay: "{{ ai_api_delay }}"
+    until: newinfraenv is not failed
 
   - name: Create PVC for the installation ISO
     kubernetes.core.k8s:
