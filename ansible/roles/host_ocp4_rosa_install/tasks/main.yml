@@ -116,13 +116,5 @@
       rosa_openshift_api_url: "{{ rosa_openshift_api_url }}"
       rosa_version: "{{ _rosa_version_to_install }}"
       rosa_cluster_name: "{{ rosa_cluster_name }}"
-
-- name: Save ROSA admin credentials
-  when:
-  - rosa_setup_cluster_admin | bool
-  - _rosa_cluster_admin_password | length > 0
-  delegate_to: localhost
-  agnosticd.core.agnosticd_user_info:
-    data:
       rosa_openshift_admin_user: cluster-admin
       rosa_openshift_admin_password: "{{ _rosa_cluster_admin_password }}"

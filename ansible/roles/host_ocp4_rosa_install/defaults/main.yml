@@ -1,16 +1,19 @@
 ---
-# ROSA cluster name
-rosa_cluster_name: "rosa-{{ guid }}"
-
 # ROSA token - must come from secrets
 # rosa_token: ""
 
+# AWS billing account ID (required for ROSA)
+# aws_billing_account_id: ""
+
+# ROSA cluster name
+rosa_cluster_name: "rosa-{{ guid }}"
+
 # Version of ROSA to deploy
-# Options: default, latest, latest-upgrade, or specific (e.g. 4.17.4)
+# Options: default, latest, latest-upgrade, or specific (e.g. 4.22.4)
 rosa_version: default
 
 # Base version string for latest/latest-upgrade resolution
-rosa_version_base: "openshift-v4.20"
+rosa_version_base: openshift-v4.22
 
 # ROSA CLI version and download URL
 rosa_installer_version: latest
@@ -34,22 +37,10 @@ rosa_service_cidr: ""
 rosa_pod_cidr: ""
 rosa_host_prefix: ""
 
-# Set up cluster-admin user
-rosa_setup_cluster_admin: true
-rosa_setup_cluster_admin_login: false
-
 # Terraform for ROSA networking
-rosa_terraform_version: "1.15.3"
+rosa_terraform_version: "1.16.2"
 rosa_terraform_url: >-
   https://releases.hashicorp.com/terraform/{{ rosa_terraform_version }}/terraform_{{ rosa_terraform_version }}_linux_amd64.zip
 rosa_terraform_repo: https://github.com/openshift-cs/terraform-vpc-example
 rosa_terraform_repo_branch: main
 
-# AWS billing account ID (required for ROSA)
-# aws_billing_account_id: ""
-
-# Internal state variables
-_rosa_cluster_admin_password: ""
-_rosa_supported_regions: ""
-_rosa_version_to_install: ""
-_rosa_ocp_cli_version: ""
