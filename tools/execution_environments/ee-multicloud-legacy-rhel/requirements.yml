@@ -39,6 +39,7 @@ collections:
 - name: ansible.hub
   version: ">=1.0,<2"
 - name: ansible.platform
+  version: "2.6.20260504"
 - name: redhat.rhbk
   version: ">=3.0,<4"
 - name: redhat.trusted_profile_analyzer
