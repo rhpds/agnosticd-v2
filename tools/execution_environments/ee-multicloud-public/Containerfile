@@ -2,7 +2,6 @@
 # Build base image
 # ----------------------------------------------------------------------------------
 # Build 2026-09-11 EE
-# ARG EE_BASE_IMAGE="registry.access.redhat.com/ubi9/ubi:latest"
 ARG EE_BASE_IMAGE="registry.access.redhat.com/ubi9/python-314:latest"
 
 # Building base
@@ -33,14 +32,8 @@ RUN dnf install -y \
         wget \
         httpd-tools
 RUN dnf clean all
-# python3.12 \
-# python3.12-devel \
-# python3.12-pip \
 
 # Python
-# RUN alternatives --install /usr/bin/python python /usr/bin/python3.12 1 \
-#     && alternatives --set python /usr/bin/python3.12 \
-#     && alternatives --install /usr/bin/pip pip /usr/bin/pip3.12 1
 RUN pip install --no-cache-dir --upgrade pip
 COPY requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
@@ -92,7 +85,7 @@ RUN for i in 1 2 3; do \
       ansible-galaxy collection install -vv --no-cache --pre -r /tmp/requirements.yml --collections-path "/usr/share/ansible/collections" && break || \
       { echo "Attempt $i failed. Retrying in 5 seconds..."; sleep 5; }; \
     done && \
-    ansible-galaxy collection list --collections-path "/usr/share/ansible/collections" | grep -q ansible.controller || \
+    test -d /usr/share/ansible/collections/ansible_collections/ansible/controller || \
     { echo "Failed to install collections after 3 attempts"; exit 1; }
 
 # ----------------------------------------------------------------------------------
@@ -100,7 +93,7 @@ RUN for i in 1 2 3; do \
 # ----------------------------------------------------------------------------------
 FROM base as final
 
-ENV DESCRIPTION="Community Chained Execution Environment for AgnosticD and Red Hat Demo Platform"
+ENV DESCRIPTION="Community Chained Execution Environment for AgnosticD V2 and Red Hat Demo Platform"
 LABEL ansible-execution-environment=true \
       name="agnosticd/ee-multicloud" \
       maintainer="Red Hat CoP" \
@@ -117,7 +110,7 @@ RUN pip install --no-cache-dir -r /usr/share/ansible/collections/ansible_collect
 COPY install_binaries.sh /tmp/install_binaries.sh
 RUN /tmp/install_binaries.sh
 
-# Azure CLI (RHEL10)
+# Azure CLI (RHEL10) - no Python 3.14 RHEL 10 image available as of 2026/09/11
 # RUN rpm --import https://packages.microsoft.com/keys/microsoft-2025.asc \
 #     && dnf install -y https://packages.microsoft.com/config/rhel/10/packages-microsoft-prod.rpm \
 #     && dnf install -y azure-cli \
