@@ -1,8 +1,9 @@
 # ----------------------------------------------------------------------------------
 # Build base image
 # ----------------------------------------------------------------------------------
-# Build 2026-08-05 EE
-ARG EE_BASE_IMAGE="registry.access.redhat.com/ubi9/ubi:latest"
+# Build 2026-09-11 EE
+# ARG EE_BASE_IMAGE="registry.access.redhat.com/ubi9/ubi:latest"
+ARG EE_BASE_IMAGE="registry.access.redhat.com/ubi10/python-314-minimal:latest"
 
 # Building base
 FROM $EE_BASE_IMAGE as base
@@ -37,9 +38,9 @@ RUN dnf install -y \
 RUN dnf clean all
 
 # Python
-RUN alternatives --install /usr/bin/python python /usr/bin/python3.12 1 \
-    && alternatives --set python /usr/bin/python3.12 \
-    && alternatives --install /usr/bin/pip pip /usr/bin/pip3.12 1
+# RUN alternatives --install /usr/bin/python python /usr/bin/python3.12 1 \
+#     && alternatives --set python /usr/bin/python3.12 \
+#     && alternatives --install /usr/bin/pip pip /usr/bin/pip3.12 1
 RUN pip install --no-cache-dir --upgrade pip
 COPY requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
@@ -116,10 +117,10 @@ COPY install_binaries.sh /tmp/install_binaries.sh
 RUN /tmp/install_binaries.sh
 
 # Azure CLI
-# RUN rpm --import https://packages.microsoft.com/keys/microsoft.asc \
-#     && dnf install -y https://packages.microsoft.com/config/rhel/9/packages-microsoft-prod.rpm \
-#     && dnf install -y azure-cli \
-#     && dnf clean all
+RUN rpm --import https://packages.microsoft.com/keys/microsoft-2025.asc \
+    && dnf install -y https://packages.microsoft.com/config/rhel/10/packages-microsoft-prod.rpm \
+    && dnf install -y azure-cli \
+    && dnf clean all
 
 RUN rm -rf /tmp/* /root/.cache /root/*
 
