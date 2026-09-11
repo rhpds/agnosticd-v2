@@ -3,7 +3,7 @@
 # ----------------------------------------------------------------------------------
 # Build 2026-09-11 EE
 # ARG EE_BASE_IMAGE="registry.access.redhat.com/ubi9/ubi:latest"
-ARG EE_BASE_IMAGE="registry.access.redhat.com/ubi10/python-314-minimal:latest"
+ARG EE_BASE_IMAGE="registry.access.redhat.com/ubi9/python-314:latest"
 
 # Building base
 FROM $EE_BASE_IMAGE as base
@@ -11,7 +11,7 @@ FROM $EE_BASE_IMAGE as base
 USER root
 WORKDIR /root
 
-RUN microdnf install -y \
+RUN dnf install -y \
         bind-utils \
         findutils \
         gcc \
@@ -32,7 +32,7 @@ RUN microdnf install -y \
         curl-minimal \
         wget \
         httpd-tools
-RUN microdnf clean all
+RUN dnf clean all
 # python3.12 \
 # python3.12-devel \
 # python3.12-pip \
@@ -109,17 +109,22 @@ LABEL ansible-execution-environment=true \
 COPY --from=galaxy /usr/share/ansible /usr/share/ansible
 RUN pip install --no-cache-dir -r /usr/share/ansible/collections/ansible_collections/community/vmware/requirements.txt
 RUN pip install --no-cache-dir -r /usr/share/ansible/collections/ansible_collections/kubernetes/core/requirements.txt
-# RUN pip install --no-cache-dir -r /usr/share/ansible/collections/ansible_collections/azure/azcollection/requirements.txt
+RUN pip install --no-cache-dir -r /usr/share/ansible/collections/ansible_collections/azure/azcollection/requirements.txt
 # RUN pip install --no-cache-dir -r /usr/share/ansible/collections/ansible_collections/google/cloud/requirements.txt
 
 # AWS, Bitwarden, OC client
 COPY install_binaries.sh /tmp/install_binaries.sh
 RUN /tmp/install_binaries.sh
 
-# Azure CLI
-RUN rpm --import https://packages.microsoft.com/keys/microsoft-2025.asc \
-    && microdnf install -y https://packages.microsoft.com/config/rhel/10/packages-microsoft-prod.rpm \
-    && microdnf install -y azure-cli \
+# Azure CLI (RHEL10)
+# RUN rpm --import https://packages.microsoft.com/keys/microsoft-2025.asc \
+#     && dnf install -y https://packages.microsoft.com/config/rhel/10/packages-microsoft-prod.rpm \
+#     && dnf install -y azure-cli \
+#     && dnf clean all
+# Azure CLI (RHEL9)
+RUN rpm --import https://packages.microsoft.com/keys/microsoft.asc \
+    && dnf install -y https://packages.microsoft.com/config/rhel/9.0/packages-microsoft-prod.rpm \
+    && dnf install -y azure-cli \
     && dnf clean all
 
 RUN rm -rf /tmp/* /root/.cache /root/*
