@@ -48,7 +48,7 @@ collections:
 - name: amazon.aws
 
 # requirements-azure.txt from the collection
-# - name: azure.azcollection
+- name: azure.azcollection
 
 # requirements.txt from the collection
 # - name: google.cloud
