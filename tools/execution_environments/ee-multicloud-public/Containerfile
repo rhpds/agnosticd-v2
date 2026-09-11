@@ -11,7 +11,7 @@ FROM $EE_BASE_IMAGE as base
 USER root
 WORKDIR /root
 
-RUN dnf install -y \
+RUN microdnf install -y \
         bind-utils \
         findutils \
         gcc \
@@ -32,7 +32,7 @@ RUN dnf install -y \
         curl-minimal \
         wget \
         httpd-tools
-RUN dnf clean all
+RUN microdnf clean all
 # python3.12 \
 # python3.12-devel \
 # python3.12-pip \
@@ -118,8 +118,8 @@ RUN /tmp/install_binaries.sh
 
 # Azure CLI
 RUN rpm --import https://packages.microsoft.com/keys/microsoft-2025.asc \
-    && dnf install -y https://packages.microsoft.com/config/rhel/10/packages-microsoft-prod.rpm \
-    && dnf install -y azure-cli \
+    && microdnf install -y https://packages.microsoft.com/config/rhel/10/packages-microsoft-prod.rpm \
+    && microdnf install -y azure-cli \
     && dnf clean all
 
 RUN rm -rf /tmp/* /root/.cache /root/*
