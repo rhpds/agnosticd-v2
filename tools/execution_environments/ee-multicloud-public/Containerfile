@@ -54,6 +54,7 @@ ARG AAP_CERTIFIED_TOKEN=notset
 ARG AAP_VALIDATED_TOKEN=notset
 
 COPY ansible.cfg /root/.ansible.cfg
+ENV ANSIBLE_CONFIG=/root/.ansible.cfg
 COPY requirements.yml /tmp/requirements.yml
 
 # RUN echo --------------------------------------------------
