@@ -157,4 +157,4 @@ RUN chmod 755 /usr/local/bin/entrypoint
 WORKDIR /runner
 
 ENTRYPOINT ["entrypoint"]
-CMD ["/usr/local/bin/ansible-runner", "run", "/runner"]
+CMD ["ansible-runner", "run", "/runner"]
