@@ -240,7 +240,7 @@ done
 if (( AAP == 1 )); then
   log_debug "AAP environment detected. Running with fixed extra-vars"
   if [ -f "${INSTALL_PLAYBOOK}" ]; then
-    /usr/local/bin/ansible-playbook "${INSTALL_PLAYBOOK}" -i /runner/inventory/hosts -e @/runner/env/extravars
+    ansible-playbook "${INSTALL_PLAYBOOK}" -i /runner/inventory/hosts -e @/runner/env/extravars
   else
     log_debug "Install playbook ${INSTALL_PLAYBOOK} not found, skipping dynamic dependency install"
   fi
@@ -250,7 +250,7 @@ else
   log_debug "Non-AAP environment. Running with processed arguments"
   log_debug "Remaining arguments: $*"
   if [ -f "${INSTALL_PLAYBOOK}" ]; then
-    /usr/local/bin/ansible-playbook "${INSTALL_PLAYBOOK}" "$@"
+    ansible-playbook "${INSTALL_PLAYBOOK}" "$@"
   else
     log_debug "Install playbook ${INSTALL_PLAYBOOK} not found, skipping dynamic dependency install"
   fi
