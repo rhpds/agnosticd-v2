@@ -15,7 +15,7 @@
     namespace: "{{ ai_ocp_namespace }}"
   register: full_svc_control_plane
   until: full_svc_control_plane.resources[0].status.loadBalancer.ingress[0].ip | default('') != ''
-  retries: 10
+  retries: 30
   delay: 2
 
 - name: Add A DNS record - api (Route53)
@@ -74,7 +74,7 @@
     name: "{{ ai_ocp_vmname_worker_prefix }}-svc"
     namespace: "{{ ai_ocp_namespace }}"
   until: full_svc_workers.resources[0].status.loadBalancer.ingress[0].ip | default('') != ''
-  retries: 10
+  retries: 30
   delay: 2
 
 - name: Add A DNS record - apps (Route53)
