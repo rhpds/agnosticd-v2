@@ -107,6 +107,23 @@
     loop_control:
       loop_var: _index
 
+  - name: Generate mac addresses for workers for attached networks
+    when: ai_attach_workers_networks | default([]) | length > 0
+    ansible.builtin.set_fact:
+      ai_attach_workers_macs: >-
+        {{
+          ai_attach_workers_macs | combine({
+            item.1: (ai_attach_workers_macs[item.1] | default([])) + [
+              'f6' | community.general.random_mac(
+                ai_ocp_namespace + cluster_name + item.0 | string + item.1
+              )
+            ]
+          })
+        }}
+    loop: "{{ range(1, worker_instance_count | int + 1) | list | product(ai_attach_workers_networks) | list }}"
+    loop_control:
+      label: "{{ item.1 }}"
+
   - name: Set static_network_config variable
     ansible.builtin.set_fact:
       static_network_config: "{{ lookup('template','static_network_config_full.yaml.j2') | from_yaml}}"
