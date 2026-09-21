@@ -9,6 +9,88 @@
       msg: "Step 004 Software"
 
 # ----------------------------------------------------------------------
+# Install packages defined in the instances
+# ----------------------------------------------------------------------
+# Parity with redhat-cop/agnosticd's zero-touch-base-rhel/software.yml,
+# which every catalog item declaring a per-instance `packages:` list
+# (e.g. from a content repo's config/instances.yaml) relies on to get
+# those packages actually installed on the guest - this step was missing
+# entirely from cloud-vms-base (GPTEINFRA-17880). Uses ansible.builtin.package
+# (generic, cross-platform) rather than hardcoding ansible.builtin.dnf,
+# since cloud-vms-base guests aren't guaranteed to all be RHEL/Fedora-family.
+# Runs after pre_software.yml (where Satellite/subscription registration
+# happens for catalog items that need it) so package repos are available
+# by the time this runs.
+#
+# FOUND LIVE (GPTEINFRA-17880, guids 7zpgq/rdpc7): this task always
+# skipped, on every host, every time - confirmed via rpm -q that
+# cockpit/sssd-proxy/pcp/python3-pcp were never installed. Root cause: the
+# bare `instances` variable is only ever set via rhpds.zerotouch.zt_base_config's
+# set_fact (pre_infra_workloads.localhost), which runs on `hosts: localhost` -
+# every other consumer of `instances` in this repo (infrastructure_deployment.yml
+# for both aws and openshift_cnv) also runs on `hosts: localhost`. This task
+# was the only one referencing bare `instances` from a REMOTE host's own play
+# (hosts: all:!windows:!network:!isolated) - Ansible does not share a
+# set_fact'd variable across hosts within one run (cacheable: true is only
+# load-bearing for cross-*process* reuse, e.g. Molecule's separate converge/
+# verify runs, not cross-host sharing in a single run), so `instances`
+# evaluated as undefined on every VM host, `default([])` silently produced
+# `[]`, and the whole condition was always false. Fixed by reading it via
+# hostvars['localhost'].instances instead - matches how every other
+# consumer already resolves it (skipping: [rhel], no error, exactly matches
+# an empty list, not a mismatched match).
+#
+# Also switched the name-match from ansible_host to inventory_hostname:
+# create_inventory.yaml (rhpds/cloud_provider_openshift_cnv) only ever sets
+# ansible_ssh_host (a connection-plugin-specific override), never the
+# generic ansible_host - not guaranteed to alias for arbitrary Jinja use
+# elsewhere. inventory_hostname is guaranteed correct by construction
+# instead (add_host: name: "{{ item.metadata.name }}"), matching
+# instances[].name exactly.
+#
+# inventory_hostname alone is not enough for cross-provider correctness,
+# though: on the AWS provider, inventory_hostname is the EC2 internal DNS
+# name (create_inventory's add_host: name: "{{ item.tags.internaldns |
+# default(item.private_dns_name) }}"), not instances[].name. Both
+# providers do set `shortname` to the actual instance name
+# (openshift_cnv: "{{ item.metadata.name }}"; aws: "{{ item.tags.Name |
+# default(item.private_dns_name) }}"), so match on
+# `shortname | default(inventory_hostname)` instead - correct on both
+# providers, falling back to inventory_hostname if shortname is ever
+# unset.
+#
+# KNOWN LIMITATION (inherited unchanged from v1's zero-touch-base-rhel/
+# software.yml, not a regression introduced here): instances[] entries
+# declared with count > 1 get VM names suffixed with a per-replica index
+# (e.g. "web1", "web2", ... - see cloud_provider_openshift_cnv's
+# create_instance task) while instances[].name itself stays the
+# unsuffixed base ("web"). Since the match above is an exact-equality
+# selectattr('name', 'equalto', ...), none of a multi-count instance's
+# replicas will ever match their own instances[] entry, so packages:
+# declared on a count > 1 instance silently won't install on any
+# replica. Matches v1's identical behavior; not addressed here.
+- name: Install packages defined in the instances
+  hosts: all:!windows:!network:!isolated
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Install packages declared on this instance
+      vars:
+        _instances: "{{ hostvars['localhost'].instances | default([]) }}"
+        _match_name: "{{ shortname | default(inventory_hostname) }}"
+        _matched_packages: >-
+          {{ _instances | selectattr('name', 'equalto', _match_name)
+            | selectattr('packages', 'defined') | map(attribute='packages') | flatten(levels=1) }}
+      when: _matched_packages | length > 0
+      ansible.builtin.package:
+        state: present
+        name: "{{ _matched_packages }}"
+      register: r_instance_packages
+      until: r_instance_packages is succeeded
+      retries: 5
+      delay: 10
+
+# ----------------------------------------------------------------------
 # Software Workloads as role
 # ----------------------------------------------------------------------
 - name: Import software workloads
