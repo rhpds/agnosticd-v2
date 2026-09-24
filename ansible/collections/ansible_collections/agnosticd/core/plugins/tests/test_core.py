@@ -1,11 +1,17 @@
 #!/usr/bin/env python
 
 import pytest
+from copy import deepcopy
+from pathlib import Path
+from unittest.mock import patch
+
+import yaml
 from ansible.errors import AnsibleFilterError
-import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-import ansible.collections.ansible_collections.agnosticd.core.plugins.filter.core as core
+from ansible.plugins.loader import init_plugin_loader
+
+COLLECTIONS_PATH = Path(__file__).resolve().parents[5]
+init_plugin_loader([str(COLLECTIONS_PATH)])
+from ansible_collections.agnosticd.core.plugins.filter import core
 
 
 
@@ -442,7 +448,53 @@ def test_agnosticd_filter_out_installed_collections():
     ]
 
     for tc in testcases:
+        original = deepcopy(tc["requirements"])
         assert(
             core.agnosticd_filter_out_installed_collections(
                 tc["requirements"], tc["installed_collections"]) == tc["result"]
         )
+        assert tc["requirements"] == original
+
+
+def test_collection_filter_with_ansible_templated_requirements():
+    from ansible import template
+    from ansible.utils.display import Display
+
+    if not hasattr(template, "trust_as_template"):
+        pytest.skip("Lazy template containers require ansible-core 2.19 or newer")
+
+    requirements = {
+        "roles": [{"name": "example.role", "version": "main"}],
+        "collections": [
+            {"name": "example.installed", "version": "1.0.0"},
+            {
+                "name": "https://example.invalid/collection.git",
+                "type": "git",
+                "version": template.trust_as_template("{{ collection_revision }}"),
+            },
+        ],
+    }
+    original = deepcopy(requirements)
+    templar = template.Templar(variables={
+        "requirements": requirements,
+        "installed": {"/collections": {"example.installed": {"version": "2.0.0"}}},
+        "collection_revision": "release-1",
+    })
+
+    with patch.object(Display, "deprecated") as deprecated:
+        rendered = templar.template(template.trust_as_template(
+            "{{ requirements "
+            "| agnosticd.core.agnosticd_filter_out_installed_collections(installed) "
+            "| to_yaml }}"
+        ))
+        deprecated.assert_not_called()
+
+    assert yaml.safe_load(rendered) == {
+        "roles": [{"name": "example.role", "version": "main"}],
+        "collections": [{
+            "name": "https://example.invalid/collection.git",
+            "type": "git",
+            "version": "release-1",
+        }],
+    }
+    assert requirements == original

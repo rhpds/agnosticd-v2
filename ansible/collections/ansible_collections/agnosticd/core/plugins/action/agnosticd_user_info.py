@@ -32,7 +32,6 @@ yaml.SafeDumper.yaml_representers[None] = lambda self, data: \
 
 from ansible.errors import AnsibleError, AnsibleUndefinedVariable
 from ansible.module_utils.six import string_types
-from ansible.module_utils._text import to_text
 from ansible.plugins.action import ActionBase
 try:
     # ansible-core 2.19+: needed when templating code-authored strings
