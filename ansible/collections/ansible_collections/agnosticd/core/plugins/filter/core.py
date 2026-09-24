@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from copy import deepcopy
 from ansible.errors import AnsibleFilterError
 from ansible.utils.display import Display
 from ansible.module_utils.six import string_types, integer_types
@@ -284,7 +283,6 @@ def agnosticd_filter_out_installed_collections(requirements, installed_collectio
     }
     '''
 
-    requirements = deepcopy(requirements)
     function_name = "agnosticd_remove_collection_already_installed"
 
     if not isinstance(requirements, dict):
@@ -295,6 +293,10 @@ def agnosticd_filter_out_installed_collections(requirements, installed_collectio
         raise AnsibleFilterError(
             '%s: collections arg should be a dict' %(function_name)
         )
+
+    # Only the top-level collections entry changes. Deep-copying Ansible's
+    # lazy template containers also copies the templar and its plugin loaders.
+    requirements = dict(requirements)
 
     if 'collections' not in requirements:
         return requirements
