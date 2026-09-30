@@ -153,6 +153,27 @@
     delay: 10
     until: _r_create_pvc is not failed
 
+  # k8s wait above only confirms the DataVolume object exists. CDI may still
+  # be importing the ISO; creating worker VMs before phase=Succeeded leaves
+  # them stuck Provisioning/VMINotExists (seen on LB1088 event job 99115).
+  - name: Wait for scale installation ISO DataVolume to be ready
+    kubernetes.core.k8s_info:
+      api_version: cdi.kubevirt.io/v1beta1
+      kind: DataVolume
+      name: scale-iso
+      namespace: "{{ ai_ocp_namespace }}"
+    register: r_scale_iso_dv
+    until:
+      - r_scale_iso_dv.resources | length > 0
+      - r_scale_iso_dv.resources[0].status.phase is defined
+      - r_scale_iso_dv.resources[0].status.phase == "Succeeded"
+    retries: "{{ ai_scale_iso_dv_retries | int }}"
+    delay: "{{ ai_scale_iso_dv_delay | int }}"
+    failed_when:
+      - r_scale_iso_dv.resources | length > 0
+      - r_scale_iso_dv.resources[0].status.phase is defined
+      - r_scale_iso_dv.resources[0].status.phase == "Failed"
+
   - name: Create {{ worker_instance_count }} worker VMs for full cluster
     ansible.builtin.include_tasks: create_workers.yaml
     vars:
@@ -175,8 +196,8 @@
       namespace: "{{ ai_ocp_namespace }}"
     register: r_vm_status
     until: r_vm_status.resources[0].status.printableStatus | default('') == "Running"
-    retries: 30
-    delay: 10
+    retries: "{{ ai_scale_worker_vm_retries | int }}"
+    delay: "{{ ai_scale_worker_vm_delay | int }}"
     loop: "{{ range(1, worker_instance_count | int + 1) | list }}"
     loop_control:
       loop_var: _index

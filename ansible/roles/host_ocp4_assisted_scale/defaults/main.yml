@@ -24,3 +24,16 @@ worker_only: false
 # CSR approval retry settings
 approve_csr_retries: 90
 approve_csr_delay: 10
+
+# Wait for scale-iso DataVolume import before creating worker VMs.
+# Same class of bug as host_ocp4_assisted_installer #207/#208: k8s wait on
+# apply only confirms the DV object exists, not that CDI finished importing.
+ai_scale_iso_dv_retries: 60
+ai_scale_iso_dv_delay: 10
+
+# Wait for worker VirtualMachines to reach printableStatus=Running.
+# 30x10s (5m) is too short for CNV assisted-scale boots; LB1088 event
+# job 99115 saw worker-1 stuck Provisioning/VMINotExists and worker-2
+# Starting/GuestNotRunning before timeout.
+ai_scale_worker_vm_retries: 90
+ai_scale_worker_vm_delay: 10
