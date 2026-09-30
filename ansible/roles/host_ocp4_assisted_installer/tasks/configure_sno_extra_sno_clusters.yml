@@ -24,8 +24,13 @@
     namespace: "{{ ai_ocp_namespace }}"
   register: r_svc_control_plane
   until: r_svc_control_plane.resources[0].status.loadBalancer.ingress[0].ip | default('') != ''
-  retries: 10
-  delay: 2
+  # MetalLB (or other LB controllers) can take longer than a few seconds to
+  # reconcile a LoadBalancer Service, especially when sharing an external IP
+  # with another Service via metallb.universe.tf/allow-shared-ip on a busy
+  # shared cluster. Allow up to 300s to match the wait_timeout used above
+  # when creating the Service itself.
+  retries: 30
+  delay: 10
 
 - name: Add A DNS record - api (Route53)
   when: route53_aws_access_key_id is defined
