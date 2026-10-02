@@ -103,7 +103,10 @@
           K8S_AUTH_API_KEY: "{{ cluster_admin_agnosticd_sa_token | default('') | trim | default(omit, true) }}"
           K8S_AUTH_VERIFY_SSL: "false"
     vars:
-      ACTION: remove
+      # Standardize on destroy (same as openshift-workloads / cluster configs).
+      # Many workload roles only gate removal on ACTION=destroy; ACTION=remove
+      # caused silent no-ops (e.g. gitops_bootstrap, showroom) on tenant teardown.
+      ACTION: destroy
     loop: "{{ _destroy_workloads }}"
     loop_control:
       loop_var: workload_loop_var
