@@ -44,6 +44,9 @@ ai_ocp_vmname_worker_prefix: "worker-{{ _cluster_name }}"
 
 ai_ocp_vmname_sno: "sno-{{ _cluster_name }}"
 
+ai_workers_wait_retries: 30
+ai_workers_wait_delay: 10
+
 # Additional MachineConfigs to be added to the cluster
 ai_machineconfigs: []
 # ai_machineconfigs:
