@@ -10,5 +10,5 @@
     namespace: "{{ ai_ocp_namespace }}"
   register: r_vm_status
   until: r_vm_status.resources[0].status.printableStatus | default('') == "Running"
-  retries: 30
-  delay: 10
+  retries: "{{ ai_workers_wait_retries | int }}"
+  delay: "{{ ai_workers_wait_delay | int }}"
