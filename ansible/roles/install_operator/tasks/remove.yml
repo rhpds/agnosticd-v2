@@ -43,7 +43,7 @@
       [?starts_with(spec.clusterServiceVersionNames[0], '{{ install_operator_csv_nameprefix }}' )].metadata.name|[0]
 
 - name: "Remove InstallPlan - {{ install_operator_name }}"
-  when: install_operator_install_plan_name | default("") | length > 0
+  when: install_operator_install_plan_name | default("", true) | length > 0
   kubernetes.core.k8s:
     state: absent
     api_version: operators.coreos.com/v1alpha1
