@@ -1,0 +1,78 @@
+---
+# ===================================================================
+# Mandatory Variables
+# ===================================================================
+cloud_provider: gcp
+config: openshift-cluster
+# ===================================================================
+# End Mandatory Variables
+# ===================================================================
+
+# ===================================================================
+# GCP Specific settings
+#     See ansible/configs/openshift-cluster/gcp/default_vars.yml for
+#     available variables
+# ===================================================================
+gcp_region: us-east1
+
+# GCP project and service account credentials are normally supplied
+# by the account pool / sandbox allocation (e.g. GCP Open Environment)
+# rather than hardcoded here.
+# gcp_project_id: my-gcp-project
+# gcp_credentials: "{{ lookup('file', '/path/to/service-account.json') }}"
+
+# Replace with your SSH key on Github
+host_ssh_authorized_keys:
+- key: https://github.com/wkulhanek.keys
+
+# ===================================================================
+# OpenShift cluster specific settings
+#     See ansible/configs/openshift-cluster/default_vars.yml for
+#     available variables
+# ===================================================================
+
+# -------------------------------------------------------------------
+# Bastion VM settings
+# -------------------------------------------------------------------
+# Create a student user
+bastion_setup_student_user: true
+bastion_student_user_name: student
+
+# -------------------------------------------------------------------
+# OpenShift settings
+# -------------------------------------------------------------------
+cluster_name: ocp
+
+host_ocp4_installer_version: "4.18"
+host_ocp4_installer_root_url: http://mirror.openshift.com/pub/openshift-v4/clients
+
+# Save kubeadmin password in user data - only necessary if no authentication is set up for the cluster
+host_ocp4_installer_set_user_data_kubeadmin_password: true
+
+# -------------------------------------------------------------------
+# List of workloads to be deployed
+# -------------------------------------------------------------------
+workloads:
+- ocp4_workload_cert_manager
+
+# -------------------------------------------------------------------
+# Variables for specific workloads
+# -------------------------------------------------------------------
+
+# -------------------------------------------------------------------
+# Workload: ocp4_workload_cert_manager
+# -------------------------------------------------------------------
+ocp4_workload_cert_manager_channel: stable-v1.15
+
+ocp4_workload_cert_manager_gcp_project_id: "{{ gcp_project_id }}"
+ocp4_workload_cert_manager_gcp_credentials: "{{ gcp_credentials }}"
+
+# GCP Open Environments typically use a Cloud DNS zone named
+# dns-zone-{sandbox-id} rather than dns-zone-{guid}; override here
+# if needed (defaults to dns-zone-{{ guid }}).
+# ocp4_workload_cert_manager_gcp_hostedzone_name: "dns-zone-{{ sandbox_id }}"
+
+ocp4_workload_cert_manager_use_catalog_snapshot: false
+
+ocp4_workload_cert_manager_install_ingress_certificates: true
+ocp4_workload_cert_manager_install_api_certificates: false
