@@ -1,0 +1,46 @@
+---
+# GCP Infrastructure Destroy
+# Follows the same pattern as cloud_providers/aws/destroy_env.yml
+# Roles are from the agnosticd.cloud_provider_gcp collection.
+
+- name: Destroy GCP Infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+  - name: Set up GCP credentials
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_gcp.credentials_file
+
+  - name: Detect GCP region from existing instances
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_gcp.detect_region
+
+  - name: Delete DNS records
+    when: gcp_dns_records | default([]) | length > 0
+    vars:
+      ACTION: destroy
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_gcp.dns
+
+  - name: Destroy GCP instances
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_gcp.destroy_instances
+
+  - name: Destroy GCP SSH key metadata
+    vars:
+      ACTION: destroy
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_gcp.ssh_key
+
+  - name: Destroy GCP network
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_gcp.destroy_network
+
+  - name: Run GCP open environment cleanup
+    when: agnosticd_open_environment | default(false) | bool
+    vars:
+      ACTION: destroy
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_gcp.open_environment
