@@ -37,7 +37,8 @@
   gather_facts: false
   become: false
   tasks:
-  - ansible.builtin.include_tasks: start_instances.yml
+  - name: Start GCP instances if they are stopped
+    ansible.builtin.include_tasks: start_instances.yml
 
 # Call Remove Workloads for workloads that need to clean up "other" infrastructure
 # that was not created on the cluster (e.g. VMware virtual machines)
