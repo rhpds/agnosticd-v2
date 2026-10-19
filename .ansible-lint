@@ -1,0 +1,26 @@
+---
+profile: production
+
+# ansible-lint follows include_role/import_role references out of the
+# GCP playbooks into shared, cross-cloud-provider roles that are not
+# part of this GCP work and are not yet ansible-lint clean. Exclude
+# them so the scoped `ansible_lint_gcp` tox env (see
+# tests/static/tox.ini) only reports on the GCP-specific files it was
+# given.
+exclude_paths:
+- ansible/roles/
+
+mock_modules:
+- agnosticd.core.agnosticd_user_info
+
+skip_list:
+# This repo's sample_vars/*.yml files consistently use non-indented
+# list items under their parent key (see e.g. openshift-cluster-aws.yml
+# and openshift-cluster-gcp.yml), matching yamlint.conf's
+# `indent-sequences: consistent` setting. Keep that convention instead
+# of reformatting individual files.
+- yaml[indentation]
+# `ACTION` (uppercase) is the established AgnosticD convention for the
+# create/destroy action variable passed into workload roles (see
+# ansible/destroy.yml and every other cloud provider's destroy_env.yml).
+- var-naming[pattern]

@@ -63,16 +63,19 @@
     when: cloud_provider == 'gcp'
     block:
     - name: Run add user to GCP project role
+      when: agnosticd_open_environment | default(false) | bool
       ansible.builtin.include_role:
-        name: open_env_gcp_add_user_to_project
+        name: agnosticd.cloud_provider_gcp.open_environment
+      vars:
+        ACTION: provision
 
     - name: Create GCP Credentials File
       ansible.builtin.include_role:
-        name: infra_gcp_credentials_file
+        name: agnosticd.cloud_provider_gcp.credentials_file
 
     - name: Get Google Cloud SDK
       ansible.builtin.include_role:
-        name: infra_gcp_install_sdk
+        name: agnosticd.cloud_provider_gcp.install_sdk
 
   - name: Azure Pre Infrastructure tasks (generate Windows password if not defined)
     when:

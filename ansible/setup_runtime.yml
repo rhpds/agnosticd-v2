@@ -18,6 +18,7 @@
       agnosticd_cloud_providers:
       - none
       - aws
+      - gcp
       - openshift_cnv
       - troshka
     ansible.builtin.assert:

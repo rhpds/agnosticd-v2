@@ -41,7 +41,7 @@
     - cloud_provider == "gcp"
     - agnosticd_open_environment | default(false) | bool
     ansible.builtin.include_role:
-      name: open-env-gcp-user-info
+      name: agnosticd.cloud_provider_gcp.user_info
 
 - name: Step 005.2 - Post install cluster configuration
   hosts: localhost

@@ -1,0 +1,8 @@
+---
+# Ensure GCE instances for this GUID are running before attempting
+# SSH-based cleanup (e.g. if a lifecycle hook had stopped them).
+- name: Start GCP instances if they are stopped
+  vars:
+    gcp_lifecycle_action: start
+  ansible.builtin.include_role:
+    name: agnosticd.cloud_provider_gcp.lifecycle
