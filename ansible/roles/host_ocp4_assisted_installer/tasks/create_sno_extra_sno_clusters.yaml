@@ -1,3 +1,8 @@
+- name: Ensure no duplicate cluster exists before creating a new one
+  ansible.builtin.include_tasks: ensure_no_duplicate_cluster.yml
+  vars:
+    _dedup_cluster_name: "{{ _sno_cluster_name }}"
+
 - name: Create OpenShift cluster using Assisted Installer
   rhpds.assisted_installer.create_cluster:
     name: "{{ _sno_cluster_name }}"

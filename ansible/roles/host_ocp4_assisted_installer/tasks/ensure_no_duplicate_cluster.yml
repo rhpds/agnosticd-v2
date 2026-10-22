@@ -1,0 +1,40 @@
+---
+# The Assisted Installer API does not enforce cluster name uniqueness -
+# POST /clusters always creates a brand-new cluster record with a new ID,
+# even if one with the same name already exists. A retried/relaunched job
+# (or a prior partial failure) can therefore leave behind an orphaned
+# cluster under the name we are about to reuse. Delete any existing
+# cluster(s) with this name first, so each run always starts from a clean
+# slate and we never accumulate duplicate registrations.
+- name: "List existing Assisted Installer clusters (checking for duplicates of {{ _dedup_cluster_name }})"
+  rhpds.assisted_installer.list_clusters:
+    offline_token: "{{ ai_offline_token }}"
+    owner: true
+  register: _r_dedup_existing_clusters
+
+- name: "Determine IDs of any pre-existing cluster(s) named {{ _dedup_cluster_name }}"
+  ansible.builtin.set_fact:
+    _dedup_existing_cluster_ids: >-
+      {{ _r_dedup_existing_clusters.result
+         | selectattr('name', 'equalto', _dedup_cluster_name)
+         | map(attribute='id')
+         | list }}
+
+- name: "Delete pre-existing cluster(s) named {{ _dedup_cluster_name }}"
+  when: _dedup_existing_cluster_ids | length > 0
+  rhpds.assisted_installer.delete_cluster:
+    cluster_id: "{{ item }}"
+    offline_token: "{{ ai_offline_token }}"
+  loop: "{{ _dedup_existing_cluster_ids }}"
+  loop_control:
+    label: "{{ item }}"
+  register: _r_dedup_delete_result
+  ignore_errors: true
+
+- name: "Fail: unable to delete pre-existing cluster(s) named {{ _dedup_cluster_name }}"
+  when: _r_dedup_delete_result is failed
+  ansible.builtin.fail:
+    msg: >-
+      Failed to delete one or more pre-existing clusters named {{ _dedup_cluster_name }}
+      before creating a new one: {{ _r_dedup_delete_result.results
+      | selectattr('failed', 'defined') | selectattr('failed') | map(attribute='item') | list }}

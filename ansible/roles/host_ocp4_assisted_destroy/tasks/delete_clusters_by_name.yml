@@ -1,0 +1,38 @@
+---
+# Find and delete ALL Assisted Installer clusters that match this name -
+# not just the first/last match. A previous buggy implementation used a
+# loop + set_fact that overwrote cluster_id on each matching iteration,
+# so only the last match was ever deleted and any earlier duplicate was
+# silently orphaned. selectattr/map below collects every matching ID.
+- name: "List existing Assisted Installer clusters (looking for {{ _dedup_cluster_name }})"
+  rhpds.assisted_installer.list_clusters:
+    offline_token: "{{ ai_offline_token }}"
+    owner: true
+  register: _r_dedup_existing_clusters
+
+- name: "Determine IDs of all cluster(s) named {{ _dedup_cluster_name }}"
+  ansible.builtin.set_fact:
+    _dedup_existing_cluster_ids: >-
+      {{ _r_dedup_existing_clusters.result
+         | selectattr('name', 'equalto', _dedup_cluster_name)
+         | map(attribute='id')
+         | list }}
+
+- name: "Delete all cluster(s) named {{ _dedup_cluster_name }}"
+  when: _dedup_existing_cluster_ids | length > 0
+  rhpds.assisted_installer.delete_cluster:
+    cluster_id: "{{ item }}"
+    offline_token: "{{ ai_offline_token }}"
+  loop: "{{ _dedup_existing_cluster_ids }}"
+  loop_control:
+    label: "{{ item }}"
+  register: _r_dedup_delete_result
+  ignore_errors: true
+
+- name: "Fail: unable to delete cluster(s) named {{ _dedup_cluster_name }}"
+  when: _r_dedup_delete_result is failed
+  ansible.builtin.fail:
+    msg: >-
+      Failed to delete one or more clusters named {{ _dedup_cluster_name }}:
+      {{ _r_dedup_delete_result.results
+      | selectattr('failed', 'defined') | selectattr('failed') | map(attribute='item') | list }}
