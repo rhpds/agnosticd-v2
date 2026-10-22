@@ -6,6 +6,16 @@
 # cluster under the name we are about to reuse. Delete any existing
 # cluster(s) with this name first, so each run always starts from a clean
 # slate and we never accumulate duplicate registrations.
+#
+# Known limitation: list -> delete -> create below is not atomic, so this
+# does not fully close the race it is meant to prevent - it only narrows
+# it. Two jobs started concurrently for the same cluster name could both
+# list no existing duplicates, both delete nothing, and both go on to
+# create_cluster, recreating the original duplicate-cluster bug for that
+# small window. This currently relies on AAP2 not running two jobs for the
+# same guid/cluster name at the same time; truly eliminating the race would
+# require a server-side uniqueness constraint or lock in the Assisted
+# Installer API itself, which does not exist today.
 - name: "List existing Assisted Installer clusters (checking for duplicates of {{ _dedup_cluster_name }})"
   rhpds.assisted_installer.list_clusters:
     offline_token: "{{ ai_offline_token }}"
