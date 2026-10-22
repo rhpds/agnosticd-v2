@@ -20,11 +20,18 @@
          | map(attribute='id')
          | list }}
 
+# A duplicate found here is likely the orphan left behind by a crashed/
+# retried create_cluster/wait_for_hosts run (the exact scenario this
+# file exists to clean up), so it may still be actively installing.
+# cancel: true cancels any in-progress install before the delete, so
+# this does not fail the way a plain DELETE against an installing
+# cluster could.
 - name: "Delete pre-existing cluster(s) named {{ _dedup_cluster_name }}"
   when: _dedup_existing_cluster_ids | length > 0
   rhpds.assisted_installer.delete_cluster:
     cluster_id: "{{ item }}"
     offline_token: "{{ ai_offline_token }}"
+    cancel: true
   loop: "{{ _dedup_existing_cluster_ids }}"
   loop_control:
     label: "{{ item }}"
