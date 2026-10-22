@@ -18,6 +18,11 @@
          | map(attribute='id')
          | list }}
 
+- name: "Debug: cluster(s) to be removed for {{ _dedup_cluster_name }}"
+  when: _dedup_existing_cluster_ids | length > 0
+  ansible.builtin.debug:
+    msg: "Deleting cluster(s) named {{ _dedup_cluster_name }}: IDs={{ _dedup_existing_cluster_ids }}"
+
 - name: "Delete all cluster(s) named {{ _dedup_cluster_name }}"
   when: _dedup_existing_cluster_ids | length > 0
   rhpds.assisted_installer.delete_cluster:

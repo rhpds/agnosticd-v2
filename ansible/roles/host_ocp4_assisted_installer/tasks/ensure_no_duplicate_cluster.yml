@@ -30,6 +30,11 @@
          | map(attribute='id')
          | list }}
 
+- name: "Debug: pre-existing cluster(s) to be removed for {{ _dedup_cluster_name }}"
+  when: _dedup_existing_cluster_ids | length > 0
+  ansible.builtin.debug:
+    msg: "Deleting pre-existing cluster(s) named {{ _dedup_cluster_name }}: IDs={{ _dedup_existing_cluster_ids }}"
+
 # A duplicate found here is likely the orphan left behind by a crashed/
 # retried create_cluster/wait_for_hosts run (the exact scenario this
 # file exists to clean up), so it may still be actively installing.
