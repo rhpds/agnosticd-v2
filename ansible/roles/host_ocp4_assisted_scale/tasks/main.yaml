@@ -168,18 +168,89 @@
       loop_var: _index
 
   - name: Wait for all worker VMs to be running
-    kubernetes.core.k8s_info:
-      api_version: kubevirt.io/v1
-      kind: VirtualMachine
-      name: "{{ ai_ocp_vmname_worker_prefix }}-{{ _index + current_instance_workers | int }}"
-      namespace: "{{ ai_ocp_namespace }}"
-    register: r_vm_status
-    until: r_vm_status.resources[0].status.printableStatus | default('') == "Running"
-    retries: 30
-    delay: 10
-    loop: "{{ range(1, worker_instance_count | int + 1) | list }}"
-    loop_control:
-      loop_var: _index
+    block:
+      - name: Wait for all worker VMs to be running
+        kubernetes.core.k8s_info:
+          api_version: kubevirt.io/v1
+          kind: VirtualMachine
+          name: "{{ ai_ocp_vmname_worker_prefix }}-{{ _index + current_instance_workers | int }}"
+          namespace: "{{ ai_ocp_namespace }}"
+        register: r_vm_status
+        until: r_vm_status.resources[0].status.printableStatus | default('') == "Running"
+        retries: 30
+        delay: 10
+        loop: "{{ range(1, worker_instance_count | int + 1) | list }}"
+        loop_control:
+          loop_var: _index
+
+    rescue:
+      - name: Set failed VM name for diagnostics
+        ansible.builtin.set_fact:
+          vmname: "{{ ai_ocp_vmname_worker_prefix }}-{{ _index + current_instance_workers | int }}"
+
+      - name: Fetch VM status
+        kubernetes.core.k8s_info:
+          api_version: kubevirt.io/v1
+          kind: VirtualMachine
+          name: "{{ vmname }}"
+          namespace: "{{ ai_ocp_namespace }}"
+        register: r_diag_vm
+        ignore_errors: true
+
+      - name: Fetch VMI status
+        kubernetes.core.k8s_info:
+          api_version: kubevirt.io/v1
+          kind: VirtualMachineInstance
+          name: "{{ vmname }}"
+          namespace: "{{ ai_ocp_namespace }}"
+        register: r_diag_vmi
+        ignore_errors: true
+
+      - name: Fetch virt-launcher pod
+        kubernetes.core.k8s_info:
+          api_version: v1
+          kind: Pod
+          namespace: "{{ ai_ocp_namespace }}"
+          label_selectors:
+            - "vm.kubevirt.io/name={{ vmname }}"
+        register: r_diag_pod
+        ignore_errors: true
+
+      - name: Fetch events for VM name
+        kubernetes.core.k8s_info:
+          api_version: v1
+          kind: Event
+          namespace: "{{ ai_ocp_namespace }}"
+          field_selectors:
+            - "involvedObject.name={{ vmname }}"
+        register: r_diag_events
+        ignore_errors: true
+
+      - name: Fetch PVCs for VM
+        kubernetes.core.k8s_info:
+          api_version: v1
+          kind: PersistentVolumeClaim
+          name: "{{ item }}"
+          namespace: "{{ ai_ocp_namespace }}"
+        loop:
+          - "{{ vmname }}"
+          - "{{ vmname }}-installation-cdrom"
+        register: r_diag_pvc
+        ignore_errors: true
+
+      - name: Print debugging info
+        ansible.builtin.debug:
+          msg:
+            - "VM wait failed: {{ vmname }} ns={{ ai_ocp_namespace }}"
+            - "vm.status={{ r_diag_vm.resources[0].status | default({}) }}"
+            - "vmi.status={{ r_diag_vmi.resources[0].status | default({}) }}"
+            - "pod={{ r_diag_pod.resources | default([]) }}"
+            - "events={{ r_diag_events.resources | default([]) }}"
+            - "pvc={{ r_diag_pvc.results | default([]) }}"
+
+      - name: Fail after printing VM diagnostics
+        ansible.builtin.fail:
+          msg: "VM {{ vmname }} did not become Running — see debug above"
 
   - name: Set the variable ai_configure_hosts for workers
     ansible.builtin.set_fact:
