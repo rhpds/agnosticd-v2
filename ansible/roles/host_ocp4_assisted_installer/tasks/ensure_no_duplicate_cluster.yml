@@ -22,34 +22,47 @@
     owner: true
   register: _r_dedup_existing_clusters
 
-- name: "Determine IDs of any pre-existing cluster(s) named {{ _dedup_cluster_name }}"
+- name: "Determine any pre-existing cluster(s) named {{ _dedup_cluster_name }}"
   ansible.builtin.set_fact:
-    _dedup_existing_cluster_ids: >-
+    _dedup_existing_clusters: >-
       {{ _r_dedup_existing_clusters.result
          | selectattr('name', 'equalto', _dedup_cluster_name)
-         | map(attribute='id')
          | list }}
 
 - name: "Debug: pre-existing cluster(s) to be removed for {{ _dedup_cluster_name }}"
-  when: _dedup_existing_cluster_ids | length > 0
+  when: _dedup_existing_clusters | length > 0
   ansible.builtin.debug:
-    msg: "Deleting pre-existing cluster(s) named {{ _dedup_cluster_name }}: IDs={{ _dedup_existing_cluster_ids }}"
+    msg: >-
+      Deleting pre-existing cluster(s) named {{ _dedup_cluster_name }}:
+      {{ _dedup_existing_clusters | map(attribute='id') | list }}
+      (statuses: {{ _dedup_existing_clusters | map(attribute='status') | list }})
 
-# A duplicate found here is likely the orphan left behind by a crashed/
-# retried create_cluster/wait_for_hosts run (the exact scenario this
-# file exists to clean up), so it may still be actively installing.
-# cancel: true cancels any in-progress install before the delete, so
-# this does not fail the way a plain DELETE against an installing
-# cluster could.
+# cancel is only sent for clusters in an active installation state.
+# The AI API rejects POST /actions/cancel with 409 for clusters that
+# are not installing (e.g. pending-for-input, insufficient, ready), and
+# delete_cluster.py currently calls fail_json on that 409 before
+# attempting the DELETE - so unconditional cancel: true would prevent
+# deletion of the very orphans this task exists to clean up (a retry
+# orphan typically ends up in pending-for-input or insufficient, not
+# installing).
+#
+# Statuses sourced from the Assisted Installer API swagger spec
+# (cluster-create-params -> status enum).
 - name: "Delete pre-existing cluster(s) named {{ _dedup_cluster_name }}"
-  when: _dedup_existing_cluster_ids | length > 0
+  when: _dedup_existing_clusters | length > 0
   rhpds.assisted_installer.delete_cluster:
-    cluster_id: "{{ item }}"
+    cluster_id: "{{ item.id }}"
     offline_token: "{{ ai_offline_token }}"
-    cancel: true
-  loop: "{{ _dedup_existing_cluster_ids }}"
+    cancel: "{{ item.status in _dedup_installing_statuses }}"
+  vars:
+    _dedup_installing_statuses:
+      - preparing-for-installation
+      - installing
+      - installing-pending-user-action
+      - finalizing
+  loop: "{{ _dedup_existing_clusters }}"
   loop_control:
-    label: "{{ item }}"
+    label: "{{ item.id }} ({{ item.status }})"
   register: _r_dedup_delete_result
   ignore_errors: true
 
@@ -59,4 +72,4 @@
     msg: >-
       Failed to delete one or more pre-existing clusters named {{ _dedup_cluster_name }}
       before creating a new one: {{ _r_dedup_delete_result.results
-      | selectattr('failed', 'defined') | selectattr('failed') | map(attribute='item') | list }}
+      | selectattr('failed', 'defined') | selectattr('failed') | map(attribute='item.id') | list }}
