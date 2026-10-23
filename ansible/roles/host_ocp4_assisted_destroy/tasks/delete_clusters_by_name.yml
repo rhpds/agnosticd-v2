@@ -1,9 +1,13 @@
 ---
 # Find and delete ALL Assisted Installer clusters that match this name -
-# not just the first/last match. A previous buggy implementation used a
-# loop + set_fact that overwrote cluster_id on each matching iteration,
-# so only the last match was ever deleted and any earlier duplicate was
-# silently orphaned. selectattr/map below collects every matching ID.
+# not just the first/last match. Two records per name is normal even
+# without duplicates: day-2 "adding-hosts" records share the main
+# cluster's name (with an empty base_dns_domain). The old loop +
+# set_fact implementation overwrote cluster_id on each matching
+# iteration, so only the last match was ever deleted - most likely the
+# day-2 record, leaving the main "installed" cluster orphaned (and
+# explaining the ~2,000 installed registrations currently in the shared
+# AI account). selectattr/map below collects every matching ID.
 - name: "List existing Assisted Installer clusters (looking for {{ _dedup_cluster_name }})"
   rhpds.assisted_installer.list_clusters:
     offline_token: "{{ ai_offline_token }}"
