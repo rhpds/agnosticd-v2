@@ -1,0 +1,75 @@
+---
+# The Assisted Installer API does not enforce cluster name uniqueness -
+# POST /clusters always creates a brand-new cluster record with a new ID,
+# even if one with the same name already exists. A retried/relaunched job
+# (or a prior partial failure) can therefore leave behind an orphaned
+# cluster under the name we are about to reuse. Delete any existing
+# cluster(s) with this name first, so each run always starts from a clean
+# slate and we never accumulate duplicate registrations.
+#
+# Known limitation: list -> delete -> create below is not atomic, so this
+# does not fully close the race it is meant to prevent - it only narrows
+# it. Two jobs started concurrently for the same cluster name could both
+# list no existing duplicates, both delete nothing, and both go on to
+# create_cluster, recreating the original duplicate-cluster bug for that
+# small window. This currently relies on AAP2 not running two jobs for the
+# same guid/cluster name at the same time; truly eliminating the race would
+# require a server-side uniqueness constraint or lock in the Assisted
+# Installer API itself, which does not exist today.
+- name: "List existing Assisted Installer clusters (checking for duplicates of {{ _dedup_cluster_name }})"
+  rhpds.assisted_installer.list_clusters:
+    offline_token: "{{ ai_offline_token }}"
+    owner: true
+  register: _r_dedup_existing_clusters
+
+- name: "Determine any pre-existing cluster(s) named {{ _dedup_cluster_name }}"
+  ansible.builtin.set_fact:
+    _dedup_existing_clusters: >-
+      {{ _r_dedup_existing_clusters.result
+         | selectattr('name', 'equalto', _dedup_cluster_name)
+         | list }}
+
+- name: "Debug: pre-existing cluster(s) to be removed for {{ _dedup_cluster_name }}"
+  when: _dedup_existing_clusters | length > 0
+  ansible.builtin.debug:
+    msg: >-
+      Deleting pre-existing cluster(s) named {{ _dedup_cluster_name }}:
+      {{ _dedup_existing_clusters | map(attribute='id') | list }}
+      (statuses: {{ _dedup_existing_clusters | map(attribute='status') | list }})
+
+# cancel is only sent for clusters in an active installation state.
+# The AI API rejects POST /actions/cancel with 409 for clusters that
+# are not installing (e.g. pending-for-input, insufficient, ready), and
+# delete_cluster.py currently calls fail_json on that 409 before
+# attempting the DELETE - so unconditional cancel: true would prevent
+# deletion of the very orphans this task exists to clean up (a retry
+# orphan typically ends up in pending-for-input or insufficient, not
+# installing).
+#
+# Statuses sourced from the Assisted Installer API swagger spec
+# (cluster-create-params -> status enum).
+- name: "Delete pre-existing cluster(s) named {{ _dedup_cluster_name }}"
+  when: _dedup_existing_clusters | length > 0
+  rhpds.assisted_installer.delete_cluster:
+    cluster_id: "{{ item.id }}"
+    offline_token: "{{ ai_offline_token }}"
+    cancel: "{{ item.status in _dedup_installing_statuses }}"
+  vars:
+    _dedup_installing_statuses:
+      - preparing-for-installation
+      - installing
+      - installing-pending-user-action
+      - finalizing
+  loop: "{{ _dedup_existing_clusters }}"
+  loop_control:
+    label: "{{ item.id }} ({{ item.status }})"
+  register: _r_dedup_delete_result
+  ignore_errors: true
+
+- name: "Fail: unable to delete pre-existing cluster(s) named {{ _dedup_cluster_name }}"
+  when: _r_dedup_delete_result is failed
+  ansible.builtin.fail:
+    msg: >-
+      Failed to delete one or more pre-existing clusters named {{ _dedup_cluster_name }}
+      before creating a new one: {{ _r_dedup_delete_result.results
+      | selectattr('failed', 'defined') | selectattr('failed') | map(attribute='item.id') | list }}

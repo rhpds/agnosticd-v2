@@ -1,0 +1,47 @@
+---
+# Find and delete ALL Assisted Installer clusters that match this name -
+# not just the first/last match. Two records per name is normal even
+# without duplicates: day-2 "adding-hosts" records share the main
+# cluster's name (with an empty base_dns_domain). The old loop +
+# set_fact implementation overwrote cluster_id on each matching
+# iteration, so only the last match was ever deleted - most likely the
+# day-2 record, leaving the main "installed" cluster orphaned (and
+# explaining the ~2,000 installed registrations currently in the shared
+# AI account). selectattr/map below collects every matching ID.
+- name: "List existing Assisted Installer clusters (looking for {{ _dedup_cluster_name }})"
+  rhpds.assisted_installer.list_clusters:
+    offline_token: "{{ ai_offline_token }}"
+    owner: true
+  register: _r_dedup_existing_clusters
+
+- name: "Determine IDs of all cluster(s) named {{ _dedup_cluster_name }}"
+  ansible.builtin.set_fact:
+    _dedup_existing_cluster_ids: >-
+      {{ _r_dedup_existing_clusters.result
+         | selectattr('name', 'equalto', _dedup_cluster_name)
+         | map(attribute='id')
+         | list }}
+
+- name: "Debug: cluster(s) to be removed for {{ _dedup_cluster_name }}"
+  when: _dedup_existing_cluster_ids | length > 0
+  ansible.builtin.debug:
+    msg: "Deleting cluster(s) named {{ _dedup_cluster_name }}: IDs={{ _dedup_existing_cluster_ids }}"
+
+- name: "Delete all cluster(s) named {{ _dedup_cluster_name }}"
+  when: _dedup_existing_cluster_ids | length > 0
+  rhpds.assisted_installer.delete_cluster:
+    cluster_id: "{{ item }}"
+    offline_token: "{{ ai_offline_token }}"
+  loop: "{{ _dedup_existing_cluster_ids }}"
+  loop_control:
+    label: "{{ item }}"
+  register: _r_dedup_delete_result
+  ignore_errors: true
+
+- name: "Fail: unable to delete cluster(s) named {{ _dedup_cluster_name }}"
+  when: _r_dedup_delete_result is failed
+  ansible.builtin.fail:
+    msg: >-
+      Failed to delete one or more clusters named {{ _dedup_cluster_name }}:
+      {{ _r_dedup_delete_result.results
+      | selectattr('failed', 'defined') | selectattr('failed') | map(attribute='item') | list }}

@@ -39,28 +39,7 @@
   register: r_dns_cleanup
   until: r_dns_cleanup is success
 
-- name: Get a list of clusters
-  rhpds.assisted_installer.list_clusters:
-    offline_token: "{{ ai_offline_token }}"
-    owner: true
-  register: listclusters
-
-- name: Filter the created clusters
-  when: item.name == _cluster_name
-  ansible.builtin.set_fact:
-    cluster_id: "{{ item.id }}"
-  loop: "{{ listclusters.result }}"
-  loop_control:
-    label: "{{ item.name }}"
-
-- name: Remove Assisted Installer Cluster
-  when: cluster_id | default("") | length > 0
-  block:
-  - name: Debug cluster id and name
-    ansible.builtin.debug:
-      msg: "Cluster to be removed: Cluster ID={{ cluster_id }}, Cluster Name={{ _cluster_name }}"
-
-  - name: Delete cluster in Red Hat Console
-    rhpds.assisted_installer.delete_cluster:
-      cluster_id: "{{ cluster_id }}"
-      offline_token: "{{ ai_offline_token }}"
+- name: Delete Assisted Installer cluster(s) matching this extra SNO cluster
+  ansible.builtin.include_tasks: delete_clusters_by_name.yml
+  vars:
+    _dedup_cluster_name: "{{ _cluster_name }}"
