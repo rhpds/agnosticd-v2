@@ -42,4 +42,4 @@
 - name: Delete Assisted Installer cluster(s) matching this extra SNO cluster
   ansible.builtin.include_tasks: delete_clusters_by_name.yml
   vars:
-    _dedup_cluster_name: "{{ _sno_cluster_name }}"
+    _dedup_cluster_name: "{{ _cluster_name }}"

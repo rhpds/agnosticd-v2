@@ -15,7 +15,6 @@
     loop_var: extra_sno_cluster
   vars:
     _cluster_name: "cluster-{{ guid }}-{{ extra_sno_cluster.name }}"
-    _sno_cluster_name: "{{ extra_sno_cluster.name }}"
 
 - name: Destroy OpenShift using Assisted Installer
   module_defaults:
