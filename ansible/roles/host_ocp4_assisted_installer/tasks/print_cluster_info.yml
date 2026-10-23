@@ -1,28 +1,4 @@
 ---
-# - name: Get kubeadmin password
-#   ansible.builtin.slurp:
-#     path: /home/{{ ansible_user }}/{{ cluster_name }}/auth/kubeadmin-password
-#   register: r_slurp_kubeadmin_password
-
-# - name: Get console route
-#   environment:
-#     KUBECONFIG: /home/{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig
-#   ansible.builtin.command: oc get route -n openshift-console console -o json
-#   register: routeconsole
-#   retries: 10
-#   delay: 30
-#   until: routeconsole is succeeded
-#   ignore_errors: true
-
-# - name: Get Webconsole URL
-#   environment:
-#     KUBECONFIG: /home/{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig
-#   ansible.builtin.command: oc whoami --show-console
-#   retries: 10
-#   delay: 30
-#   until: webconsole_url is succeeded
-#   register: webconsole_url
-
 - name: Determine API server URL
   kubernetes.core.k8s_info:
     api_version: config.openshift.io/v1
@@ -33,6 +9,7 @@
   retries: 30
   delay: 5
   until:
+  - r_api.resources is defined
   - r_api.resources | length > 0
   - r_api.resources[0].status is defined
   - r_api.resources[0].status.apiServerURL is defined
@@ -48,6 +25,7 @@
   retries: 30
   delay: 5
   until:
+  - r_ingress.resources is defined
   - r_ingress.resources | length > 0
   - r_ingress.resources[0].spec.domain is defined
   - r_ingress.resources[0].spec.domain | length > 0
