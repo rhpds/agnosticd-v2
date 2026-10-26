@@ -17,9 +17,20 @@
 # require a server-side uniqueness constraint or lock in the Assisted
 # Installer API itself, which does not exist today.
 - name: "List existing Assisted Installer clusters (checking for duplicates of {{ _dedup_cluster_name }})"
+  # owner: true was removed here after live testing (26 Oct 2026) showed it
+  # is non-functional against the real API: owner=true/false/1 all return
+  # HTTP 200 with a literal [] body, so it never returned any clusters at
+  # all - not a casing issue (rhpds/assisted_installer#8's owner type='bool'
+  # + lowercase fix is correct and necessary, but doesn't help here), there
+  # is simply no value of this param that returns real data. With owner:
+  # true, this task's list was always empty, so this dedup check never
+  # actually found or removed any pre-existing duplicate (the exact
+  # create-retry scenario - guid qqcwv, jobs 285609/305694 - that this file
+  # exists to fix). Correctness now relies entirely on the exact-name match
+  # below against the full account list, same as effectively happened
+  # before rhpds/assisted_installer#8 (when params weren't forwarded at all).
   rhpds.assisted_installer.list_clusters:
     offline_token: "{{ ai_offline_token }}"
-    owner: true
   register: _r_dedup_existing_clusters
 
 - name: "Determine any pre-existing cluster(s) named {{ _dedup_cluster_name }}"
