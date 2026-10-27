@@ -50,6 +50,10 @@ host_ocp4_agent_installer_iso_datavolume_name: "installation-iso-{{ _cluster_nam
 host_ocp4_agent_installer_iso_size: 2Gi
 host_ocp4_agent_installer_upload_insecure: false
 
+# Remove Agent ISO copies after successful installation. The ISO contains
+# installation configuration including the pull secret.
+host_ocp4_agent_installer_cleanup_iso: true
+
 # virtctl must be compatible with the hosting OpenShift Virtualization version.
 host_ocp4_agent_installer_virtctl_url: >-
   https://github.com/kubevirt/kubevirt/releases/download/v1.7.3/virtctl-v1.7.3-linux-amd64

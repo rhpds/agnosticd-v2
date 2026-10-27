@@ -1,0 +1,59 @@
+---
+# Runs only after successful installation. The Agent ISO embeds installation
+# configuration, including the pull secret, so remove copies that are no
+# longer needed. Running VMs are not restarted.
+- name: Delete Agent ISO from bastion
+  delegate_to: "{{ groups['bastions'][0] }}"
+  ansible.builtin.file:
+    path: "{{ _agent_install_dir }}/agent.x86_64.iso"
+    state: absent
+
+- name: Delete source installation ISO DataVolume
+  kubernetes.core.k8s:
+    api_version: cdi.kubevirt.io/v1beta1
+    kind: DataVolume
+    name: "{{ host_ocp4_agent_installer_iso_datavolume_name }}"
+    namespace: "{{ ai_ocp_namespace }}"
+    state: absent
+    wait: true
+    wait_timeout: 300
+
+- name: Get cluster VMs
+  kubernetes.core.k8s_info:
+    api_version: kubevirt.io/v1
+    kind: VirtualMachine
+    namespace: "{{ ai_ocp_namespace }}"
+  register: r_agent_cleanup_vms
+
+# Remove the installation CD-ROM from VM definitions. Running VMIs keep the
+# currently attached disk until their next restart; the cloned PVC is removed
+# with the VM or sandbox namespace.
+- name: Remove installation CD-ROM from VM definitions
+  vars:
+    _cdrom: "{{ _vm.metadata.name }}-installation-cdrom"
+  kubernetes.core.k8s:
+    api_version: kubevirt.io/v1
+    kind: VirtualMachine
+    name: "{{ _vm.metadata.name }}"
+    namespace: "{{ ai_ocp_namespace }}"
+    state: patched
+    merge_type: merge
+    definition:
+      spec:
+        dataVolumeTemplates: >-
+          {{ _vm.spec.dataVolumeTemplates | default([])
+             | rejectattr('metadata.name', 'equalto', _cdrom) | list }}
+        template:
+          spec:
+            domain:
+              devices:
+                disks: >-
+                  {{ _vm.spec.template.spec.domain.devices.disks
+                     | rejectattr('name', 'equalto', 'installation-cdrom') | list }}
+            volumes: >-
+              {{ _vm.spec.template.spec.volumes
+                 | rejectattr('name', 'equalto', 'installation-cdrom') | list }}
+  loop: "{{ r_agent_cleanup_vms.resources | selectattr('metadata.name', 'match', '^(' ~ ai_ocp_vmname_control_plane_prefix ~ '|' ~ ai_ocp_vmname_worker_prefix ~ ')-') | list }}"
+  loop_control:
+    loop_var: _vm
+    label: "{{ _vm.metadata.name }}"

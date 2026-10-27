@@ -157,6 +157,10 @@
   - name: Wait for Agent-based installation completion
     ansible.builtin.include_tasks: wait_install.yml
 
+  - name: Clean up installation ISO copies
+    when: host_ocp4_agent_installer_cleanup_iso | bool
+    ansible.builtin.include_tasks: cleanup_iso.yml
+
 - name: Configure bastion access
   ansible.builtin.include_tasks: setup_bastion.yml
 
