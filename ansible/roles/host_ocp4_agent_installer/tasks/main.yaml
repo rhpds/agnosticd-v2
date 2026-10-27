@@ -166,7 +166,9 @@
       host: "{{ sandbox_openshift_api_url }}"
       api_key: "{{ _sandbox_api_token }}"
       validate_certs: false
-  ansible.builtin.include_tasks: cleanup_iso.yml
+  block:
+  - name: Remove Agent ISO copies
+    ansible.builtin.include_tasks: cleanup_iso.yml
 
 - name: Configure bastion access
   ansible.builtin.include_tasks: setup_bastion.yml
