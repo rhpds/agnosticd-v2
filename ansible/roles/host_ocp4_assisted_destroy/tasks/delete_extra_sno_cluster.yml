@@ -39,7 +39,12 @@
   register: r_dns_cleanup
   until: r_dns_cleanup is success
 
+# See create_sno_extra_sno_clusters.yaml: extra SNO clusters are registered
+# in Assisted Installer under the bare name, scoped by base_dns_domain
+# (which carries the guid) to avoid matching another live deployment's
+# same-named extra SNO cluster.
 - name: Delete Assisted Installer cluster(s) matching this extra SNO cluster
   ansible.builtin.include_tasks: delete_clusters_by_name.yml
   vars:
-    _dedup_cluster_name: "{{ _cluster_name }}"
+    _dedup_cluster_name: "{{ _sno_cluster_name }}"
+    _dedup_base_dns_domain: "cluster-{{ guid }}.{{ cluster_dns_zone }}"

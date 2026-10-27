@@ -26,13 +26,31 @@
     offline_token: "{{ ai_offline_token }}"
   register: _r_dedup_existing_clusters
 
-- name: "Determine IDs of all cluster(s) named {{ _dedup_cluster_name }}"
+- name: "Determine matching cluster(s) named {{ _dedup_cluster_name }}"
   ansible.builtin.set_fact:
-    _dedup_existing_cluster_ids: >-
+    _dedup_existing_clusters: >-
       {{ _r_dedup_existing_clusters.result
          | selectattr('name', 'equalto', _dedup_cluster_name)
-         | map(attribute='id')
          | list }}
+
+# Extra SNO clusters are registered under a bare name (e.g. "dr") shared by
+# every environment's extra SNO of that name - only base_dns_domain carries
+# the guid. Without this, the match above would also catch (and delete)
+# every other live deployment's same-named extra SNO cluster. Call sites for
+# extra SNO clusters pass _dedup_base_dns_domain; the main cluster (and its
+# day-2 adding-hosts records, which have an empty base_dns_domain) does not,
+# so this step is a no-op there.
+- name: "Further scope by base_dns_domain (extra-SNO cross-env collision guard)"
+  when: _dedup_base_dns_domain is defined
+  ansible.builtin.set_fact:
+    _dedup_existing_clusters: >-
+      {{ _dedup_existing_clusters
+         | selectattr('base_dns_domain', 'equalto', _dedup_base_dns_domain)
+         | list }}
+
+- name: "Determine IDs of all cluster(s) named {{ _dedup_cluster_name }}"
+  ansible.builtin.set_fact:
+    _dedup_existing_cluster_ids: "{{ _dedup_existing_clusters | map(attribute='id') | list }}"
 
 - name: "Debug: cluster(s) to be removed for {{ _dedup_cluster_name }}"
   when: _dedup_existing_cluster_ids | length > 0

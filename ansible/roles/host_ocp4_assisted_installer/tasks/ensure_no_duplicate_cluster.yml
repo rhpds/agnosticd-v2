@@ -40,6 +40,22 @@
          | selectattr('name', 'equalto', _dedup_cluster_name)
          | list }}
 
+# Extra SNO clusters are registered under a bare name (e.g. "dr") shared by
+# every environment's extra SNO of that name - only base_dns_domain carries
+# the guid. Without this, the match above would also catch every other live
+# deployment's same-named extra SNO cluster and this task would delete (with
+# cancel: true) a cluster that isn't ours, possibly mid-install. Call sites
+# for extra SNO clusters pass _dedup_base_dns_domain; the main cluster (and
+# its day-2 adding-hosts records, which have an empty base_dns_domain) does
+# not, so this step is a no-op there.
+- name: "Further scope by base_dns_domain (extra-SNO cross-env collision guard)"
+  when: _dedup_base_dns_domain is defined
+  ansible.builtin.set_fact:
+    _dedup_existing_clusters: >-
+      {{ _dedup_existing_clusters
+         | selectattr('base_dns_domain', 'equalto', _dedup_base_dns_domain)
+         | list }}
+
 - name: "Debug: pre-existing cluster(s) to be removed for {{ _dedup_cluster_name }}"
   when: _dedup_existing_clusters | length > 0
   ansible.builtin.debug:
@@ -48,14 +64,15 @@
       {{ _dedup_existing_clusters | map(attribute='id') | list }}
       (statuses: {{ _dedup_existing_clusters | map(attribute='status') | list }})
 
-# cancel is only sent for clusters in an active installation state.
-# The AI API rejects POST /actions/cancel with 409 for clusters that
-# are not installing (e.g. pending-for-input, insufficient, ready), and
-# delete_cluster.py currently calls fail_json on that 409 before
-# attempting the DELETE - so unconditional cancel: true would prevent
-# deletion of the very orphans this task exists to clean up (a retry
-# orphan typically ends up in pending-for-input or insufficient, not
-# installing).
+# cancel is only sent for clusters in an active installation state. The AI
+# API rejects POST /actions/cancel with 409 for clusters that are not
+# installing (e.g. pending-for-input, insufficient, ready) - a retry orphan
+# typically ends up in one of those states, not installing. delete_cluster.py
+# now treats a cancel 409 as non-fatal (module.warn) and still attempts the
+# DELETE either way (rhpds/assisted_installer#8, 3ef107f), so this
+# conditional is no longer required for correctness, but it's still worth
+# keeping: it avoids a pointless failed cancel call and the resulting
+# warning noise in the job log for clusters that were never installing.
 #
 # Statuses sourced from the Assisted Installer API swagger spec
 # (cluster-create-params -> status enum).
