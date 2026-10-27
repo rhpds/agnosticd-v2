@@ -110,12 +110,12 @@
         spec:
           source:
             pvc:
-              name: "installation-iso-{{ _cluster_name }}"
+              name: "{{ host_ocp4_agent_installer_iso_datavolume_name }}"
               namespace: "{{ ai_ocp_namespace }}"
           storage:
             resources:
               requests:
-                storage: 1Gi
+                storage: "{{ host_ocp4_agent_installer_iso_size }}"
       - metadata:
           name: "{{ vmname }}"
         spec:
