@@ -67,3 +67,11 @@ host_ocp4_agent_installer_image_digest_sources: []
 host_ocp4_agent_installer_iso_timeout: 900
 host_ocp4_agent_installer_bootstrap_timeout: 5400
 host_ocp4_agent_installer_install_timeout: 7200
+
+# Optional test-only recovery. Never enabled for production/default installs.
+# Probe for 20 minutes, then restart at most ONE unregistered worker VM when
+# all control planes are Ready, the local MCS endpoint is reachable, and the
+# VM has no guest agent. A registered NotReady node is never restarted.
+host_ocp4_agent_installer_ignition_restart_once: false
+host_ocp4_agent_installer_ignition_probe_retries: 40
+host_ocp4_agent_installer_ignition_probe_delay: 30

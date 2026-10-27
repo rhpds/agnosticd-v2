@@ -25,6 +25,38 @@
     openshift_kubeadmin_password: "{{ r_kubeadmin_password.content | b64decode | trim }}"
   no_log: true
 
+# Only the opt-in test CI takes this bounded diagnostic window. Ansible must
+# never restart a VM that has already registered as a Kubernetes Node.
+- name: Observe node registration before optional one-time worker recovery
+  when:
+  - host_ocp4_agent_installer_ignition_restart_once | bool
+  - worker_instance_count | int > 0
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Node
+    kubeconfig: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+    validate_certs: false
+  register: r_agent_probe
+  until:
+  - r_agent_probe is succeeded
+  - r_agent_probe.resources | default([]) | length == (control_plane_instance_count | int + worker_instance_count | int)
+  - >-
+    r_agent_probe.resources | default([])
+    | map(attribute='status.conditions')
+    | map('selectattr', 'type', 'equalto', 'Ready')
+    | map('selectattr', 'status', 'equalto', 'True')
+    | map('list') | map('length') | min > 0
+  retries: "{{ host_ocp4_agent_installer_ignition_probe_retries | int }}"
+  delay: "{{ host_ocp4_agent_installer_ignition_probe_delay | int }}"
+  failed_when: false
+
+- name: Consider one guarded restart of an unregistered worker
+  when:
+  - host_ocp4_agent_installer_ignition_restart_once | bool
+  - worker_instance_count | int > 0
+  - r_agent_probe.resources | default([]) | length < (control_plane_instance_count | int + worker_instance_count | int)
+  ansible.builtin.include_tasks: ignition_recovery.yml
+
 - name: Wait for all nodes to register and become Ready
   kubernetes.core.k8s_info:
     api_version: v1

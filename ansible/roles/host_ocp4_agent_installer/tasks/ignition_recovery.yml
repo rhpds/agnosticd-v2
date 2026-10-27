@@ -1,0 +1,112 @@
+---
+# One test-only recovery opportunity. This does NOT prove Ignition is the cause;
+# it only identifies one unregistered, guest-agent-disconnected worker VM after
+# a bounded wait. Capture the failure outside this task for root-cause analysis.
+- name: Determine registered nodes and expected worker names
+  ansible.builtin.set_fact:
+    _agent_registered_nodes: "{{ r_agent_probe.resources | default([]) | map(attribute='metadata.name') | list }}"
+    _agent_expected_workers: >-
+      {{ range(worker_instance_count | int) | map('string') | map('regex_replace', '^', 'worker-') | list }}
+
+- name: Find unregistered workers
+  ansible.builtin.set_fact:
+    _agent_missing_workers: "{{ _agent_expected_workers | difference(_agent_registered_nodes) }}"
+    _agent_control_planes_ready: >-
+      {{
+        (
+          r_agent_probe.resources | default([])
+          | selectattr('metadata.name', 'match', '^control-plane-')
+          | map(attribute='status.conditions')
+          | map('selectattr', 'type', 'equalto', 'Ready')
+          | map('selectattr', 'status', 'equalto', 'True')
+          | map('list') | map('length') | sum
+        ) == control_plane_instance_count | int
+      }}
+
+# Do not probe/restart until cluster control plane is known healthy, or if
+# zero/multiple workers are missing. Leave the normal bounded install wait in
+# place for all other cases.
+- name: Inspect one missing worker for a guarded restart
+  when:
+  - r_agent_probe is succeeded
+  - _agent_missing_workers | length == 1
+  - _agent_control_planes_ready | bool
+  block:
+  - name: Derive the worker VM name
+    ansible.builtin.set_fact:
+      _agent_recovery_worker_name: "{{ _agent_missing_workers[0] }}"
+      _agent_recovery_vm_name: >-
+        {{ ai_ocp_vmname_worker_prefix }}-{{ (_agent_missing_workers[0] | regex_replace('^worker-', '') | int) + 1 }}
+
+  - name: Read only the candidate VM instance
+    kubernetes.core.k8s_info:
+      api_version: kubevirt.io/v1
+      kind: VirtualMachineInstance
+      name: "{{ _agent_recovery_vm_name }}"
+      namespace: "{{ ai_ocp_namespace }}"
+      host: "{{ sandbox_openshift_api_url }}"
+      api_key: "{{ _sandbox_api_token }}"
+      validate_certs: false
+    register: r_agent_recovery_vmi
+    no_log: true
+
+  - name: Verify the installed cluster API still has no candidate worker
+    kubernetes.core.k8s_info:
+      api_version: v1
+      kind: Node
+      kubeconfig: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+      validate_certs: false
+    register: r_agent_recovery_nodes
+
+  - name: Check the local MCS port from the bastion
+    delegate_to: "{{ groups['bastions'][0] }}"
+    ansible.builtin.wait_for:
+      host: "{{ ai_network_prefix }}.100"
+      port: 22623
+      timeout: 8
+      state: started
+    register: r_agent_mcs
+    failed_when: false
+    changed_when: false
+
+  - name: Restart only the unregistered worker VM once
+    when:
+    - r_agent_recovery_vmi.resources | length == 1
+    - r_agent_recovery_vmi.resources[0].status.phase | default('') == 'Running'
+    - >-
+      r_agent_recovery_vmi.resources[0].status.conditions | default([])
+      | selectattr('type', 'equalto', 'AgentConnected')
+      | selectattr('status', 'equalto', 'True') | list | length == 0
+    - r_agent_recovery_nodes is succeeded
+    - r_agent_recovery_nodes.resources | default([]) | map(attribute='metadata.name') | select('equalto', _agent_recovery_worker_name) | list | length == 0
+    - r_agent_mcs is succeeded
+    ansible.builtin.uri:
+      url: >-
+        {{ sandbox_openshift_api_url | regex_replace('/$', '')
+        }}/apis/subresources.kubevirt.io/v1/namespaces/{{ ai_ocp_namespace
+        }}/virtualmachines/{{ _agent_recovery_vm_name }}/restart
+      method: PUT
+      headers:
+        Authorization: "Bearer {{ _sandbox_api_token }}"
+        Content-Type: application/json
+      body_format: json
+      body:
+        gracePeriodSeconds: 0
+      validate_certs: false
+      status_code:
+      - 200
+      - 202
+      timeout: 20
+    register: r_agent_restart_once
+    no_log: true
+
+  - name: Report bounded test-only restart without disclosing credentials
+    when:
+    - r_agent_restart_once is defined
+    - r_agent_restart_once is not skipped
+    - r_agent_restart_once is succeeded
+    ansible.builtin.debug:
+      msg: >-
+        Test-only recovery restarted {{ _agent_recovery_vm_name }} once because
+        {{ _agent_recovery_worker_name }} was unregistered after the bounded
+        probe. No further restarts will be attempted.
