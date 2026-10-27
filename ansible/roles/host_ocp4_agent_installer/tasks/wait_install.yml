@@ -1,0 +1,69 @@
+---
+- name: Wait for Agent-based installation on the bastion
+  delegate_to: "{{ groups['bastions'][0] }}"
+  block:
+  - name: Wait for bootstrap completion
+    ansible.builtin.command:
+      argv:
+      - /usr/bin/openshift-install
+      - agent
+      - wait-for
+      - bootstrap-complete
+      - --dir
+      - "{{ _agent_install_dir }}"
+      - --log-level=info
+    async: "{{ host_ocp4_agent_installer_bootstrap_timeout | int }}"
+    poll: 30
+    changed_when: false
+
+  - name: Wait for installation completion
+    ansible.builtin.command:
+      argv:
+      - /usr/bin/openshift-install
+      - agent
+      - wait-for
+      - install-complete
+      - --dir
+      - "{{ _agent_install_dir }}"
+      - --log-level=info
+    async: "{{ host_ocp4_agent_installer_install_timeout | int }}"
+    poll: 30
+    changed_when: false
+
+  - name: Fetch generated cluster credentials
+    ansible.builtin.fetch:
+      src: "{{ _agent_install_dir }}/auth/{{ item }}"
+      dest: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_{{ item }}"
+      flat: true
+    loop:
+    - kubeadmin-password
+    - kubeconfig
+    no_log: true
+
+  - name: Read kubeadmin password
+    ansible.builtin.slurp:
+      src: "{{ _agent_install_dir }}/auth/kubeadmin-password"
+    register: r_kubeadmin_password
+    no_log: true
+
+- name: Save cluster access facts
+  ansible.builtin.set_fact:
+    openshift_kubeadmin_password: "{{ r_kubeadmin_password.content | b64decode | trim }}"
+  no_log: true
+
+- name: Determine console URL
+  kubernetes.core.k8s_info:
+    api_version: config.openshift.io/v1
+    kind: Console
+    name: cluster
+    kubeconfig: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+  register: r_console
+  retries: 30
+  delay: 10
+  until:
+  - r_console.resources | length > 0
+  - r_console.resources[0].status.consoleURL | default('') | length > 0
+
+- name: Save console URL
+  ansible.builtin.set_fact:
+    openshift_console_url: "{{ r_console.resources[0].status.consoleURL }}"
