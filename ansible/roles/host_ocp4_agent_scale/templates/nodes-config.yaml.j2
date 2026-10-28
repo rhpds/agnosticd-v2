@@ -1,0 +1,38 @@
+hosts:
+{% for index in range(agent_scale_worker_count | int) %}
+- hostname: worker-{{ index }}
+  networkConfig:
+    interfaces:
+    - name: enp1s0
+      type: ethernet
+      state: up
+      mac-address: {{ ai_workers_macs[index] | to_json }}
+      identifier: mac-address
+      ipv4:
+        enabled: true
+        dhcp: true
+    - name: enp2s0
+      type: ethernet
+      state: up
+      mac-address: {{ ai_workers_macs2[index] | to_json }}
+      identifier: mac-address
+      mtu: {{ ai_network_mtu | int }}
+      ipv4:
+        enabled: true
+        dhcp: false
+        address:
+        - ip: {{ ai_network_prefix }}.{{ 20 + index }}
+          prefix-length: {{ ai_network_prefix_length | int }}
+    routes:
+      config:
+      - destination: 0.0.0.0/0
+        next-hop-address: {{ ai_network_prefix }}.1
+        next-hop-interface: enp2s0
+        metric: 200
+        table-id: 254
+  interfaces:
+  - macAddress: {{ ai_workers_macs[index] | to_json }}
+    name: enp1s0
+  - macAddress: {{ ai_workers_macs2[index] | to_json }}
+    name: enp2s0
+{% endfor %}
