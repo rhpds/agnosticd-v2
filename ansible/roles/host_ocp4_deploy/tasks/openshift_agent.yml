@@ -1,0 +1,6 @@
+---
+######################### Deploy OpenShift using Agent-based Installer
+- name: Call role to install OpenShift using Agent-based Installer
+  when: host_ocp4_deploy_install_ocp4 | default(true) | bool
+  ansible.builtin.include_role:
+    name: host_ocp4_agent_installer

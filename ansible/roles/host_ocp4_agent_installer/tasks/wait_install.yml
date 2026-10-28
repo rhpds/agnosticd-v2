@@ -1,0 +1,117 @@
+---
+# The bastion is not attached to the cluster's private machine network, so
+# `openshift-install agent wait-for` cannot reach the rendezvous host.
+# Wait through the public API instead: DNS -> MetalLB service -> control plane.
+- name: Fetch generated cluster credentials from bastion
+  delegate_to: "{{ groups['bastions'][0] }}"
+  ansible.builtin.fetch:
+    src: "{{ _agent_install_dir }}/auth/{{ item }}"
+    dest: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_{{ item }}"
+    flat: true
+  loop:
+  - kubeadmin-password
+  - kubeconfig
+  no_log: true
+
+- name: Read kubeadmin password
+  delegate_to: "{{ groups['bastions'][0] }}"
+  ansible.builtin.slurp:
+    src: "{{ _agent_install_dir }}/auth/kubeadmin-password"
+  register: r_kubeadmin_password
+  no_log: true
+
+- name: Save kubeadmin password
+  ansible.builtin.set_fact:
+    openshift_kubeadmin_password: "{{ r_kubeadmin_password.content | b64decode | trim }}"
+  no_log: true
+
+# Only the opt-in test CI takes this bounded diagnostic window. Ansible must
+# never restart a VM that has already registered as a Kubernetes Node.
+- name: Observe node registration before optional one-time worker recovery
+  when:
+  - host_ocp4_agent_installer_ignition_restart_once | bool
+  - worker_instance_count | int > 0
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Node
+    kubeconfig: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+    validate_certs: false
+  register: r_agent_probe
+  until:
+  - r_agent_probe is succeeded
+  - r_agent_probe.resources | default([]) | length == (control_plane_instance_count | int + worker_instance_count | int)
+  - >-
+    r_agent_probe.resources | default([])
+    | map(attribute='status.conditions')
+    | map('selectattr', 'type', 'equalto', 'Ready')
+    | map('selectattr', 'status', 'equalto', 'True')
+    | map('list') | map('length') | min > 0
+  retries: "{{ host_ocp4_agent_installer_ignition_probe_retries | int }}"
+  delay: "{{ host_ocp4_agent_installer_ignition_probe_delay | int }}"
+  failed_when: false
+
+- name: Consider one guarded restart of an unregistered worker
+  when:
+  - host_ocp4_agent_installer_ignition_restart_once | bool
+  - worker_instance_count | int > 0
+  - r_agent_probe.resources | default([]) | length < (control_plane_instance_count | int + worker_instance_count | int)
+  ansible.builtin.include_tasks: ignition_recovery.yml
+
+- name: Wait for all nodes to register and become Ready
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Node
+    kubeconfig: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+    validate_certs: false
+  register: r_agent_nodes
+  until:
+  - r_agent_nodes is succeeded
+  - r_agent_nodes.resources | length == (control_plane_instance_count | int + worker_instance_count | int)
+  - >-
+    r_agent_nodes.resources
+    | map(attribute='status.conditions')
+    | map('selectattr', 'type', 'equalto', 'Ready')
+    | map('selectattr', 'status', 'equalto', 'True')
+    | map('list') | map('length') | min > 0
+  retries: "{{ (host_ocp4_agent_installer_bootstrap_timeout | int / 30) | int }}"
+  delay: 30
+
+- name: Wait for ClusterVersion installation to complete
+  kubernetes.core.k8s_info:
+    api_version: config.openshift.io/v1
+    kind: ClusterVersion
+    name: version
+    kubeconfig: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+    validate_certs: false
+  register: r_agent_clusterversion
+  until:
+  - r_agent_clusterversion is succeeded
+  - r_agent_clusterversion.resources | length > 0
+  - >-
+    r_agent_clusterversion.resources[0].status.conditions | default([])
+    | selectattr('type', 'equalto', 'Available')
+    | selectattr('status', 'equalto', 'True') | list | length > 0
+  - >-
+    r_agent_clusterversion.resources[0].status.conditions | default([])
+    | selectattr('type', 'equalto', 'Progressing')
+    | selectattr('status', 'equalto', 'False') | list | length > 0
+  retries: "{{ (host_ocp4_agent_installer_install_timeout | int / 30) | int }}"
+  delay: 30
+
+- name: Determine console URL
+  kubernetes.core.k8s_info:
+    api_version: config.openshift.io/v1
+    kind: Console
+    name: cluster
+    kubeconfig: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+    validate_certs: false
+  register: r_console
+  retries: 30
+  delay: 10
+  until:
+  - r_console.resources | length > 0
+  - r_console.resources[0].status.consoleURL | default('') | length > 0
+
+- name: Save console URL
+  ansible.builtin.set_fact:
+    openshift_console_url: "{{ r_console.resources[0].status.consoleURL }}"

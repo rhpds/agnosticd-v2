@@ -1,0 +1,121 @@
+---
+- name: Generate Agent-based installation ISO on the bastion
+  delegate_to: "{{ groups['bastions'][0] }}"
+  block:
+  - name: Install packages required by Agent-based Installer
+    become: true
+    ansible.builtin.package:
+      name:
+      - nmstate
+      state: present
+
+  - name: Create installation directories
+    ansible.builtin.file:
+      path: "{{ item }}"
+      state: directory
+      mode: "0700"
+    loop:
+    - "{{ _agent_install_dir }}"
+    - "{{ _agent_install_dir }}/openshift"
+
+  - name: Render install-config.yaml
+    ansible.builtin.template:
+      src: install-config.yaml.j2
+      dest: "{{ _agent_install_dir }}/install-config.yaml"
+      mode: "0600"
+    no_log: true
+
+  - name: Render agent-config.yaml
+    ansible.builtin.template:
+      src: agent-config.yaml.j2
+      dest: "{{ _agent_install_dir }}/agent-config.yaml"
+      mode: "0600"
+
+  - name: Add standard RHDP CNV manifests
+    ansible.builtin.copy:
+      src: "{{ item.src }}"
+      dest: "{{ _agent_install_dir }}/openshift/{{ item.dest }}"
+      mode: "0600"
+    loop:
+    - src: etcd_disk.yaml
+      dest: 10-control-plane-etcd-config.yaml
+    - src: network_config.yaml
+      dest: cluster-network-03-config.yml
+    - src: sysctl_control_plane.yaml
+      dest: 98_sysctl-control-plane.yaml
+
+  - name: Add worker sysctl manifest
+    when: worker_instance_count | int > 0
+    ansible.builtin.copy:
+      src: sysctl_workers.yaml
+      dest: "{{ _agent_install_dir }}/openshift/98_sysctl-workers.yaml"
+      mode: "0600"
+
+  - name: Add router replica manifest
+    ansible.builtin.template:
+      src: router_replicas.yaml.j2
+      dest: "{{ _agent_install_dir }}/openshift/99_router-replicas.yaml"
+      mode: "0600"
+
+  - name: Add node IP hint for SNO
+    when: control_plane_instance_count | int == 1
+    ansible.builtin.copy:
+      src: node_hint.yaml
+      dest: "{{ _agent_install_dir }}/openshift/98_node-hint.yaml"
+      mode: "0600"
+
+  - name: Add optional MachineConfigs
+    ansible.builtin.copy:
+      content: "{{ item | to_nice_yaml }}"
+      dest: "{{ _agent_install_dir }}/openshift/{{ item.metadata.name }}.yaml"
+      mode: "0600"
+    loop: "{{ ai_machineconfigs }}"
+    loop_control:
+      label: "{{ item.metadata.name }}"
+
+  - name: Generate Agent ISO
+    ansible.builtin.command:
+      argv:
+      - /usr/bin/openshift-install
+      - agent
+      - create
+      - image
+      - --dir
+      - "{{ _agent_install_dir }}"
+      - --log-level=info
+      creates: "{{ _agent_install_dir }}/agent.x86_64.iso"
+    async: "{{ host_ocp4_agent_installer_iso_timeout | int }}"
+    poll: 15
+
+  - name: Verify Agent ISO was generated
+    ansible.builtin.stat:
+      path: "{{ _agent_install_dir }}/agent.x86_64.iso"
+    register: r_agent_iso
+    failed_when: not r_agent_iso.stat.exists or r_agent_iso.stat.size | int == 0
+
+  - name: Install virtctl
+    become: true
+    ansible.builtin.get_url:
+      url: "{{ host_ocp4_agent_installer_virtctl_url }}"
+      dest: /usr/local/bin/virtctl
+      mode: "0755"
+      checksum: "{{ host_ocp4_agent_installer_virtctl_checksum | default(omit, true) }}"
+    register: r_virtctl
+    until: r_virtctl is succeeded
+    retries: 5
+    delay: 10
+
+  - name: Upload Agent ISO to the CNV namespace
+    ansible.builtin.command:
+      argv: >-
+        {{
+          ['/usr/local/bin/virtctl', '--server', sandbox_openshift_api_url,
+           '--token', _sandbox_api_token, '--namespace', ai_ocp_namespace]
+          + (['--insecure'] if host_ocp4_agent_installer_upload_insecure | bool else [])
+          + ['image-upload', 'dv', host_ocp4_agent_installer_iso_datavolume_name,
+             '--size', host_ocp4_agent_installer_iso_size,
+             '--image-path', _agent_install_dir + '/agent.x86_64.iso',
+             '--volume-mode', 'block', '--access-mode', 'ReadWriteMany']
+        }}
+    no_log: true
+    changed_when: true

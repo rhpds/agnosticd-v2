@@ -1,0 +1,77 @@
+---
+# Test-only Agent-based Installer role for OpenShift on CNV.
+# Variables intentionally mirror host_ocp4_assisted_installer where possible
+# so the same catalog sizing/network inputs can be used for A/B testing.
+
+_cluster_name: "{{ cluster_name }}"
+ai_cluster_version: "{{ host_ocp4_installer_version | default('4.19') }}"
+ai_ocp_namespace: "{{ sandbox_openshift_namespace | default(config + '-' + guid) }}"
+ai_storage_class: ocs-storagecluster-ceph-rbd
+ai_local_storageclass: hostpath-csi
+ai_network_prefix: "10.10.10"
+ai_network_prefix_length: 24
+ai_service_network_cidr: "172.31.0.0/16"
+ai_cluster_network_cidr: "10.132.0.0/14"
+ai_network_mtu: 1500
+ai_configure_hosts: []
+
+# Control plane
+ai_control_plane_cores: 8
+ai_control_plane_memory: 16Gi
+ai_control_plane_root_disk_size: 100Gi
+ai_control_plane_etcd_disk_size: 8Gi
+ai_control_plane_extra_disks: []
+ai_control_plane_macs: []
+ai_control_plane_macs2: []
+ai_attach_control_plane_macs: {}
+ai_attach_control_plane_networks: []
+ai_ocp_vmname_control_plane_prefix: "control-plane-{{ _cluster_name }}"
+
+# Workers
+ai_workers_cores: 16
+ai_workers_memory: 64Gi
+ai_workers_root_disk_size: 100Gi
+ai_workers_extra_disks: []
+ai_workers_macs: []
+ai_workers_macs2: []
+ai_attach_workers_macs: {}
+ai_attach_workers_networks: []
+ai_ocp_vmname_worker_prefix: "worker-{{ _cluster_name }}"
+ai_workers_wait_retries: 30
+ai_workers_wait_delay: 10
+
+# Additional MachineConfigs to place into the installer manifest directory.
+ai_machineconfigs: []
+
+# Agent-specific settings.
+host_ocp4_agent_installer_pull_secret: "{{ ocp4_pull_secret | default(ocp4_ai_pull_secret) }}"
+host_ocp4_agent_installer_ssh_public_key: "{{ lookup('ansible.builtin.file', hostvars.localhost.ssh_provision_pubkey_path) }}"
+host_ocp4_agent_installer_iso_datavolume_name: "installation-iso-{{ _cluster_name }}"
+host_ocp4_agent_installer_iso_size: 2Gi
+host_ocp4_agent_installer_upload_insecure: false
+
+# Remove Agent ISO copies after successful installation. The ISO contains
+# installation configuration including the pull secret.
+host_ocp4_agent_installer_cleanup_iso: true
+
+# virtctl must be compatible with the hosting OpenShift Virtualization version.
+host_ocp4_agent_installer_virtctl_url: >-
+  https://github.com/kubevirt/kubevirt/releases/download/v1.7.3/virtctl-v1.7.3-linux-amd64
+host_ocp4_agent_installer_virtctl_checksum: ""
+
+# Optional NTP sources and source-image mirrors for later Quay/disconnected tests.
+host_ocp4_agent_installer_additional_ntp_sources: []
+host_ocp4_agent_installer_image_digest_sources: []
+
+# Bounded timeouts. Failures stop the role; no automatic reinstall loop.
+host_ocp4_agent_installer_iso_timeout: 900
+host_ocp4_agent_installer_bootstrap_timeout: 5400
+host_ocp4_agent_installer_install_timeout: 7200
+
+# Optional test-only recovery. Never enabled for production/default installs.
+# Probe for 20 minutes, then restart at most ONE unregistered worker VM when
+# all control planes are Ready, the local MCS endpoint is reachable, and the
+# VM has no guest agent. A registered NotReady node is never restarted.
+host_ocp4_agent_installer_ignition_restart_once: false
+host_ocp4_agent_installer_ignition_probe_retries: 40
+host_ocp4_agent_installer_ignition_probe_delay: 30

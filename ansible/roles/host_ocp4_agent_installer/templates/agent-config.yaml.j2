@@ -1,0 +1,89 @@
+apiVersion: v1beta1
+kind: AgentConfig
+metadata:
+  name: {{ _cluster_name }}
+rendezvousIP: {{ ai_network_prefix }}.10
+{% if host_ocp4_agent_installer_additional_ntp_sources | length > 0 %}
+additionalNTPSources: {{ host_ocp4_agent_installer_additional_ntp_sources | to_json }}
+{% endif %}
+hosts:
+{% for index in range(control_plane_instance_count | int) %}
+- hostname: control-plane-{{ index }}
+  role: master
+  rootDeviceHints:
+    deviceName: /dev/vda
+  interfaces:
+  - name: enp1s0
+    macAddress: {{ ai_control_plane_macs[index] | to_json }}
+  - name: enp2s0
+    macAddress: {{ ai_control_plane_macs2[index] | to_json }}
+  networkConfig:
+    interfaces:
+    - name: enp1s0
+      type: ethernet
+      state: up
+      mac-address: {{ ai_control_plane_macs[index] | to_json }}
+      identifier: mac-address
+      ipv4:
+        enabled: true
+        dhcp: true
+    - name: enp2s0
+      type: ethernet
+      state: up
+      mac-address: {{ ai_control_plane_macs2[index] | to_json }}
+      identifier: mac-address
+      mtu: {{ ai_network_mtu | int }}
+      ipv4:
+        enabled: true
+        dhcp: false
+        address:
+        - ip: {{ ai_network_prefix }}.{{ 10 + index }}
+          prefix-length: {{ ai_network_prefix_length | int }}
+    routes:
+      config:
+      - destination: 0.0.0.0/0
+        next-hop-address: {{ ai_network_prefix }}.1
+        next-hop-interface: enp2s0
+        metric: 200
+        table-id: 254
+{% endfor %}
+{% for index in range(worker_instance_count | int) %}
+- hostname: worker-{{ index }}
+  role: worker
+  rootDeviceHints:
+    deviceName: /dev/vda
+  interfaces:
+  - name: enp1s0
+    macAddress: {{ ai_workers_macs[index] | to_json }}
+  - name: enp2s0
+    macAddress: {{ ai_workers_macs2[index] | to_json }}
+  networkConfig:
+    interfaces:
+    - name: enp1s0
+      type: ethernet
+      state: up
+      mac-address: {{ ai_workers_macs[index] | to_json }}
+      identifier: mac-address
+      ipv4:
+        enabled: true
+        dhcp: true
+    - name: enp2s0
+      type: ethernet
+      state: up
+      mac-address: {{ ai_workers_macs2[index] | to_json }}
+      identifier: mac-address
+      mtu: {{ ai_network_mtu | int }}
+      ipv4:
+        enabled: true
+        dhcp: false
+        address:
+        - ip: {{ ai_network_prefix }}.{{ 20 + index }}
+          prefix-length: {{ ai_network_prefix_length | int }}
+    routes:
+      config:
+      - destination: 0.0.0.0/0
+        next-hop-address: {{ ai_network_prefix }}.1
+        next-hop-interface: enp2s0
+        metric: 200
+        table-id: 254
+{% endfor %}

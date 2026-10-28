@@ -1,0 +1,252 @@
+---
+# Test-only Agent-based worker scaling during the same openshift-cluster order.
+# This role never calls the hosted Assisted Installer service or creates a pool.
+- name: Validate scale request
+  ansible.builtin.assert:
+    that:
+    - host_ocp4_deploy_installation_method == 'openshift_agent'
+    - agent_scale_worker_count | int >= 1
+    - agent_scale_worker_count | int <= 4
+    - worker_instance_count | int == 0
+    - ai_network_prefix_length | int == 24
+    fail_msg: Agent scale requires an Agent-installed base with zero initial workers and 1-4 requested new workers.
+
+- name: Set deterministic resource names
+  ansible.builtin.set_fact:
+    _cluster_name: "{{ cluster_name }}"
+    agent_scale_iso_name: "scale-iso-{{ guid }}"
+    agent_scale_dir: "/home/{{ ansible_user }}/{{ cluster_name }}/agent-scale"
+    ai_ocp_vmname_worker_prefix: "worker-{{ cluster_name }}"
+
+- name: Check existing dedicated workers on installed cluster
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Node
+    kubeconfig: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+    label_selectors:
+    - "node-role.kubernetes.io/worker="
+    - "!node-role.kubernetes.io/master"
+    - "!node-role.kubernetes.io/control-plane"
+  register: r_agent_scale_existing_workers
+
+- name: Refuse to overlap existing worker scale-up
+  ansible.builtin.assert:
+    that:
+    - r_agent_scale_existing_workers.resources | length == 0
+    fail_msg: Dedicated workers already exist. This test role only runs once against a fresh zero-worker base.
+
+- name: Check that target VMs do not already exist
+  kubernetes.core.k8s_info:
+    api_version: kubevirt.io/v1
+    kind: VirtualMachine
+    name: "{{ ai_ocp_vmname_worker_prefix }}-{{ item }}"
+    namespace: "{{ ai_ocp_namespace }}"
+    host: "{{ sandbox_openshift_api_url }}"
+    api_key: "{{ sandbox_openshift_api_key }}"
+    validate_certs: false
+  loop: "{{ range(1, agent_scale_worker_count | int + 1) | list }}"
+  register: r_agent_scale_existing_vms
+
+- name: Refuse to overwrite existing VMs
+  ansible.builtin.assert:
+    that:
+    - r_agent_scale_existing_vms.results | map(attribute='resources') | map('length') | sum == 0
+
+- name: Generate unique worker MACs
+  ansible.builtin.set_fact:
+    ai_workers_macs: >-
+      {{ ai_workers_macs | default([]) + ['f6' | community.general.random_mac(ai_ocp_namespace + cluster_name + 'w1' + item | string)] }}
+    ai_workers_macs2: >-
+      {{ ai_workers_macs2 | default([]) + ['f6' | community.general.random_mac(ai_ocp_namespace + cluster_name + 'w2' + item | string)] }}
+  loop: "{{ range(1, agent_scale_worker_count | int + 1) | list }}"
+
+- name: Generate node-image ISO on existing bastion
+  delegate_to: "{{ groups['bastions'][0] }}"
+  block:
+  - name: Create private scale directory
+    ansible.builtin.file:
+      path: "{{ agent_scale_dir }}"
+      state: directory
+      mode: "0700"
+
+  - name: Render node-image network configuration
+    ansible.builtin.template:
+      src: nodes-config.yaml.j2
+      dest: "{{ agent_scale_dir }}/nodes-config.yaml"
+      mode: "0600"
+
+  - name: Write temporary registry authentication
+    ansible.builtin.copy:
+      content: "{{ ocp4_pull_secret | to_json if ocp4_pull_secret is mapping else ocp4_pull_secret }}"
+      dest: "{{ agent_scale_dir }}/registry-auth.json"
+      mode: "0600"
+    no_log: true
+
+  - name: Generate worker node-image ISO
+    environment:
+      KUBECONFIG: "/home/{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig"
+    ansible.builtin.command:
+      argv:
+      - /usr/bin/oc
+      - adm
+      - node-image
+      - create
+      - "--dir={{ agent_scale_dir }}"
+      - "--registry-config={{ agent_scale_dir }}/registry-auth.json"
+    async: "{{ agent_scale_iso_timeout | int }}"
+    poll: 30
+    no_log: true
+
+  - name: Verify node-image ISO size is within upload allocation
+    ansible.builtin.stat:
+      path: "{{ agent_scale_dir }}/node.x86_64.iso"
+    register: r_agent_scale_iso
+    failed_when: >-
+      not r_agent_scale_iso.stat.exists
+      or r_agent_scale_iso.stat.size | int == 0
+      or r_agent_scale_iso.stat.size | int >= 4294967296
+
+  - name: Upload scale ISO to hosting namespace
+    ansible.builtin.command:
+      argv:
+      - /usr/local/bin/virtctl
+      - --server
+      - "{{ sandbox_openshift_api_url }}"
+      - --token
+      - "{{ sandbox_openshift_api_key }}"
+      - --namespace
+      - "{{ ai_ocp_namespace }}"
+      - image-upload
+      - dv
+      - "{{ agent_scale_iso_name }}"
+      - --size=4Gi
+      - "--image-path={{ agent_scale_dir }}/node.x86_64.iso"
+      - --volume-mode=block
+      - --access-mode=ReadWriteMany
+    no_log: true
+
+  always:
+  - name: Remove temporary registry credentials from bastion
+    ansible.builtin.file:
+      path: "{{ agent_scale_dir }}/registry-auth.json"
+      state: absent
+    no_log: true
+
+- name: Wait for uploaded scale ISO
+  kubernetes.core.k8s_info:
+    api_version: cdi.kubevirt.io/v1beta1
+    kind: DataVolume
+    name: "{{ agent_scale_iso_name }}"
+    namespace: "{{ ai_ocp_namespace }}"
+    host: "{{ sandbox_openshift_api_url }}"
+    api_key: "{{ sandbox_openshift_api_key }}"
+    validate_certs: false
+  register: r_agent_scale_iso_dv
+  until:
+  - r_agent_scale_iso_dv.resources | length == 1
+  - r_agent_scale_iso_dv.resources[0].status.phase | default('') in ['Succeeded', 'Failed']
+  retries: 60
+  delay: 10
+  failed_when: r_agent_scale_iso_dv.resources[0].status.phase | default('') == 'Failed'
+
+- name: Create worker VMs from the node-image ISO
+  vars:
+    _index: "{{ item }}"
+    vmname: "{{ ai_ocp_vmname_worker_prefix }}-{{ item }}"
+    network: "{{ cluster_name }}-openshift"
+    network_name: "{{ ai_install_use_network | default(cluster_name + '-openshift') }}"
+    pod_network: "192.168.1{{ item }}.0/24"
+  ansible.builtin.include_tasks: create_workers.yaml
+  loop: "{{ range(1, agent_scale_worker_count | int + 1) | list }}"
+
+- name: Wait for worker VMs to reach Running
+  kubernetes.core.k8s_info:
+    api_version: kubevirt.io/v1
+    kind: VirtualMachine
+    name: "{{ ai_ocp_vmname_worker_prefix }}-{{ item }}"
+    namespace: "{{ ai_ocp_namespace }}"
+    host: "{{ sandbox_openshift_api_url }}"
+    api_key: "{{ sandbox_openshift_api_key }}"
+    validate_certs: false
+  loop: "{{ range(1, agent_scale_worker_count | int + 1) | list }}"
+  register: r_agent_scale_vm
+  until:
+  - r_agent_scale_vm.resources | length == 1
+  - r_agent_scale_vm.resources[0].status.printableStatus | default('') == 'Running'
+  retries: 60
+  delay: 10
+
+- name: Approve CSRs for only the requested new workers until they are Ready
+  delegate_to: "{{ groups['bastions'][0] }}"
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig"
+  ansible.builtin.shell: |
+    set -euo pipefail
+    allowed=" {% for i in range(agent_scale_worker_count | int) %}worker-{{ i }} {% endfor %}"
+    for csr in $(oc get csr -o json | jq -r '.items[] | select((.status.conditions // []) | length == 0) | .metadata.name'); do
+      req=$(oc get csr "$csr" -o jsonpath='{.spec.request}')
+      cn=$(echo "$req" | base64 -d | openssl req -noout -subject -nameopt multiline 2>/dev/null | awk -F' = ' '/commonName/{print $2}')
+      node=${cn#system:node:}
+      if [[ "$cn" == system:node:* && "$allowed" == *" $node "* ]]; then
+        oc adm certificate approve "$csr" >/dev/null
+        echo "approved $node"
+      fi
+    done
+    ready=$(oc get nodes -o json | jq '[.items[] | select(.metadata.name | test("^worker-[0-9]+$")) | select(any(.status.conditions[]; .type == "Ready" and .status == "True"))] | length')
+    echo "ready=$ready"
+    [ "$ready" -eq {{ agent_scale_worker_count | int }} ]
+  register: r_agent_scale_nodes
+  until: r_agent_scale_nodes.rc == 0
+  retries: "{{ (agent_scale_timeout | int / 20) | int }}"
+  delay: 20
+  changed_when: "'approved' in r_agent_scale_nodes.stdout"
+
+# Keep the existing ingress Service on control-plane nodes for this first
+# test. Moving its selector before confirming router placement on the new
+# workers would take down the console. Worker-Only ingress is separate work.
+- name: Remove scale ISO from bastion after successful node join
+  delegate_to: "{{ groups['bastions'][0] }}"
+  ansible.builtin.file:
+    path: "{{ agent_scale_dir }}/node.x86_64.iso"
+    state: absent
+
+- name: Remove installation CD-ROMs from scaled worker VM definitions
+  vars:
+    _vm_name: "{{ ai_ocp_vmname_worker_prefix }}-{{ item }}"
+    _cdrom_name: "{{ _vm_name }}-installation-cdrom"
+  kubernetes.core.k8s:
+    api_version: kubevirt.io/v1
+    kind: VirtualMachine
+    name: "{{ _vm_name }}"
+    namespace: "{{ ai_ocp_namespace }}"
+    state: patched
+    definition:
+      spec:
+        dataVolumeTemplates: >-
+          {{ r_agent_scale_vm.results[item | int - 1].resources[0].spec.dataVolumeTemplates
+             | rejectattr('metadata.name', 'equalto', _cdrom_name) | list }}
+        template:
+          spec:
+            domain:
+              devices:
+                disks: >-
+                  {{ r_agent_scale_vm.results[item | int - 1].resources[0].spec.template.spec.domain.devices.disks
+                     | rejectattr('name', 'equalto', 'installation-cdrom') | list }}
+            volumes: >-
+              {{ r_agent_scale_vm.results[item | int - 1].resources[0].spec.template.spec.volumes
+                 | rejectattr('name', 'equalto', 'installation-cdrom') | list }}
+    host: "{{ sandbox_openshift_api_url }}"
+    api_key: "{{ sandbox_openshift_api_key }}"
+    validate_certs: false
+  loop: "{{ range(1, agent_scale_worker_count | int + 1) | list }}"
+
+- name: Remove source scale ISO DataVolume
+  kubernetes.core.k8s:
+    api_version: cdi.kubevirt.io/v1beta1
+    kind: DataVolume
+    name: "{{ agent_scale_iso_name }}"
+    namespace: "{{ ai_ocp_namespace }}"
+    state: absent
+    host: "{{ sandbox_openshift_api_url }}"
+    api_key: "{{ sandbox_openshift_api_key }}"
+    validate_certs: false

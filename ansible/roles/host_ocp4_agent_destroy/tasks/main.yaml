@@ -1,0 +1,66 @@
+---
+- name: Log in (obtain access token)
+  when: sandbox_openshift_username | default("") | length > 0
+  community.okd.openshift_auth:
+    username: "{{ sandbox_openshift_username }}"
+    password: "{{ sandbox_openshift_password }}"
+    host: "{{ sandbox_openshift_api_url }}"
+  register: k8s_auth_results
+
+- name: Destroy OpenShift installed with Agent-based Installer
+  module_defaults:
+    group/k8s:
+      host: "{{ sandbox_openshift_api_url }}"
+      api_key: "{{ k8s_auth_results.k8s_auth.api_key | default(sandbox_openshift_api_key) }}"
+      validate_certs: false
+  block:
+  - name: Create a job to cleanup Ceph
+    kubernetes.core.k8s:
+      definition: "{{ lookup('ansible.builtin.template', 'cleanup-ceph.yaml.j2') | from_yaml }}"
+      wait: true
+      wait_timeout: 300
+    register: r_cleanup
+    retries: 3
+    delay: 10
+    ignore_errors: true
+
+  - name: Delete dns records (DDNS)
+    when: cluster_dns_server is defined
+    ansible.builtin.nsupdate:
+      server: >-
+        {{ cluster_dns_server
+        | ansible.utils.ipaddr
+        | ternary(cluster_dns_server, lookup('community.general.dig', cluster_dns_server))
+        }}
+      zone: "{{ cluster_dns_zone }}"
+      record: "{{ item }}.{{ cluster_name}}"
+      type: A
+      ttl: 30
+      port: "{{ cluster_dns_port | d('53') }}"
+      key_name: "{{ ddns_key_name }}"
+      key_secret: "{{ ddns_key_secret }}"
+      key_algorithm: hmac-sha256
+      state: absent
+    loop:
+    - "api-int"
+    - "api"
+    - "*.apps"
+
+  - name: Delete DNS records (Route53)
+    when: route53_aws_access_key_id is defined
+    amazon.aws.route53:
+      state: absent
+      aws_access_key_id: "{{ route53_aws_access_key_id }}"
+      aws_secret_access_key: "{{ route53_aws_secret_access_key }}"
+      hosted_zone_id: "{{ route53_aws_zone_id }}"
+      record: "{{ item }}.{{ cluster_name }}.{{ cluster_dns_zone }}"
+      zone: "{{ cluster_dns_zone  }}"
+      type: A
+    loop:
+    - "api-int"
+    - "api"
+    - "*.apps"
+    retries: 6
+    delay: 30
+    register: r_dns_cleanup
+    until: r_dns_cleanup is success

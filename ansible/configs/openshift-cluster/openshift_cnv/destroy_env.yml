@@ -20,6 +20,11 @@
     ansible.builtin.include_role:
       name: host_ocp4_assisted_destroy
 
+  - name: Run host_ocp4_agent_destroy role
+    when: host_ocp4_deploy_installation_method == "openshift_agent"
+    ansible.builtin.include_role:
+      name: host_ocp4_agent_destroy
+
   - name: Run host_ocp4_hcp_cnv_destroy role
     when: host_ocp4_deploy_installation_method == "openshift_hcp_cnv"
     ansible.builtin.include_role:

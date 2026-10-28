@@ -1,0 +1,5 @@
+---
+ai_ocp_namespace: "{{ sandbox_openshift_namespace | default(config + '-' + guid) }}"
+
+# Container image to use in Ceph cleanup job
+ceph_cleanup_job_image: registry.redhat.io/odf4/rook-ceph-rhel9-operator:v4.19

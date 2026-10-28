@@ -1,0 +1,180 @@
+---
+- name: Validate supported test topology
+  ansible.builtin.assert:
+    that:
+    - control_plane_instance_count | int in [1, 3]
+    - worker_instance_count | int >= 0
+    - (control_plane_instance_count | int == 3) or (worker_instance_count | int == 0)
+    - ai_network_prefix_length | int == 24
+    fail_msg: >-
+      Agent test role supports SNO (1/0) or three control planes with zero or more workers,
+      using a /24 machine network.
+
+- name: Set installation paths and installer URLs
+  ansible.builtin.set_fact:
+    _agent_install_dir: "/home/{{ ansible_user }}/{{ _cluster_name }}"
+    _sandbox_api_token: "{{ k8s_auth_results.k8s_auth.api_key | default(sandbox_openshift_api_key) }}"
+    _host_ocp4_installer_url: >-
+      {{ host_ocp4_installer_url | default(
+        '{0}/ocp/{1}/openshift-install-linux{2}.tar.gz'.format(
+          host_ocp4_installer_root_url | default('https://mirror.openshift.com/pub/openshift-v4/clients'),
+          ('stable-' ~ host_ocp4_installer_version) if (host_ocp4_installer_version | string).split('.') | length == 2 else host_ocp4_installer_version,
+          '' if (host_ocp4_installer_version | string).split('.') | length == 2 else '-' ~ host_ocp4_installer_version),
+        true) }}
+    _host_ocp4_client_url: >-
+      {{ host_ocp4_client_url | default(
+        '{0}/ocp/{1}/openshift-client-linux{2}.tar.gz'.format(
+          host_ocp4_installer_root_url | default('https://mirror.openshift.com/pub/openshift-v4/clients'),
+          ('stable-' ~ host_ocp4_installer_version) if (host_ocp4_installer_version | string).split('.') | length == 2 else host_ocp4_installer_version,
+          '' if (host_ocp4_installer_version | string).split('.') | length == 2 else '-' ~ host_ocp4_installer_version),
+        true) }}
+  no_log: true
+
+- name: Install OpenShift installer and client on bastion
+  delegate_to: "{{ groups['bastions'][0] }}"
+  become: true
+  ansible.builtin.unarchive:
+    remote_src: true
+    src: "{{ item.url }}"
+    dest: /usr/bin
+    include:
+    - "{{ item.binary }}"
+    mode: "0755"
+    owner: root
+    group: root
+    creates: "/usr/bin/{{ item.binary }}"
+  loop:
+  - url: "{{ _host_ocp4_installer_url }}"
+    binary: openshift-install
+  - url: "{{ _host_ocp4_client_url }}"
+    binary: oc
+  loop_control:
+    label: "{{ item.binary }}"
+  register: r_ocp_binaries
+  until: r_ocp_binaries is succeeded
+  retries: 10
+  delay: 30
+
+- name: Log in to hosting OpenShift API
+  when: sandbox_openshift_username | default('') | length > 0
+  community.okd.openshift_auth:
+    username: "{{ sandbox_openshift_username }}"
+    password: "{{ sandbox_openshift_password }}"
+    host: "{{ sandbox_openshift_api_url }}"
+  register: k8s_auth_results
+  no_log: true
+
+- name: Refresh hosting API token
+  ansible.builtin.set_fact:
+    _sandbox_api_token: "{{ k8s_auth_results.k8s_auth.api_key | default(sandbox_openshift_api_key) }}"
+  no_log: true
+
+- name: Install OpenShift with Agent-based Installer on CNV
+  module_defaults:
+    group/k8s:
+      host: "{{ sandbox_openshift_api_url }}"
+      api_key: "{{ _sandbox_api_token }}"
+      validate_certs: false
+  block:
+  - name: Check namespace quota
+    ansible.builtin.include_tasks: check_namespace_quota.yaml
+
+  - name: Configure SNO or compact load balancer services and DNS
+    when: worker_instance_count | int == 0
+    ansible.builtin.include_tasks: configure_sno_compact_cluster.yml
+
+  - name: Configure full cluster load balancer services and DNS
+    when: worker_instance_count | int > 0
+    ansible.builtin.include_tasks: configure_full_cluster.yml
+
+  - name: Create OVN secondary network
+    when: ai_install_use_network is not defined
+    vars:
+      network_name: "{{ _cluster_name }}-openshift"
+    kubernetes.core.k8s:
+      template: net_attach_def.yaml.j2
+      wait: true
+      wait_timeout: 300
+
+  - name: Generate deterministic MAC addresses
+    ansible.builtin.include_tasks: generate_macs.yml
+
+  - name: Generate and upload Agent ISO
+    ansible.builtin.include_tasks: generate_iso.yml
+
+  - name: Wait for installation ISO DataVolume
+    kubernetes.core.k8s_info:
+      api_version: cdi.kubevirt.io/v1beta1
+      kind: DataVolume
+      name: "{{ host_ocp4_agent_installer_iso_datavolume_name }}"
+      namespace: "{{ ai_ocp_namespace }}"
+    register: r_iso_dv
+    until:
+    - r_iso_dv.resources | length > 0
+    - r_iso_dv.resources[0].status.phase | default('') in ['Succeeded', 'Failed']
+    retries: 60
+    delay: 10
+    failed_when: r_iso_dv.resources[0].status.phase | default('') == 'Failed'
+
+  - name: Create control plane VMs
+    vars:
+      vmname: "{{ ai_ocp_vmname_control_plane_prefix }}-{{ _index }}"
+      network: "{{ _cluster_name }}-openshift"
+      network_name: "{{ ai_install_use_network | default(_cluster_name + '-openshift') }}"
+      pod_network: "192.168.{{ _index }}.0/24"
+    ansible.builtin.include_tasks: kubevirt/create_control_plane_etcd.yaml
+    loop: "{{ range(1, control_plane_instance_count | int + 1) | list }}"
+    loop_control:
+      loop_var: _index
+
+  - name: Create worker VMs
+    vars:
+      vmname: "{{ ai_ocp_vmname_worker_prefix }}-{{ _index }}"
+      network: "{{ _cluster_name }}-openshift"
+      network_name: "{{ ai_install_use_network | default(_cluster_name + '-openshift') }}"
+      pod_network: "192.168.1{{ _index }}.0/24"
+    ansible.builtin.include_tasks: kubevirt/create_workers.yaml
+    loop: "{{ range(1, worker_instance_count | int + 1) | list }}"
+    loop_control:
+      loop_var: _index
+
+  - name: Wait for control plane VMs
+    vars:
+      vmname: "{{ ai_ocp_vmname_control_plane_prefix }}-{{ _index }}"
+    ansible.builtin.include_tasks: kubevirt/wait_control_plane_etcd.yaml
+    loop: "{{ range(1, control_plane_instance_count | int + 1) | list }}"
+    loop_control:
+      loop_var: _index
+
+  - name: Wait for worker VMs
+    vars:
+      vmname: "{{ ai_ocp_vmname_worker_prefix }}-{{ _index }}"
+    ansible.builtin.include_tasks: kubevirt/wait_workers.yaml
+    loop: "{{ range(1, worker_instance_count | int + 1) | list }}"
+    loop_control:
+      loop_var: _index
+
+# Must run outside the hosting-cluster module_defaults block: those defaults
+# would override the installed cluster kubeconfig and query the CNV host.
+- name: Wait for Agent-based installation completion
+  ansible.builtin.include_tasks: wait_install.yml
+
+- name: Clean up installation ISO copies
+  when: host_ocp4_agent_installer_cleanup_iso | bool
+  module_defaults:
+    group/k8s:
+      host: "{{ sandbox_openshift_api_url }}"
+      api_key: "{{ _sandbox_api_token }}"
+      validate_certs: false
+  block:
+  - name: Remove Agent ISO copies
+    ansible.builtin.include_tasks: cleanup_iso.yml
+
+- name: Configure bastion access
+  ansible.builtin.include_tasks: setup_bastion.yml
+
+- name: Publish OpenShift access information
+  ansible.builtin.include_role:
+    name: host_ocp4_installer_info
+    apply:
+      delegate_to: "{{ groups['bastions'][0] }}"
