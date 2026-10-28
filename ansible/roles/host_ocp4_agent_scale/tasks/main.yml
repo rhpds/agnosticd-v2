@@ -176,24 +176,30 @@
   retries: 60
   delay: 10
 
-- name: Wait for only the requested new worker nodes to be Ready
-  kubernetes.core.k8s_info:
-    api_version: v1
-    kind: Node
-    kubeconfig: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+- name: Approve CSRs for only the requested new workers until they are Ready
+  delegate_to: "{{ groups['bastions'][0] }}"
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig"
+  ansible.builtin.shell: |
+    set -euo pipefail
+    allowed=" {% for i in range(agent_scale_worker_count | int) %}worker-{{ i }} {% endfor %}"
+    for csr in $(oc get csr -o json | jq -r '.items[] | select((.status.conditions // []) | length == 0) | .metadata.name'); do
+      req=$(oc get csr "$csr" -o jsonpath='{.spec.request}')
+      cn=$(echo "$req" | base64 -d | openssl req -noout -subject -nameopt multiline 2>/dev/null | awk -F' = ' '/commonName/{print $2}')
+      node=${cn#system:node:}
+      if [[ "$cn" == system:node:* && "$allowed" == *" $node "* ]]; then
+        oc adm certificate approve "$csr" >/dev/null
+        echo "approved $node"
+      fi
+    done
+    ready=$(oc get nodes -o json | jq '[.items[] | select(.metadata.name | test("^worker-[0-9]+$")) | select(any(.status.conditions[]; .type == "Ready" and .status == "True"))] | length')
+    echo "ready=$ready"
+    [ "$ready" -eq {{ agent_scale_worker_count | int }} ]
   register: r_agent_scale_nodes
-  until:
-  - r_agent_scale_nodes is succeeded
-  - >-
-    r_agent_scale_nodes.resources
-    | selectattr('metadata.name', 'match', '^worker-[0-9]+$')
-    | selectattr('status.conditions', 'defined')
-    | map(attribute='status.conditions')
-    | map('selectattr', 'type', 'equalto', 'Ready')
-    | map('selectattr', 'status', 'equalto', 'True')
-    | map('list') | map('length') | sum == agent_scale_worker_count | int
-  retries: "{{ (agent_scale_timeout | int / 30) | int }}"
-  delay: 30
+  until: r_agent_scale_nodes.rc == 0
+  retries: "{{ (agent_scale_timeout | int / 20) | int }}"
+  delay: 20
+  changed_when: "'approved' in r_agent_scale_nodes.stdout"
 
 # Keep the existing ingress Service on control-plane nodes for this first
 # test. Moving its selector before confirming router placement on the new
