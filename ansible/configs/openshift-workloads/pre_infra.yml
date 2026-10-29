@@ -6,9 +6,21 @@
   gather_facts: false
   tasks:
   - name: Call Role to scale OpenShift using Assisted Installer
-    when: openshift_cnv_scale_cluster | default(false) | bool
+    when:
+    - openshift_cnv_scale_cluster | default(false) | bool
+    - host_ocp4_deploy_installation_method | default('openshift_assisted') != 'openshift_agent'
     ansible.builtin.include_role:
       name: host_ocp4_assisted_scale
+
+  # Test-only: Agent-based pools are scaled with `oc adm node-image` instead of
+  # the hosted Assisted Installer service.
+  - name: Call Role to scale OpenShift using the Agent-based Installer
+    when:
+    - openshift_cnv_scale_cluster | default(false) | bool
+    - host_ocp4_deploy_installation_method | default('openshift_assisted') == 'openshift_agent'
+    - agent_scale_worker_count | default(0) | int > 0
+    ansible.builtin.include_role:
+      name: host_ocp4_agent_scale
 
   - name: Scale OpenShift workers on AWS
     when: openshift_aws_scale_cluster | default(false) | bool

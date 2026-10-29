@@ -65,17 +65,6 @@
     ansible.builtin.include_role:
       name: openshift_cluster_admin_service_account
 
-  # The Agent base always installs zero dedicated workers. This optional
-  # test-only step adds the requested workers before ODF/cert-manager workloads.
-  # Other installation methods are unaffected.
-  - name: Scale Agent-based CNV cluster workers
-    when:
-    - cloud_provider == 'openshift_cnv'
-    - host_ocp4_deploy_installation_method == 'openshift_agent'
-    - agent_scale_worker_count | default(0) | int > 0
-    ansible.builtin.include_role:
-      name: host_ocp4_agent_scale
-
 - name: Step 005.3 - Deploy Workloads
   ansible.builtin.import_playbook: workloads.yml
 
