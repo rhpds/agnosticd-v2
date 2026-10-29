@@ -138,7 +138,9 @@
       - "--registry-config={{ agent_scale_dir }}/registry-auth.json"
     async: "{{ agent_scale_iso_timeout | int }}"
     poll: 30
-    no_log: true
+    # Arguments are file paths only (the pull secret stays in the 0600 file),
+    # so command output is safe to show when this fails.
+    register: r_agent_scale_node_image
 
   - name: Verify node-image ISO size is within upload allocation
     ansible.builtin.stat:
