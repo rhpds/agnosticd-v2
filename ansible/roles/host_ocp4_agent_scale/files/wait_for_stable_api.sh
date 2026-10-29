@@ -24,7 +24,8 @@ while (( SECONDS - start < 900 )); do
        (.status.latestAvailableRevision > 0) and
        (.status.nodeStatuses | length > 0) and
        all(.status.nodeStatuses[];
-         .currentRevision > 0 and .currentRevision == .targetRevision) and
+         .currentRevision > 0 and
+         (.targetRevision == 0 or .currentRevision == .targetRevision)) and
        (.status.latestAvailableRevision as $latest |
          all(.status.nodeStatuses[]; .currentRevision == $latest))
      ' <<< "$apiserver" >/dev/null; then
