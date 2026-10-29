@@ -149,16 +149,37 @@
       or r_agent_scale_iso.stat.size | int == 0
       or r_agent_scale_iso.stat.size | int >= 4294967296
 
+  - name: Write temporary hosting-cluster kubeconfig for virtctl
+    ansible.builtin.copy:
+      dest: "{{ agent_scale_dir }}/hosting-kubeconfig"
+      mode: "0600"
+      content: |
+        apiVersion: v1
+        kind: Config
+        clusters:
+        - name: hosting
+          cluster:
+            server: {{ sandbox_openshift_api_url }}
+            insecure-skip-tls-verify: true
+        users:
+        - name: sandbox
+          user:
+            token: {{ sandbox_openshift_api_key }}
+        contexts:
+        - name: hosting
+          context:
+            cluster: hosting
+            user: sandbox
+            namespace: {{ ai_ocp_namespace }}
+        current-context: hosting
+    no_log: true
+
+  # The token is only in the 0600 kubeconfig, so command output can be shown on failure.
   - name: Upload scale ISO to hosting namespace
     ansible.builtin.command:
       argv:
       - /usr/local/bin/virtctl
-      - --server
-      - "{{ sandbox_openshift_api_url }}"
-      - --token
-      - "{{ sandbox_openshift_api_key }}"
-      - --namespace
-      - "{{ ai_ocp_namespace }}"
+      - "--kubeconfig={{ agent_scale_dir }}/hosting-kubeconfig"
       - image-upload
       - dv
       - "{{ agent_scale_iso_name }}"
@@ -166,13 +187,18 @@
       - "--image-path={{ agent_scale_dir }}/node.x86_64.iso"
       - --volume-mode=block
       - --access-mode=ReadWriteMany
-    no_log: true
+      - --insecure
+    register: r_agent_scale_upload
+    changed_when: true
 
   always:
-  - name: Remove temporary registry credentials from bastion
+  - name: Remove temporary credentials from bastion
     ansible.builtin.file:
-      path: "{{ agent_scale_dir }}/registry-auth.json"
+      path: "{{ agent_scale_dir }}/{{ item }}"
       state: absent
+    loop:
+    - registry-auth.json
+    - hosting-kubeconfig
     no_log: true
 
 - name: Wait for uploaded scale ISO
