@@ -23,6 +23,7 @@
 - name: Add the pool bastion for node-image generation
   ansible.builtin.add_host:
     name: agent_scale_bastion
+    ansible_connection: ssh
     ansible_host: "{{ bastion_ansible_host }}"
     ansible_port: "{{ bastion_ansible_port | default(22) }}"
     ansible_user: "{{ bastion_ansible_user }}"
