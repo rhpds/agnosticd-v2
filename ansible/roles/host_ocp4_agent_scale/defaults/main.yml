@@ -3,7 +3,7 @@
 # Runs from the wrapper (openshift-workloads), whose GUID equals the pool
 # component GUID, using the propagated cluster API, bastion and sandbox vars.
 # This role does not call the hosted Assisted Installer service.
-cluster_name: "cluster-{{ guid }}"
+cluster_name: "cluster-{{ guid.split('-')[0] if '-' in guid else guid }}"
 ai_ocp_namespace: "{{ sandbox_openshift_namespace | default(config + '-' + guid) }}"
 ai_network_prefix: "10.10.10"
 ai_network_prefix_length: 24
