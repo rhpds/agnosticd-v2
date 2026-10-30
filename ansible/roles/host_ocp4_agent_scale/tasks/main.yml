@@ -5,6 +5,9 @@
   ansible.builtin.assert:
     that:
     - host_ocp4_deploy_installation_method == 'openshift_agent'
+    - openshift_api_url | length > 0
+    - openshift_cluster_admin_token | length > 0
+    - bastion_ansible_host | default('') | length > 0
     - agent_scale_worker_count | int >= 1
     - agent_scale_worker_count | int <= 4
     - worker_instance_count | int == 0
@@ -15,14 +18,53 @@
   ansible.builtin.set_fact:
     _cluster_name: "{{ cluster_name }}"
     agent_scale_iso_name: "scale-iso-{{ guid }}"
-    agent_scale_dir: "/home/{{ ansible_user }}/{{ cluster_name }}/agent-scale"
     ai_ocp_vmname_worker_prefix: "worker-{{ cluster_name }}"
+
+- name: Add the pool bastion for node-image generation
+  ansible.builtin.add_host:
+    name: agent_scale_bastion
+    ansible_connection: ssh
+    ansible_host: "{{ bastion_ansible_host }}"
+    ansible_port: "{{ bastion_ansible_port | default(22) }}"
+    ansible_user: "{{ bastion_ansible_user }}"
+    ansible_ssh_pass: "{{ bastion_ansible_ssh_pass }}"
+    ansible_ssh_common_args: -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+    ansible_python_interpreter: auto_silent
+  no_log: true
+
+- name: Find the installer directory created by the pool
+  delegate_to: agent_scale_bastion
+  become: true
+  ansible.builtin.find:
+    paths: /home
+    patterns: "{{ cluster_name }}"
+    file_type: directory
+    recurse: true
+    depth: 2
+  register: r_agent_scale_install_dir
+
+- name: Require exactly one matching installer directory
+  ansible.builtin.assert:
+    that:
+    - r_agent_scale_install_dir.files | length == 1
+    fail_msg: Expected exactly one /home/*/{{ cluster_name }} directory on the pool bastion.
+
+- name: Set bastion paths and cluster API connection
+  ansible.builtin.set_fact:
+    agent_scale_install_dir: "{{ r_agent_scale_install_dir.files[0].path }}"
+    agent_scale_dir: "{{ r_agent_scale_install_dir.files[0].path }}/agent-scale"
+    agent_scale_k8s_args:
+      host: "{{ openshift_api_url }}"
+      api_key: "{{ openshift_cluster_admin_token }}"
+      validate_certs: false
 
 - name: Check existing dedicated workers on installed cluster
   kubernetes.core.k8s_info:
     api_version: v1
     kind: Node
-    kubeconfig: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+    host: "{{ openshift_api_url }}"
+    api_key: "{{ openshift_cluster_admin_token }}"
+    validate_certs: false
     label_selectors:
     - "node-role.kubernetes.io/worker="
     - "!node-role.kubernetes.io/master"
@@ -61,7 +103,8 @@
   loop: "{{ range(1, agent_scale_worker_count | int + 1) | list }}"
 
 - name: Generate node-image ISO on existing bastion
-  delegate_to: "{{ groups['bastions'][0] }}"
+  delegate_to: agent_scale_bastion
+  become: true
   block:
   - name: Create private scale directory
     ansible.builtin.file:
@@ -75,6 +118,11 @@
       dest: "{{ agent_scale_dir }}/nodes-config.yaml"
       mode: "0600"
 
+  # A successful API request alone does not exclude a pending static-pod
+  # rollout. On SNO, restarting the sole API server interrupts node-image.
+  - name: Wait for a stable cluster API before generating the worker ISO
+    ansible.builtin.include_tasks: wait_for_stable_api.yml
+
   - name: Write temporary registry authentication
     ansible.builtin.copy:
       content: "{{ ocp4_pull_secret | to_json if ocp4_pull_secret is mapping else ocp4_pull_secret }}"
@@ -84,7 +132,7 @@
 
   - name: Generate worker node-image ISO
     environment:
-      KUBECONFIG: "/home/{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig"
+      KUBECONFIG: "{{ agent_scale_install_dir }}/auth/kubeconfig"
     ansible.builtin.command:
       argv:
       - /usr/bin/oc
@@ -95,7 +143,9 @@
       - "--registry-config={{ agent_scale_dir }}/registry-auth.json"
     async: "{{ agent_scale_iso_timeout | int }}"
     poll: 30
-    no_log: true
+    # Arguments are file paths only (the pull secret stays in the 0600 file),
+    # so command output is safe to show when this fails.
+    register: r_agent_scale_node_image
 
   - name: Verify node-image ISO size is within upload allocation
     ansible.builtin.stat:
@@ -106,16 +156,37 @@
       or r_agent_scale_iso.stat.size | int == 0
       or r_agent_scale_iso.stat.size | int >= 4294967296
 
+  - name: Write temporary hosting-cluster kubeconfig for virtctl
+    ansible.builtin.copy:
+      dest: "{{ agent_scale_dir }}/hosting-kubeconfig"
+      mode: "0600"
+      content: |
+        apiVersion: v1
+        kind: Config
+        clusters:
+        - name: hosting
+          cluster:
+            server: {{ sandbox_openshift_api_url }}
+            insecure-skip-tls-verify: true
+        users:
+        - name: sandbox
+          user:
+            token: {{ sandbox_openshift_api_key }}
+        contexts:
+        - name: hosting
+          context:
+            cluster: hosting
+            user: sandbox
+            namespace: {{ ai_ocp_namespace }}
+        current-context: hosting
+    no_log: true
+
+  # The token is only in the 0600 kubeconfig, so command output can be shown on failure.
   - name: Upload scale ISO to hosting namespace
     ansible.builtin.command:
       argv:
       - /usr/local/bin/virtctl
-      - --server
-      - "{{ sandbox_openshift_api_url }}"
-      - --token
-      - "{{ sandbox_openshift_api_key }}"
-      - --namespace
-      - "{{ ai_ocp_namespace }}"
+      - "--kubeconfig={{ agent_scale_dir }}/hosting-kubeconfig"
       - image-upload
       - dv
       - "{{ agent_scale_iso_name }}"
@@ -123,13 +194,18 @@
       - "--image-path={{ agent_scale_dir }}/node.x86_64.iso"
       - --volume-mode=block
       - --access-mode=ReadWriteMany
-    no_log: true
+      - --insecure
+    register: r_agent_scale_upload
+    changed_when: true
 
   always:
-  - name: Remove temporary registry credentials from bastion
+  - name: Remove temporary credentials from bastion
     ansible.builtin.file:
-      path: "{{ agent_scale_dir }}/registry-auth.json"
+      path: "{{ agent_scale_dir }}/{{ item }}"
       state: absent
+    loop:
+    - registry-auth.json
+    - hosting-kubeconfig
     no_log: true
 
 - name: Wait for uploaded scale ISO
@@ -177,9 +253,10 @@
   delay: 10
 
 - name: Approve CSRs for only the requested new workers until they are Ready
-  delegate_to: "{{ groups['bastions'][0] }}"
+  delegate_to: agent_scale_bastion
+  become: true
   environment:
-    KUBECONFIG: "/home/{{ ansible_user }}/{{ cluster_name }}/auth/kubeconfig"
+    KUBECONFIG: "{{ agent_scale_install_dir }}/auth/kubeconfig"
   ansible.builtin.shell: |
     set -euo pipefail
     allowed=" {% for i in range(agent_scale_worker_count | int) %}worker-{{ i }} {% endfor %}"
@@ -205,10 +282,12 @@
 # test. Moving its selector before confirming router placement on the new
 # workers would take down the console. Worker-Only ingress is separate work.
 - name: Remove scale ISO from bastion after successful node join
-  delegate_to: "{{ groups['bastions'][0] }}"
+  delegate_to: agent_scale_bastion
+  become: true
   ansible.builtin.file:
     path: "{{ agent_scale_dir }}/node.x86_64.iso"
     state: absent
+  ignore_errors: true  # best-effort cleanup after the workers are Ready
 
 - name: Remove installation CD-ROMs from scaled worker VM definitions
   vars:
@@ -239,6 +318,7 @@
     api_key: "{{ sandbox_openshift_api_key }}"
     validate_certs: false
   loop: "{{ range(1, agent_scale_worker_count | int + 1) | list }}"
+  ignore_errors: true  # best-effort cleanup after the workers are Ready
 
 - name: Remove source scale ISO DataVolume
   kubernetes.core.k8s:
@@ -250,3 +330,4 @@
     host: "{{ sandbox_openshift_api_url }}"
     api_key: "{{ sandbox_openshift_api_key }}"
     validate_certs: false
+  ignore_errors: true  # best-effort cleanup after the workers are Ready
