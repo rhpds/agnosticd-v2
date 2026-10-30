@@ -21,3 +21,8 @@ agent_scale_iso_size: 4Gi
 agent_scale_timeout: 2700
 agent_scale_iso_timeout: 1200
 agent_scale_worker_count: 0
+# Probe from the bastion using the same client/config as node-image create.
+agent_scale_oc_binary: /usr/bin/oc
+agent_scale_api_stability_window: 120
+agent_scale_api_timeout: 900
+agent_scale_api_poll: 20

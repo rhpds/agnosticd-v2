@@ -121,12 +121,7 @@
   # A successful API request alone does not exclude a pending static-pod
   # rollout. On SNO, restarting the sole API server interrupts node-image.
   - name: Wait for a stable cluster API before generating the worker ISO
-    environment:
-      KUBECONFIG: "{{ agent_scale_install_dir }}/auth/kubeconfig"
-    ansible.builtin.script:
-      cmd: wait_for_stable_api.sh
-      executable: /bin/bash
-    changed_when: false
+    ansible.builtin.include_tasks: wait_for_stable_api.yml
 
   - name: Write temporary registry authentication
     ansible.builtin.copy:
