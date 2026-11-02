@@ -12,7 +12,7 @@
     ansible.builtin.include_role:
       name: host_ocp4_assisted_scale
 
-  # Test-only: Agent-based pools are scaled with `oc adm node-image` instead of
+  # Agent-based pools are scaled with `oc adm node-image` instead of
   # the hosted Assisted Installer service.
   - name: Call Role to scale OpenShift using the Agent-based Installer
     when:
