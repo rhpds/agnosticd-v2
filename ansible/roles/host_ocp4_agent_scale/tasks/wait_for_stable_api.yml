@@ -1,0 +1,40 @@
+---
+# Called inside the delegated/become bastion block in main.yml. Probe through
+# the same kubeconfig and network path that node-image create will use.
+- name: Validate API stability observation limits
+  ansible.builtin.assert:
+    that:
+    - agent_scale_api_poll | int > 0
+    - agent_scale_api_timeout | int > 0
+    - agent_scale_api_stability_window | int >= 0
+    - agent_scale_api_stability_window | int < agent_scale_api_timeout | int
+
+- name: Initialize bounded API stability observation
+  ansible.builtin.set_fact:
+    _agent_api_deadline: "{{ lookup('pipe', 'date +%s') | int + agent_scale_api_timeout | int }}"
+    _agent_api_stable_since: 0
+    _agent_api_previous_revision: []
+    _agent_api_stable: false
+    _agent_api_blockers: ["No healthy sample observed yet"]
+
+- name: Observe cluster API until healthy continuously or deadline reached
+  ansible.builtin.include_tasks: sample_stable_api.yml
+  loop: "{{ range(0, (agent_scale_api_timeout | int / agent_scale_api_poll | int) | int + 1) | list }}"
+  loop_control:
+    loop_var: _agent_api_sample
+    label: "sample {{ _agent_api_sample + 1 }}"
+  when:
+  - not _agent_api_stable | bool
+  - lookup('pipe', 'date +%s') | int < _agent_api_deadline | int
+
+- name: Require the API stability window before generating a worker ISO
+  ansible.builtin.assert:
+    that:
+    - _agent_api_stable | bool
+    fail_msg: >-
+      API stability check timed out after approximately {{ agent_scale_api_timeout }} seconds.
+      Last blockers: {{ _agent_api_blockers | join('; ') }}.
+      ISO generation was not attempted.
+    success_msg: >-
+      API ready, operators healthy and kube-apiserver revisions settled for
+      at least {{ agent_scale_api_stability_window }} seconds.

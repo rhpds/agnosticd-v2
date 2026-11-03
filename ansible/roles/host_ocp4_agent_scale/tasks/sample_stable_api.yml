@@ -1,0 +1,153 @@
+---
+# include_tasks expands its loop up front; gate each sample at execution time
+# as well, so remaining samples perform no probes once stable or timed out.
+- name: Sample API health within the bounded observation window
+  when:
+  - not _agent_api_stable | bool
+  - lookup('pipe', 'date +%s') | int < _agent_api_deadline | int
+  block:
+  - name: Read API readiness from the pool bastion
+    ansible.builtin.command:
+      argv:
+      - "{{ agent_scale_oc_binary }}"
+      - --request-timeout=10s
+      - get
+      - --raw=/readyz
+    environment:
+      KUBECONFIG: "{{ agent_scale_install_dir }}/auth/kubeconfig"
+    register: _agent_api_ready
+    changed_when: false
+    failed_when: false
+
+  - name: Read operator health from the pool bastion
+    ansible.builtin.command:
+      argv:
+      - "{{ agent_scale_oc_binary }}"
+      - --request-timeout=10s
+      - get
+      - clusteroperators
+      - kube-apiserver
+      - authentication
+      - ingress
+      - -o
+      - json
+    environment:
+      KUBECONFIG: "{{ agent_scale_install_dir }}/auth/kubeconfig"
+    register: _agent_api_operators
+    changed_when: false
+    failed_when: false
+
+  - name: Read kube-apiserver revisions from the pool bastion
+    ansible.builtin.command:
+      argv:
+      - "{{ agent_scale_oc_binary }}"
+      - --request-timeout=10s
+      - get
+      - kubeapiserver.operator.openshift.io
+      - cluster
+      - -o
+      - json
+    environment:
+      KUBECONFIG: "{{ agent_scale_install_dir }}/auth/kubeconfig"
+    register: _agent_api_revisions
+    changed_when: false
+    failed_when: false
+
+  - name: Initialize this sample's parsed status and blockers
+    ansible.builtin.set_fact:
+      _agent_api_operator_items: >-
+        {{ (_agent_api_operators.stdout | from_json).get('items', [])
+           if _agent_api_operators.rc == 0 else [] }}
+      _agent_api_revision_status: >-
+        {{ (_agent_api_revisions.stdout | from_json).get('status', {})
+           if _agent_api_revisions.rc == 0 else {} }}
+      _agent_api_blockers: >-
+        {{ (['API /readyz request failed'] if _agent_api_ready.rc != 0 else [])
+           + (['Could not read operator status'] if _agent_api_operators.rc != 0 else [])
+           + (['Could not read kube-apiserver revisions'] if _agent_api_revisions.rc != 0 else []) }}
+
+  - name: Identify unhealthy or incomplete operator conditions
+    vars:
+      _conditions: "{{ item.status.conditions | default([]) }}"
+      _available: "{{ _conditions | selectattr('type', 'equalto', 'Available') | map(attribute='status') | list }}"
+      _progressing: "{{ _conditions | selectattr('type', 'equalto', 'Progressing') | map(attribute='status') | list }}"
+      _degraded: "{{ _conditions | selectattr('type', 'equalto', 'Degraded') | map(attribute='status') | list }}"
+    ansible.builtin.set_fact:
+      _agent_api_blockers: >-
+        {{ _agent_api_blockers + [item.metadata.name + ' not settled: '
+           + (_conditions | to_json)] }}
+    when: _available != ['True'] or _progressing != ['False'] or _degraded != ['False']
+    loop: "{{ _agent_api_operator_items }}"
+    loop_control:
+      label: "{{ item.metadata.name }}"
+
+  - name: Require all three operator records
+    ansible.builtin.set_fact:
+      _agent_api_blockers: "{{ _agent_api_blockers + ['Expected three operator records'] }}"
+    when: _agent_api_operator_items | length != 3
+
+  - name: Require a valid latest revision and at least one API node
+    ansible.builtin.set_fact:
+      _agent_api_blockers: >-
+        {{ _agent_api_blockers + ['Missing latest API revision or node status'] }}
+    when: >-
+      _agent_api_revision_status.latestAvailableRevision | default(0) | int <= 0
+      or _agent_api_revision_status.nodeStatuses | default([]) | length == 0
+
+  - name: Identify API nodes with outdated or pending revisions
+    vars:
+      _latest: "{{ _agent_api_revision_status.latestAvailableRevision | default(0) }}"
+      # Missing/null/zero targetRevision all mean no pending target.
+      _target: "{{ item.targetRevision | default(0, true) }}"
+    ansible.builtin.set_fact:
+      _agent_api_blockers: >-
+        {{ _agent_api_blockers + ['API node ' + (item.nodeName | default('unknown'))
+           + ': current=' + (item.currentRevision | default('missing') | string)
+           + ', target=' + (_target | string) + ', latest=' + (_latest | string)] }}
+    when: >-
+      item.currentRevision | default(0) != _latest
+      or item.currentRevision | default(0) | int <= 0
+      or (_target != 0 and _target != item.currentRevision | default(0))
+    loop: "{{ _agent_api_revision_status.nodeStatuses | default([]) }}"
+    loop_control:
+      label: "{{ item.nodeName | default('unknown') }}"
+
+  - name: Track the latest revision and current revision per node
+    ansible.builtin.set_fact:
+      _agent_api_revision_signature: >-
+        {{ [_agent_api_revision_status.latestAvailableRevision | default(0),
+            _agent_api_revision_status.nodeStatuses | default([])
+            | sort(attribute='nodeName') | map(attribute='currentRevision', default=0) | list] }}
+      _agent_api_now: "{{ lookup('pipe', 'date +%s') | int }}"
+
+  - name: Reset or begin the healthy observation window
+    ansible.builtin.set_fact:
+      _agent_api_stable_since: >-
+        {{ 0 if _agent_api_blockers | length > 0 else
+           (_agent_api_now if (_agent_api_stable_since | int == 0
+                              or _agent_api_revision_signature != _agent_api_previous_revision)
+            else _agent_api_stable_since) }}
+      _agent_api_previous_revision: "{{ _agent_api_revision_signature }}"
+
+  - name: Evaluate continuous API stability
+    ansible.builtin.set_fact:
+      _agent_api_stable: >-
+        {{ _agent_api_blockers | length == 0
+           and _agent_api_now | int - _agent_api_stable_since | int >= agent_scale_api_stability_window | int }}
+
+  - name: Report stability window and exact blockers
+    ansible.builtin.debug:
+      msg:
+        healthy_seconds: "{{ _agent_api_now | int - _agent_api_stable_since | int if _agent_api_stable_since | int > 0 else 0 }}"
+        required_seconds: "{{ agent_scale_api_stability_window }}"
+        blockers: "{{ _agent_api_blockers }}"
+        latest_revision: "{{ _agent_api_revision_status.latestAvailableRevision | default('unknown') }}"
+
+  - name: Pause before the next API observation within the deadline
+    vars:
+      _remaining: "{{ _agent_api_deadline | int - lookup('pipe', 'date +%s') | int }}"
+    ansible.builtin.pause:
+      seconds: "{{ [agent_scale_api_poll | int, _remaining | int] | min }}"
+    when:
+    - not _agent_api_stable | bool
+    - _remaining | int > 0
