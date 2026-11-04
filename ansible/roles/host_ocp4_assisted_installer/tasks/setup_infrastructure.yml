@@ -180,3 +180,58 @@
   until: r_wait_for_hosts is succeeded
   retries: 3
   delay: 20
+
+# Verify every host has a live IP on the cluster network before triggering installation.
+# The static_network_config in the InfraEnv ISO only covers the discovery (boot-from-ISO)
+# phase. The AI service is responsible for writing the NMState config to each node's
+# root disk during installation. If that write fails silently for any node, the installed
+# OS will have no IP on enp2s0 and ignition will loop indefinitely trying to reach the
+# MCS — this check catches the failure in seconds rather than after a 90-minute timeout.
+- name: Exchange offline token for AI API access token
+  ansible.builtin.uri:
+    url: https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token
+    method: POST
+    body_format: form-urlencoded
+    body:
+      grant_type: refresh_token
+      client_id: cloud-services
+      refresh_token: "{{ ai_offline_token }}"
+    status_code: 200
+  register: r_ai_access_token
+  no_log: true
+
+- name: Fetch cluster hosts from Assisted Installer API
+  ansible.builtin.uri:
+    url: "https://api.openshift.com/api/assisted-install/v2/clusters/{{ newcluster.result.id }}/hosts"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ r_ai_access_token.json.access_token }}"
+    status_code: 200
+  register: r_ai_hosts
+  no_log: true
+
+- name: Verify each host has a static IP on the cluster network before starting installation
+  vars:
+    _inventory: "{{ (item.inventory if item.inventory else '{}') | from_json }}"
+    _all_ips: >-
+      {{ _inventory.interfaces | default([])
+         | map(attribute='ipv4_addresses', default=[])
+         | flatten
+         | map('regex_replace', '/[0-9]+$', '')
+         | select
+         | list }}
+    _on_cluster_net: >-
+      {{ _all_ips
+         | ansible.utils.ipaddr(ai_network_prefix + '.0/' + ai_network_prefix_length | string)
+         | list }}
+  ansible.builtin.assert:
+    that: _on_cluster_net | length > 0
+    fail_msg: >-
+      Host '{{ item.requested_hostname | default(item.id) }}' has no IP on the cluster
+      network {{ ai_network_prefix }}.0/{{ ai_network_prefix_length }}.
+      Found IPs: {{ _all_ips }}.
+      The InfraEnv static network configuration did not apply to this host.
+      Check that MAC addresses in the static_network_config match the VM interfaces.
+  loop: "{{ r_ai_hosts.json }}"
+  loop_control:
+    label: "{{ item.requested_hostname | default(item.id) }}"
