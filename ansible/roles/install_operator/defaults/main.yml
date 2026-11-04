@@ -96,6 +96,15 @@ install_operator_catalogsource_image: quay.io/rhpds/olm_snapshot_redhat_catalog
 # Catalog source container image tag
 install_operator_catalogsource_image_tag: "v4.18_2025_06_02"
 
+# Optional CatalogSource.spec.grpcPodConfig overrides.
+# File-based catalogs can use the cluster's opm server with content extraction.
+# The example requires an image with the indicated catalog and cache directories:
+# install_operator_catalogsource_grpc_pod_config:
+#   extractContent:
+#     cacheDir: /tmp/cache
+#     catalogDir: /configs
+install_operator_catalogsource_grpc_pod_config: {}
+
 # List of catalog source pullsecret Names. These secrets need to be
 # created in the {{ install_operator_catalogsource_namespace }} before
 # calling this role
