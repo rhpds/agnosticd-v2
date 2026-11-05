@@ -49,6 +49,36 @@
         route53user_access_key: "{{ cloudformation_existing[project_tag].stack_outputs.Route53UserAccessKey }}"
         route53user_secret_access_key: "{{ cloudformation_existing[project_tag].stack_outputs.Route53UserSecretAccessKey }}"
 
+    - name: Save NestedVirtUser credentials from stack outputs (CloudFormation just created)
+      when:
+      - not cloudformation_already_deployed | bool
+      - cloudformation_out_final is defined
+      - cloudformation_out_final.stack_outputs.NestedVirtUserAccessKey is defined
+      - cloudformation_out_final.stack_outputs.NestedVirtUserSecretAccessKey is defined
+      no_log: true
+      ansible.builtin.set_fact:
+        aws_nested_virt_access_key_id: "{{ cloudformation_out_final.stack_outputs.NestedVirtUserAccessKey }}"
+        aws_nested_virt_secret_access_key: "{{ cloudformation_out_final.stack_outputs.NestedVirtUserSecretAccessKey }}"
+
+    - name: Save NestedVirtUser credentials from stack outputs (CloudFormation existed previously)
+      when:
+      - cloudformation_already_deployed | bool
+      - cloudformation_existing is defined
+      - cloudformation_existing[project_tag].stack_outputs.NestedVirtUserAccessKey is defined
+      - cloudformation_existing[project_tag].stack_outputs.NestedVirtUserSecretAccessKey is defined
+      no_log: true
+      ansible.builtin.set_fact:
+        aws_nested_virt_access_key_id: "{{ cloudformation_existing[project_tag].stack_outputs.NestedVirtUserAccessKey }}"
+        aws_nested_virt_secret_access_key: "{{ cloudformation_existing[project_tag].stack_outputs.NestedVirtUserSecretAccessKey }}"
+
+    - name: Save nested virtualization credentials to provision data
+      when: aws_nested_virt_access_key_id is defined
+      no_log: true
+      agnosticd.core.agnosticd_user_info:
+        data:
+          aws_nested_virt_access_key_id: "{{ aws_nested_virt_access_key_id }}"
+          aws_nested_virt_secret_access_key: "{{ aws_nested_virt_secret_access_key }}"
+
     - name: Debug Route53 variables
       when:
       - route53user is defined
