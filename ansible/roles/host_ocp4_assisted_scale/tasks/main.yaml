@@ -153,6 +153,24 @@
     delay: 10
     until: _r_create_pvc is not failed
 
+  - name: Wait for scale ISO DataVolume to be ready
+    kubernetes.core.k8s_info:
+      api_version: cdi.kubevirt.io/v1beta1
+      kind: DataVolume
+      name: scale-iso
+      namespace: "{{ ai_ocp_namespace }}"
+    register: r_scale_iso_dv
+    until:
+      - r_scale_iso_dv.resources | length > 0
+      - r_scale_iso_dv.resources[0].status.phase is defined
+      - r_scale_iso_dv.resources[0].status.phase == "Succeeded"
+    retries: 90
+    delay: 10
+    failed_when:
+      - r_scale_iso_dv.resources | length > 0
+      - r_scale_iso_dv.resources[0].status.phase is defined
+      - r_scale_iso_dv.resources[0].status.phase == "Failed"
+
   - name: Create {{ worker_instance_count }} worker VMs for full cluster
     ansible.builtin.include_tasks: create_workers.yaml
     vars:
@@ -177,16 +195,31 @@
           namespace: "{{ ai_ocp_namespace }}"
         register: r_vm_status
         until: r_vm_status.resources[0].status.printableStatus | default('') == "Running"
-        retries: 30
+        retries: 90
         delay: 10
         loop: "{{ range(1, worker_instance_count | int + 1) | list }}"
         loop_control:
           loop_var: _index
 
     rescue:
+      - name: Identify failed worker index for diagnostics
+        ansible.builtin.set_fact:
+          _failed_worker_index: >-
+            {{
+              (
+                r_vm_status.results
+                | default([])
+                | selectattr('failed', 'defined')
+                | selectattr('failed')
+                | map(attribute='_index')
+                | list
+                | first
+              ) | default(1)
+            }}
+
       - name: Set failed VM name for diagnostics
         ansible.builtin.set_fact:
-          vmname: "{{ ai_ocp_vmname_worker_prefix }}-{{ _index + current_instance_workers | int }}"
+          vmname: "{{ ai_ocp_vmname_worker_prefix }}-{{ _failed_worker_index | int + current_instance_workers | int }}"
 
       - name: Fetch VM status
         kubernetes.core.k8s_info:
