@@ -1,0 +1,59 @@
+---
+
+- name: Deploy Azure bastion infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+
+  - name: Initialize provider
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_azure.initialize
+
+  - name: Create SSH provision key
+    when: ssh_provision_key_name is undefined
+    ansible.builtin.include_role:
+      name: infra_create_ssh_provision_key
+
+  - name: Locate environment authorized key
+    ansible.builtin.include_role:
+      name: locate_env_authorized_key
+
+  - name: Render bastion template
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_azure.template_generate
+
+  - name: Deploy bastion template
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_azure.template_create
+
+  - name: Discover bastion
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_azure.create_inventory
+
+  - name: Generate SSH configuration
+    ansible.builtin.include_role:
+      name: infra_common_ssh_config_generate
+
+  - name: Prepare installer resource group
+    when: host_ocp4_deploy_installation_method == 'openshift_install'
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_azure.installer_prepare
+
+- name: Load variables for discovered hosts
+  ansible.builtin.import_playbook: ../../include_vars.yml
+
+- name: Configure Azure Linux bastion
+  hosts: bastions
+  gather_facts: false
+  become: false
+  tasks:
+
+  - name: Configure SSH access
+    ansible.builtin.set_fact:
+      ansible_ssh_extra_args: "-F {{ output_dir }}/{{ config }}_{{ guid }}_ssh_conf"
+
+  - name: Wait for and configure Linux host
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_azure.configure_linux_hosts

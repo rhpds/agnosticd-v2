@@ -1,0 +1,11 @@
+---
+# Bastion SSH login user. Must match the account embedded in the ARM template
+# and
+# the user attached to discovered bastion inventory. Collection role defaults
+# are
+# documented in agnosticd.cloud_provider_azure/roles/template_generate/defaults.
+azure_bastion_user: azure
+# Bastion VM SKU, independent of the aro_* and self-managed IPI machine sizes.
+azure_bastion_vm_size: Standard_D2s_v5
+# NSG source address/CIDR allowed to reach TCP/22; '*' permits all sources.
+azure_bastion_ssh_source: '*'

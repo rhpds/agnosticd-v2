@@ -23,6 +23,11 @@
     group: "{{ ansible_user }}"
     mode: ug=rwx,o=rx
 
+- name: Render Azure installer platform settings
+  when: cloud_provider == 'azure'
+  ansible.builtin.include_role:
+    name: agnosticd.cloud_provider_azure.installer_platform
+
 - name: Generate config install-config.yaml
   ansible.builtin.template:
     src: "{{ 'templates/install-config.yaml.j2' }}"

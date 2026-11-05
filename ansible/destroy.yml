@@ -28,7 +28,7 @@
     when:
     - cloud_provider == 'aws'
     - target_regions is not defined
-    ansible.builtin.include_role: 
+    ansible.builtin.include_role:
       name: agnosticd.cloud_provider_aws.detect_region
 
 # WKTBD: Add other cloud providers
@@ -38,7 +38,7 @@
          'files': [ 'destroy_env.yml'
                   ],
          'paths': [ 'configs/' + config,
-                    'cloud_providers/aws',
+                    'cloud_providers/' + cloud_provider,
                     'cloud_providers/openshift_cnv'
                   ]
        })

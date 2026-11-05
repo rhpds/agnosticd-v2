@@ -1,21 +1,10 @@
 ---
-- name: Create the base directory
-  ansible.builtin.file:
-    path: "/home/{{ ansible_user }}/.azure"
-    mode: u=rwx,go=
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    state: directory
+# Azure IPI prerequisites live in the provider collection. It installs the
+# pinned CLI and writes ~/.azure/osServicePrincipal.json with mode u=rw,go=
+# using normalized localhost credentials. See that role's README and defaults/main.yml for
+# inputs.
+# This does not invoke the ARO destruction API; ARO uses host_ocp4_aro_destroy.
 
-- name: Add osServicePrincipal.json file for OpenShift Installer
-  ansible.builtin.template:
-    src: "osServicePrincipal.json.j2"
-    dest: "/home/{{ ansible_user }}/.azure/osServicePrincipal.json"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: u=rw,go=
-
-#  This needs to match what is in ocp4-cluster default_vars_azure.yml
-- name: Setting the Azure specific cluster namei
-  ansible.builtin.set_fact:
-    cluster_name: "ocp4-{{ guid }}-ipi"
+- name: Prepare Azure installer credentials
+  ansible.builtin.include_role:
+    name: agnosticd.cloud_provider_azure.installer_credentials

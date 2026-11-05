@@ -10,7 +10,7 @@
       msg: "Step 000 Pre Infrastructure"
 
   - name: Ensure pull secret is set
-    when: host_ocp4_deploy_installation_method != 'rosa'
+    when: host_ocp4_deploy_installation_method not in ['rosa', 'aro']
     ansible.builtin.assert:
       that: ocp4_pull_secret | default("") | length > 0
       fail_msg: ocp4_pull_secret variable must be defined
@@ -31,7 +31,7 @@
     - name: Set availability zones for Cloudformation and install-config.yml
       when:
       - agnosticd_aws_capacity_reservation_results.reservations | default({}) | length > 0
-      - host_ocp4_deploy_installation_method != 'rosa'
+      - host_ocp4_deploy_installation_method not in ['rosa']
       block:
       - name: Set availability zone for bastion, control_plane, and worker nodes
         vars:
@@ -77,12 +77,8 @@
       ansible.builtin.include_role:
         name: agnosticd.cloud_provider_gcp.install_sdk
 
-  - name: Azure Pre Infrastructure tasks (generate Windows password if not defined)
-    when:
-    - cloud_provider == "azure"
-    - windows_password is not defined
-    ansible.builtin.set_fact:
-      generated_windows_password: >-
-        {{ lookup('password', '/dev/null chars=ascii_letters,digits '
-            ~ 'length=25'
-        ) }}
+  - name: Validate Azure installation method
+    when: host_ocp4_deploy_installation_method == 'aro'
+    ansible.builtin.assert:
+      that: cloud_provider == 'azure'
+      fail_msg: ARO requires cloud_provider azure

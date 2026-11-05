@@ -1,0 +1,145 @@
+---
+# Azure Red Hat OpenShift (standard architecture) example.
+# Copy this file, replace the GUID and version, and supply credentials through a
+# separate Vault/secrets file. See docs/azure.md for prerequisites and the full
+# provision/lifecycle/destroy flow. This file deliberately contains no secrets.
+
+# Select the v2 config and cloud-provider collection. ARO still uses the Azure
+# provider to provision the Linux bastion before the managed cluster is created.
+config: openshift-cluster
+cloud_provider: azure
+
+# Unique deployment identifier. The default ownership tag is <config>-<guid> and
+# the owned resource groups are <config>-<guid>-infra and -cluster. Keep this
+# GUID,
+# the original settings and the output archive for all later lifecycle jobs.
+guid: azuretest
+
+# Select the ARO dispatcher. During software deployment it calls
+# agnosticd.cloud_provider_azure.host_ocp4_aro_install from the bastion. Destroy
+# calls host_ocp4_aro_destroy on the controller before deleting the bastion.
+host_ocp4_deploy_installation_method: aro
+
+# Azure location code, not the display name 'East US'. Choose a region that
+# offers
+# the requested ARO version/SKUs and sufficient regional AND VM-family vCPU
+# quota.
+# The existing sandbox group's metadata location may differ from this region.
+# For nested credentials, put azure_region in that entry;
+# the nested payload is authoritative over this flat value.
+azure_region: eastus
+
+# Existing child DNS zone in the sandbox resource group. The sandbox must
+# already
+# have delegated it from azure.redhatworkshops.io. Override to the actual
+# supplied
+# zone if it does not match the GUID. The provider creates only its bastion A
+# record. ARO API/ingress endpoints use Azure-managed DNS.
+azure_dns_zone: "{{ guid }}.azure.redhatworkshops.io"
+
+# Base domain exposed to shared config roles. This does not replace or customize
+# the API/ingress domain assigned by the ARO service.
+base_domain: "{{ azure_dns_zone }}"
+
+# REQUIRED authentication: supply all six flat fields below from a secrets file.
+# Do not use a VM/cluster resource group for azure_resource_group: it is the
+# existing sandbox group that owns azure_dns_zone and must survive destruction.
+# azure_subscription: <subscription UUID>
+# azure_service_principal_id: <application/client UUID>
+# azure_service_principal_password: <service principal secret>
+# azure_tenant: <tenant UUID or domain>
+# azure_resource_group: <existing sandbox resource group>
+# azure_region is supplied above; azure_subscription_id / azure_tenant_id are
+# accepted aliases only when their canonical flat variable is undefined.
+#
+# ALTERNATIVE: supply one complete nested payload instead of flat credentials:
+# azure_sandbox:
+#   credentials:
+#   - subscription_id: <subscription UUID>
+#     app_id: <application/client UUID>
+#     password: <service principal secret>
+#     tenant: <tenant UUID or domain>
+#     resource_group: <existing sandbox resource group>
+#     azure_region: eastus
+# Do not set azure_sandbox to null/{} to request flat fallback; omit it
+# entirely.
+
+# The sandbox principal authenticates both modes. This setting chooses the
+# CLUSTER's identity: managed_identity (default) or service_principal. The
+# latter
+# reuses the supplied principal and needs appropriate directory permissions.
+aro_identity_mode: managed_identity
+
+# REQUIRED: replace this marker with an EXACT version from the read-only
+# command:
+# az aro get-versions --location eastus --output table
+# Do not use a channel name or only major.minor. The client installed on the
+# bastion follows this ARO version; host_ocp4_installer_version is not the
+# selector.
+# ARO downloads only oc/kubectl. It does not invoke the shared IPI installer
+# role or download openshift-install; creation is performed through Azure CLI.
+aro_version: REPLACE_WITH_SUPPORTED_VERSION
+
+# ARO VM sizes. These are the collection defaults, shown explicitly for clarity.
+# They are independent of the bastion and IPI control_plane_instance_type /
+# worker_instance_type. Standard ARO always has three control-plane nodes.
+aro_master_vm_size: Standard_D8s_v5
+aro_worker_vm_size: Standard_D4s_v5
+
+# Standard ARO requires at least three workers. For two-worker hosted control
+# planes, use the separate openshift-cluster-aro-hcp-azure.yml sample. This layout uses
+# 36 steady-state vCPUs; preflight reserves 44 including the 8-vCPU bootstrap
+# VM,
+# in addition to any existing usage such as the bastion in the same VM family.
+aro_worker_count: 3
+
+# Per-worker OS disk capacity, in GiB. It does not change the bastion's disk.
+aro_worker_disk_size: 128
+
+# IPv4 networks: machine subnets must be disjoint and contained in the VNet;
+# VNet, pod and service ranges must not overlap. Choose before creation and keep
+# them unchanged for this deployment. The bastion uses a separate 10.240.0.0/24.
+aro_vnet_cidr: 10.0.0.0/22
+aro_master_subnet_cidr: 10.0.0.0/23
+aro_worker_subnet_cidr: 10.0.2.0/23
+aro_pod_cidr: 10.128.0.0/14
+aro_service_cidr: 172.30.0.0/16
+
+# Optional Red Hat pull secret: not required by this ARO path. If desired,
+# supply
+# ocp4_pull_secret as JSON text or a mapping in the separate secrets file.
+
+# Bastion options. This is an administrative helper VM, not an ARO worker.
+# The shared provision-key role supplies its public/private SSH key pair.
+azure_bastion_user: azure
+azure_bastion_vm_size: Standard_D2s_v5
+# Inbound TCP/22 source. '*' permits all sources; replace with your controller's
+# egress CIDR where appropriate, e.g. 192.0.2.10/32 (documentation address
+# only).
+azure_bastion_ssh_source: '*'
+
+# Complete PAYG Marketplace image reference. The default is RHEL 10; choose
+# sku: 9-lvm-gen2 for a RHEL 9 bastion. Changing an image on a successful
+# deployment does not reimage its existing VM. Availability is region-specific.
+azure_bastion_image:
+  publisher: RedHat
+  offer: RHEL
+  sku: 10-lvm-gen2
+  version: latest
+
+# These Marketplace PAYG images supply their own RHEL repository integration.
+# If using Satellite or RHN instead, enable the matching shared registration
+# role
+# and supply its credentials; see the openshift-cluster config's
+# default_vars.yml.
+install_satellite_repositories: false
+install_rhn_repositories: false
+
+# Optional existing v2 bastion student setup. The shared bastion role creates
+# this account; the ARO installer then copies kubeconfig to its home directory.
+bastion_setup_student_user: true
+bastion_student_user_name: lab-user
+
+# Keep the output archive private: it contains SSH private keys, kubeconfig,
+# kubeadmin password and the non-secret Azure ownership record. Restore the same
+# archive for destroy. See docs/azure.md for paths and cleanup ordering.

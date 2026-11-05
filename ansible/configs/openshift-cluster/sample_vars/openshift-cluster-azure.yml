@@ -1,0 +1,120 @@
+---
+# Self-managed OpenShift on Azure using installer-provisioned infrastructure
+# (IPI).
+# This is NOT ARO: the shared openshift-install binary creates and destroys the
+# cluster, while the Azure collection supplies the bastion, platform fragments
+# and credential file. Copy this file and supply a separate Vault/secrets file.
+# See docs/azure.md before starting a deployment.
+
+# Select the v2 config and Azure provider collection.
+config: openshift-cluster
+cloud_provider: azure
+
+# Unique deployment ID used in the ownership tag, owned resource group names and
+# controller archive filenames. Keep it unchanged throughout the deployment.
+guid: azuretest
+
+# Choose self-managed IPI. The aro_* variables do not configure this installer.
+host_ocp4_deploy_installation_method: openshift_install
+
+# Azure deployment location code, independent of the existing sandbox resource
+# group's metadata location. With a nested sandbox payload, its
+# credential entry's azure_region is authoritative over this flat value.
+azure_region: eastus
+
+# Existing delegated DNS child zone in the sandbox group. The sandbox must
+# already provide it; the collection does not create the zone or parent
+# delegation.
+azure_dns_zone: "{{ guid }}.azure.redhatworkshops.io"
+
+# Shared config base domain. Explicit cluster_dns_zone below is important: the
+# config's generic default prepends the GUID, but azure_dns_zone already
+# includes
+# it. The IPI installer must use the actual delegated zone as its baseDomain.
+base_domain: "{{ azure_dns_zone }}"
+cluster_dns_zone: "{{ azure_dns_zone }}"
+
+# REQUIRED flat authentication fields, supplied from a separate secrets file:
+# azure_subscription: <subscription UUID>
+# azure_service_principal_id: <application/client UUID>
+# azure_service_principal_password: <service principal secret>
+# azure_tenant: <tenant UUID or domain>
+# azure_resource_group: <existing sandbox resource group containing the DNS
+# zone>
+# azure_region is set above. The sandbox group is preserved during destroy.
+# azure_subscription_id / azure_tenant_id are optional compatibility aliases.
+#
+# Alternatively supply this complete nested form instead of flat credentials:
+# azure_sandbox:
+#   credentials:
+#   - subscription_id: <subscription UUID>
+#     app_id: <application/client UUID>
+#     password: <service principal secret>
+#     tenant: <tenant UUID or domain>
+#     resource_group: <existing sandbox resource group>
+#     azure_region: eastus
+# A defined nested payload must be complete; it is never mixed with flat fields.
+# Leave azure_sandbox undefined when using the flat form.
+
+# REQUIRED secret for IPI: supply ocp4_pull_secret in the separate secrets file
+# as the Red Hat pull-secret JSON text expected by the shared installer
+# template.
+# Do not commit real Azure or Red Hat secrets in this sample.
+
+# Installer/client version. A major.minor selects the shared role's stable
+# channel;
+# an exact release pins that release. This is an example, not a claim that every
+# subscription/region supports it; validate your chosen OpenShift release first.
+host_ocp4_installer_version: "4.22"
+
+# Self-managed cluster name. The installer appends it to cluster_dns_zone for
+# API/ingress names and uses it for its bastion working directory.
+cluster_name: ocp
+
+# IPI VM SKUs (separate from aro_master_vm_size / aro_worker_vm_size). Node
+# counts
+# belong to the common config; this example uses three control-plane and three
+# worker nodes. Ensure both SKU capacity and regional/VM-family quota are
+# adequate.
+control_plane_instance_type: Standard_D8s_v5
+worker_instance_type: Standard_D4s_v5
+control_plane_instance_count: 3
+worker_instance_count: 3
+
+# Bastion administrator and independent VM SKU. The shared v2 provision-key role
+# supplies the public key embedded in ARM and retains the controller private
+# key.
+azure_bastion_user: azure
+azure_bastion_vm_size: Standard_D2s_v5
+# NSG source for inbound TCP/22. '*' permits all sources; use your controller's
+# egress CIDR if the deployment should restrict SSH at the network layer.
+azure_bastion_ssh_source: '*'
+
+# Complete PAYG Marketplace image reference for a NEW VM.
+azure_bastion_image:
+  publisher: RedHat
+  offer: RHEL
+  sku: 10-lvm-gen2
+  version: latest
+
+# PAYG Marketplace images supply RHEL repository integration. Enable the shared
+# Satellite/RHN roles and supply their secrets if your chosen image requires it.
+install_satellite_repositories: false
+install_rhn_repositories: false
+
+# Preserve the original output archive and bastion installer directory/state.
+# Destroy runs openshift-install destroy cluster before bastion/DNS cleanup. If
+# IPI state is lost, restore it first; the provider refuses blind cluster-group
+# deletion. The sandbox group, delegated zone and supplied principal are
+# retained.
+
+# Optional trusted ingress certificates through Azure DNS. Append this role to
+# your existing workloads list; see core_workloads/roles/ocp4_workload_cert_manager/readme.adoc
+# for DNS permissions, dedicated credentials, staging and renewal checks.
+# The config supplies sandbox credentials and DNS zone from localhost facts.
+# workloads:
+# - agnosticd.core_workloads.ocp4_workload_cert_manager
+# ocp4_workload_cert_manager_install_ingress_certificates: true
+# ocp4_workload_cert_manager_install_api_certificates: false
+# For a first test, use the staging CA (its certificates are untrusted):
+# ocp4_workload_cert_manager_acme_url: https://acme-staging-v02.api.letsencrypt.org/directory

@@ -1,0 +1,10 @@
+---
+
+- name: Install ARO cluster from bastion
+  delegate_to: "{{ groups['bastions'][0] }}"
+  block:
+
+  - name: Call role to install ARO cluster
+    when: host_ocp4_deploy_install_ocp4 | default(true) | bool
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_azure.host_ocp4_aro_install
