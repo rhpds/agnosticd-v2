@@ -111,6 +111,21 @@ worker_storage_type: "gp3"
 # Disk size in Gigabytes (as an integer)
 worker_storage_size: 100
 
+# -------------------------------------------------------------------
+# Nested virtualization
+# -------------------------------------------------------------------
+# Enable EC2 nested virtualization on the worker instances so OpenShift
+# Virtualization uses /dev/kvm instead of software emulation. Runs before any
+# workload. Requires a supported Intel worker_instance_type (for example
+# m7i.2xlarge); the default worker family (m7a) is not supported.
+openshift_aws_nested_virtualization_enable: false
+
+# Create the scoped NestedVirtUser IAM user in the CloudFormation stack. It is
+# created for every cluster so that orders using a pool cluster can enable
+# nested virtualization later. Its keys are saved in provision data as
+# aws_nested_virt_access_key_id/aws_nested_virt_secret_access_key.
+aws_nested_virt_iam_user_create: true
+
 # Instances to be provisioned
 # Provide these as a list.
 # Each instance type can have any number of replicas deployed with the same

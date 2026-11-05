@@ -65,6 +65,20 @@
     ansible.builtin.include_role:
       name: openshift_cluster_admin_service_account
 
+- name: Step 005.2.1 - Enable nested virtualization on AWS workers
+  hosts: localhost
+  gather_facts: false
+  become: false
+  environment:
+    KUBECONFIG: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+  tasks:
+  - name: Enable nested virtualization on worker instances
+    when:
+    - cloud_provider == 'aws'
+    - openshift_aws_nested_virtualization_enable | default(false) | bool
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_aws.nested_virtualization
+
 - name: Step 005.3 - Deploy Workloads
   ansible.builtin.import_playbook: workloads.yml
 
