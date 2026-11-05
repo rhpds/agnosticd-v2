@@ -28,8 +28,7 @@ controlPlane:
 {%   endif %}
 {% endif %}
 {% if cloud_provider == 'azure' %}
-    azure:
-      type: {{ control_plane_instance_type | to_json }}
+{{ host_ocp4_installer_control_plane_platform_fragment }}
 {% endif %}
 {% if cloud_provider == 'gcp' %}
     gcp:
@@ -64,8 +63,7 @@ compute:
 {%   endif %}
 {% endif %}
 {% if cloud_provider == 'azure' %}
-    azure:
-      type: {{ worker_instance_type | to_json }}
+{{ host_ocp4_installer_worker_platform_fragment }}
 {% endif %}
 {% if cloud_provider == 'gcp' %}
     gcp:
@@ -92,10 +90,7 @@ platform:
     userTags: {{ hostvars.localhost.cloud_tags_final | default({}) | to_json }}
 {% endif %}
 {% if cloud_provider == 'azure' %}
-  azure:
-    region: {{ azure_region | to_json }}
-    baseDomainResourceGroupName: {{ az_dnszone_resource_group | to_json }}
-    userTags: {{ hostvars.localhost.cloud_tags_final | default({}) | to_json }}
+{{ host_ocp4_installer_platform_fragment }}
 {% endif %}
 {% if cloud_provider == 'gcp' %}
   gcp:

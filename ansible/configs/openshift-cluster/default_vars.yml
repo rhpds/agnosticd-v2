@@ -116,10 +116,12 @@ cluster_dns_zone: "{{ guid }}.{{ base_domain }}"
 
 # How to deploy OpenShift
 # Valid values are
-# - openshift_install
-# - openshift_assisted
-# - openshift_hcp_cnv
-# - rosa
+# - openshift_install (cloud_provider: azure, aws, gcp)
+# - openshift_assisted (cloud_provider: openshift_cnv)
+# - openshift_agent (cloud_provider: openshift_cnv)
+# - openshift_hcp_cnv (cloud_provider: openshift_cnv)
+# - rosa (cloud_provider: aws)
+# - aro (cloud_provider: azure)
 host_ocp4_deploy_installation_method: openshift_install
 
 # Types of Nodes (workers / control_planes) are set in the
@@ -139,7 +141,7 @@ worker_instance_count: 2
 # Minimum version is 4.18
 # Use 4.19 for latest available release in the `stable-4.19` directory.
 # Use 4.19.1 for exactly the specified release
-host_ocp4_installer_version: "4.19"
+host_ocp4_installer_version: "4.22"
 
 # See roles host_ocp4_installer and host_ocp4_deploy for additional OpenShift 4 Installer options
 # E.g. OpenShift Cluster processor architectore or OpenShift installer download location

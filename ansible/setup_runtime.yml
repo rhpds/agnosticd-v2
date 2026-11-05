@@ -8,7 +8,6 @@
   - name: Ensure cloud provider is supported
     vars:
       # agnosticd_cloud_providers:
-      # - azure
       # - gcp
       # - ibm
       # - vmc
@@ -18,6 +17,7 @@
       agnosticd_cloud_providers:
       - none
       - aws
+      - azure
       - gcp
       - openshift_cnv
       - troshka

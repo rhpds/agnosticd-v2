@@ -115,10 +115,11 @@ RUN /tmp/install_binaries.sh
 #     && dnf install -y https://packages.microsoft.com/config/rhel/10/packages-microsoft-prod.rpm \
 #     && dnf install -y azure-cli \
 #     && dnf clean all
-# Azure CLI (RHEL9)
+# Azure CLI (RHEL9) - keep aligned with cloud_provider_azure install_cli defaults
+ARG AZURE_CLI_VERSION=2.90.0
 RUN rpm --import https://packages.microsoft.com/keys/microsoft.asc \
     && dnf install -y https://packages.microsoft.com/config/rhel/9.0/packages-microsoft-prod.rpm \
-    && dnf install -y azure-cli \
+    && dnf install -y azure-cli-${AZURE_CLI_VERSION} \
     && dnf clean all
 
 RUN rm -rf /tmp/* /root/.cache /root/*

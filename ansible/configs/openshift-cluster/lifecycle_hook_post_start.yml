@@ -30,9 +30,18 @@
       ansible.builtin.include_role:
         name: locate_env_authorized_key
 
+    - name: Initialize Azure provider
+      ansible.builtin.include_role:
+        name: agnosticd.cloud_provider_azure.initialize
+
     - name: Azure post start actions
       ansible.builtin.include_role:
-        name: infra_azure_create_inventory
+        name: agnosticd.cloud_provider_azure.create_inventory
+
+    - name: Generate Azure SSH configuration
+      when: groups.bastions | default([]) | length > 0
+      ansible.builtin.include_role:
+        name: infra_common_ssh_config_generate
 
 - name: Set ansible_ssh_extra_args
   hosts:
@@ -68,7 +77,8 @@
   tasks:
   - name: Approve CertificateSigningRequests
     when:
+    - host_ocp4_deploy_installation_method not in ['rosa', 'aro']
+    - groups.bastions | default([]) | length > 0
     - hostvars[groups['bastions'][0]]['r_wait'] is successful
-    - host_ocp4_deploy_installation_method != 'rosa'
     ansible.builtin.include_role:
       name: ocp4_approve_certificate_signing_requests

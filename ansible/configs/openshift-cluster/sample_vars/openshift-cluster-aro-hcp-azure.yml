@@ -1,0 +1,63 @@
+---
+# Hosted-control-plane preview example. Copy to your vars repository and use a
+# NEW GUID. See docs/azure.md and the Azure collection's HCP credential role.
+config: openshift-cluster
+cloud_provider: azure
+guid: hcptest
+# Use the existing ARO dispatcher, with HCP explicitly selected.
+host_ocp4_deploy_installation_method: aro
+aro_deploy_hcp: true
+# Choose a region advertised by Azure for HCP (validated early during initialize).
+# The existing sandbox group's metadata location may differ from this region.
+azure_region: eastus2
+# This child zone must already exist/delegate in the supplied sandbox group.
+azure_dns_zone: "{{ guid }}.azure.redhatworkshops.io"
+base_domain: "{{ azure_dns_zone }}"
+# Supply complete flat credentials in a separate protected secrets file:
+# azure_subscription: <subscription UUID>
+# azure_service_principal_id: <client UUID>
+# azure_service_principal_password: <secret>
+# azure_tenant: <tenant UUID/domain>
+# azure_resource_group: <existing sandbox group containing azure_dns_zone>
+# Alternatively use one complete azure_sandbox.credentials entry, including its
+# own azure_region. See the classic ARO sample for both credential forms.
+aro_identity_mode: managed_identity
+# REQUIRED exact HCP release advertised by Azure for this region. Control-plane
+# minor version is derived from this release; node pool and oc use the full value.
+aro_version: REPLACE_WITH_SUPPORTED_HCP_VERSION
+# HCP conditional defaults: two workers and no customer control-plane VMs.
+# Preflight also requires 20 available regional/worker-family vCPUs, or more
+# when configured workers plus a surge worker exceed that floor.
+aro_worker_count: 2
+aro_worker_vm_size: Standard_D4s_v5
+aro_worker_disk_size: 128
+# One node pool in logical zone 1. Provider resolves its physical zone for HCP.
+aro_hcp_nodepool_name: workers
+aro_hcp_availability_zone: '1'
+# Integration subnet must be dedicated, at least /28, inside the machine VNet
+# and disjoint from workers. Standard ARO master subnet/VM settings are unused.
+aro_vnet_cidr: 10.0.0.0/22
+aro_worker_subnet_cidr: 10.0.2.0/23
+aro_hcp_vnet_integration_subnet_cidr: 10.0.0.0/28
+aro_pod_cidr: 10.128.0.0/14
+aro_service_cidr: 172.30.0.0/16
+# Shared Linux bastion. See the classic sample for RHEL 10/image/SSH overrides.
+azure_bastion_user: azure
+azure_bastion_vm_size: Standard_D2s_v5
+install_satellite_repositories: false
+install_rhn_repositories: false
+# Temporary admin kubeconfig is copied to the shared bastion student account.
+# It expires after 24h: refresh via host_ocp4_aro_hcp_credentials. OIDC console
+# users are outside this initial implementation; no kubeadmin password exists.
+bastion_setup_student_user: true
+bastion_student_user_name: lab-user
+# Preserve the output archive. Lifecycle/destroy jobs need its original HCP mode.
+# Provision can replace settings only after all archived deployment groups are absent.
+# Destroy deletes the parent cluster and its pools before identities, network and vault.
+# The vault is soft-deleted for seven days, never purged automatically; an
+# archived same-deployment retry can recover it after ownership validation.
+azure_bastion_image:
+  publisher: RedHat
+  offer: RHEL
+  sku: 10-lvm-gen2
+  version: latest

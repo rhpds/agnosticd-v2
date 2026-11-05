@@ -13,7 +13,7 @@
   - name: Remove AWS Credentials from bastion
     when:
     - cloud_provider == 'aws'
-    - host_ocp4_deploy_installation_method != 'rosa'
+    - host_ocp4_deploy_installation_method not in ['rosa']
     ansible.builtin.file:
       path: "/home/{{ ansible_user }}/.aws/credentials"
       state: absent
@@ -89,7 +89,7 @@
   - name: Remove mint-mode cloud provider credentials
     when:
     - remove_mint_mode_cloud_provider_credentials | bool
-    - host_ocp4_deploy_installation_method != 'rosa'
+    - host_ocp4_deploy_installation_method not in ['rosa', 'aro']
     kubernetes.core.k8s:
       state: absent
       api_version: v1

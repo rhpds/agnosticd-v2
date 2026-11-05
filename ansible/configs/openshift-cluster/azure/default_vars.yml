@@ -1,0 +1,16 @@
+---
+ansible_user: "{{ azure_bastion_user }}"
+cluster_name: "ocp-{{ guid }}"
+base_domain: azure.redhatworkshops.io
+cluster_dns_zone: "{{ azure_dns_zone | default(guid ~ '.' ~ (azure_root_dns_zone | default('azure.redhatworkshops.io'))) }}"
+ocp4_architecture_cluster: x86_64
+control_plane_instance_type: Standard_D8s_v3
+worker_instance_type: Standard_D4s_v3
+control_plane_instance_count: 3
+worker_instance_count: 3
+
+azure_bastion_image:
+  publisher: RedHat
+  offer: RHEL
+  sku: 10-lvm-gen2
+  version: latest

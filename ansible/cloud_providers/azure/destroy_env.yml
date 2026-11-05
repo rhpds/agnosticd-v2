@@ -1,0 +1,16 @@
+---
+
+- name: Destroy owned Azure infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+
+  - name: Initialize provider
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_azure.initialize
+
+  - name: Delete bastion infrastructure and DNS record
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_azure.template_destroy

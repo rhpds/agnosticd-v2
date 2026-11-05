@@ -1,10 +1,21 @@
 ---
-# How to deploy OpenShift
-# Valid values are
+# host_ocp4_deploy_installation_method (string): task-file selector for the
+# OpenShift installation method. The config normally supplies this value.
+# Valid values are:
 # - openshift_install
 # - openshift_assisted
 # - openshift_hcp_cnv
+# - openshift_agent
+# - rosa (AWS)
+# - aro (Azure ARO; requires cloud_provider: azure)
+# The aro method delegates the Azure collection's host_ocp4_aro_install role to
+# the first host in the Ansible-provided bastions inventory group. The
+# collection owns aro_* settings, authentication, CLI installation and cluster
+# creation. Its aro_deploy_hcp flag selects the experimental HCP branch.
 host_ocp4_deploy_installation_method: openshift_install
 
-# Install OpenShift (can be set to false to skip the installation on runs where the cluster already exists)
+# host_ocp4_deploy_install_ocp4 (boolean): run the selected installer. Set false
+# to skip installation while debugging an already-existing environment. This is
+# not a lifecycle/destroy selector and does not remove infrastructure or
+# secrets.
 host_ocp4_deploy_install_ocp4: true

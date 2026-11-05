@@ -1,0 +1,84 @@
+---
+
+- name: Prepare Azure cluster destruction
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+
+  - name: Initialize provider
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_azure.initialize
+
+  - name: Start bastion and self-managed cluster VMs
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_azure.lifecycle
+    vars:
+      azure_lifecycle_action: start
+
+  - name: Discover bastion
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_azure.create_inventory
+
+  - name: Recover SSH provision key facts
+    when: ssh_provision_key_name is undefined
+    ansible.builtin.include_role:
+      name: infra_create_ssh_provision_key
+
+  - name: Generate SSH configuration
+    when: groups.bastions | default([]) | length > 0
+    ansible.builtin.include_role:
+      name: infra_common_ssh_config_generate
+
+- name: Restore host variables
+  ansible.builtin.import_playbook: ../../../include_vars.yml
+
+- name: Configure bastion access
+  hosts: bastions
+  gather_facts: false
+  tasks:
+
+  - name: Use generated SSH configuration
+    ansible.builtin.set_fact:
+      ansible_ssh_extra_args: "-F {{ output_dir }}/{{ config }}_{{ guid }}_ssh_conf"
+
+- name: Remove external workload resources
+  hosts: localhost
+  environment:
+    KUBECONFIG: "{{ output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+  gather_facts: false
+  tasks:
+
+  - name: Remove workloads
+    ansible.builtin.include_role:
+      name: "{{ workload_loop_var }}"
+    vars:
+      ACTION: destroy
+    loop: "{{ remove_workloads | default([]) }}"
+    loop_control:
+      loop_var: workload_loop_var
+
+  - name: Delete ARO cluster
+    when: host_ocp4_deploy_installation_method == 'aro'
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_azure.host_ocp4_aro_destroy
+
+- name: Destroy self-managed OpenShift
+  hosts: bastions
+  gather_facts: false
+  become: false
+  tasks:
+
+  - name: Wait for bastion
+    when: host_ocp4_deploy_installation_method == 'openshift_install'
+    ansible.builtin.wait_for_connection:
+      timeout: 600
+
+  - name: Destroy installer resources
+    when: host_ocp4_deploy_installation_method == 'openshift_install'
+    ansible.builtin.include_role:
+      name: host_ocp4_destroy
+
+- name: Delete owned infrastructure
+  ansible.builtin.import_playbook: ../../../cloud_providers/azure/destroy_env.yml

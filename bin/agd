@@ -217,6 +217,8 @@ run_ansible_navigator() {
   fi
 
   export ANSIBLE_LOG_PATH="/output_dir_root/${GUID}/${GUID}.log"
+  # navigator itself runs on the host, so this is a host path (not /output_dir_root)
+  export ANSIBLE_NAVIGATOR_LOG_FILE="${OUTPUT_DIR_ROOT}/${GUID}/ansible-navigator-${GUID}.log"
   export ANSIBLE_NAVIGATOR_PLAYBOOK_ARTIFACT_SAVE_AS=/output_dir_root/${GUID}
 
   # ponytail: vault password file support — mount and pass only if file exists
