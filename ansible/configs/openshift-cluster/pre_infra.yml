@@ -28,6 +28,12 @@
   - name: AWS Pre Infrastructure tasks
     when: cloud_provider == "aws"
     block:
+    - name: Check nested virtualization prerequisites before deploying
+      when: openshift_aws_nested_virtualization_enable | default(false) | bool
+      ansible.builtin.include_role:
+        name: agnosticd.cloud_provider_aws.ocp_nested_virtualization
+        tasks_from: preflight_config.yml
+
     - name: Set availability zones for Cloudformation and install-config.yml
       when:
       - agnosticd_aws_capacity_reservation_results.reservations | default({}) | length > 0
