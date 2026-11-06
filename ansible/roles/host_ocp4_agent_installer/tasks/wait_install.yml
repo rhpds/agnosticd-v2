@@ -98,6 +98,11 @@
   retries: "{{ (host_ocp4_agent_installer_install_timeout | int / 30) | int }}"
   delay: 30
 
+# ClusterVersion can be available while node configuration is still rolling out.
+# Run outside the hosting-cluster module_defaults block, using the guest kubeconfig.
+- name: Wait for installed cluster readiness before handing off to workloads
+  ansible.builtin.include_tasks: wait_cluster_ready.yml
+
 - name: Determine console URL
   kubernetes.core.k8s_info:
     api_version: config.openshift.io/v1

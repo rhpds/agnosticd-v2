@@ -1,0 +1,90 @@
+---
+# These checks cover installation-time rollouts, not later MachineConfigs
+# introduced by workloads. Workloads must still tolerate their own disruptions.
+- name: Wait for MachineConfigPools to finish updating
+  kubernetes.core.k8s_info:
+    api_version: machineconfiguration.openshift.io/v1
+    kind: MachineConfigPool
+    kubeconfig: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+    validate_certs: false
+  register: r_agent_pools
+  until:
+  - r_agent_pools is succeeded
+  - r_agent_pools.resources | default([]) | length > 0
+  - >-
+    'master' in (r_agent_pools.resources | default([]) | map(attribute='metadata.name') | list)
+  - >-
+    (worker_instance_count | int == 0) or
+    ('worker' in (r_agent_pools.resources | default([]) | map(attribute='metadata.name') | list))
+  - >-
+    r_agent_pools.resources | map(attribute='status.conditions', default=[])
+    | map('selectattr', 'type', 'equalto', 'Updated')
+    | map('selectattr', 'status', 'equalto', 'True')
+    | map('list') | map('length') | min > 0
+  - >-
+    r_agent_pools.resources | map(attribute='status.conditions', default=[])
+    | map('selectattr', 'type', 'equalto', 'Updating')
+    | map('selectattr', 'status', 'equalto', 'False')
+    | map('list') | map('length') | min > 0
+  - >-
+    r_agent_pools.resources | map(attribute='status.conditions', default=[])
+    | map('selectattr', 'type', 'equalto', 'Degraded')
+    | map('selectattr', 'status', 'equalto', 'False')
+    | map('list') | map('length') | min > 0
+  retries: "{{ (host_ocp4_agent_installer_install_timeout | int / 30) | int }}"
+  delay: 30
+
+- name: Wait for all ClusterOperators to become healthy
+  kubernetes.core.k8s_info:
+    api_version: config.openshift.io/v1
+    kind: ClusterOperator
+    kubeconfig: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+    validate_certs: false
+  register: r_agent_operators
+  until:
+  - r_agent_operators is succeeded
+  - r_agent_operators.resources | default([]) | length > 0
+  - >-
+    r_agent_operators.resources | map(attribute='status.conditions', default=[])
+    | map('selectattr', 'type', 'equalto', 'Available')
+    | map('selectattr', 'status', 'equalto', 'True')
+    | map('list') | map('length') | min > 0
+  - >-
+    r_agent_operators.resources | map(attribute='status.conditions', default=[])
+    | map('selectattr', 'type', 'equalto', 'Progressing')
+    | map('selectattr', 'status', 'equalto', 'False')
+    | map('list') | map('length') | min > 0
+  - >-
+    r_agent_operators.resources | map(attribute='status.conditions', default=[])
+    | map('selectattr', 'type', 'equalto', 'Degraded')
+    | map('selectattr', 'status', 'equalto', 'False')
+    | map('list') | map('length') | min > 0
+  retries: "{{ (host_ocp4_agent_installer_install_timeout | int / 30) | int }}"
+  delay: 30
+
+# Recheck nodes after the pool/operator waits: a previously Ready node may have
+# been drained or rebooted in the meantime. Absent unschedulable means false.
+- name: Wait for all expected nodes to be Ready and uncordoned
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Node
+    kubeconfig: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+    validate_certs: false
+  register: r_agent_ready_nodes
+  until:
+  - r_agent_ready_nodes is succeeded
+  - >-
+    r_agent_ready_nodes.resources | default([]) | length ==
+    (control_plane_instance_count | int + worker_instance_count | int)
+  - >-
+    r_agent_ready_nodes.resources | default([]) | length > 0
+  - >-
+    r_agent_ready_nodes.resources | map(attribute='spec.unschedulable', default=false)
+    | select('equalto', true) | list | length == 0
+  - >-
+    r_agent_ready_nodes.resources | map(attribute='status.conditions', default=[])
+    | map('selectattr', 'type', 'equalto', 'Ready')
+    | map('selectattr', 'status', 'equalto', 'True')
+    | map('list') | map('length') | min > 0
+  retries: "{{ (host_ocp4_agent_installer_install_timeout | int / 30) | int }}"
+  delay: 30
