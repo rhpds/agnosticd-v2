@@ -77,7 +77,7 @@
     - cloud_provider == 'aws'
     - openshift_aws_nested_virtualization_enable | default(false) | bool
     ansible.builtin.include_role:
-      name: agnosticd.cloud_provider_aws.nested_virtualization
+      name: agnosticd.cloud_provider_aws.ocp_nested_virtualization
 
 - name: Step 005.3 - Deploy Workloads
   ansible.builtin.import_playbook: workloads.yml
