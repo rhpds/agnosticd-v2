@@ -1,0 +1,103 @@
+---
+# The Assisted Installer API does not enforce cluster name uniqueness -
+# POST /clusters always creates a brand-new cluster record with a new ID,
+# even if one with the same name already exists. A retried/relaunched job
+# (or a prior partial failure) can therefore leave behind an orphaned
+# cluster under the name we are about to reuse. Delete any existing
+# cluster(s) with this name first, so each run always starts from a clean
+# slate and we never accumulate duplicate registrations.
+#
+# Known limitation: list -> delete -> create below is not atomic, so this
+# does not fully close the race it is meant to prevent - it only narrows
+# it. Two jobs started concurrently for the same cluster name could both
+# list no existing duplicates, both delete nothing, and both go on to
+# create_cluster, recreating the original duplicate-cluster bug for that
+# small window. This currently relies on AAP2 not running two jobs for the
+# same guid/cluster name at the same time; truly eliminating the race would
+# require a server-side uniqueness constraint or lock in the Assisted
+# Installer API itself, which does not exist today.
+- name: "List existing Assisted Installer clusters (checking for duplicates of {{ _dedup_cluster_name }})"
+  # owner: true was removed here after live testing (26 Oct 2026) showed it
+  # is non-functional against the real API: owner=true/false/1 all return
+  # HTTP 200 with a literal [] body, so it never returned any clusters at
+  # all - not a casing issue (rhpds/assisted_installer#8's owner type='bool'
+  # + lowercase fix is correct and necessary, but doesn't help here), there
+  # is simply no value of this param that returns real data. With owner:
+  # true, this task's list was always empty, so this dedup check never
+  # actually found or removed any pre-existing duplicate (the exact
+  # create-retry scenario - guid qqcwv, jobs 285609/305694 - that this file
+  # exists to fix). Correctness now relies entirely on the exact-name match
+  # below against the full account list, same as effectively happened
+  # before rhpds/assisted_installer#8 (when params weren't forwarded at all).
+  rhpds.assisted_installer.list_clusters:
+    offline_token: "{{ ai_offline_token }}"
+  register: _r_dedup_existing_clusters
+
+- name: "Determine any pre-existing cluster(s) named {{ _dedup_cluster_name }}"
+  ansible.builtin.set_fact:
+    _dedup_existing_clusters: >-
+      {{ _r_dedup_existing_clusters.result
+         | selectattr('name', 'equalto', _dedup_cluster_name)
+         | list }}
+
+# Extra SNO clusters are registered under a bare name (e.g. "dr") shared by
+# every environment's extra SNO of that name - only base_dns_domain carries
+# the guid. Without this, the match above would also catch every other live
+# deployment's same-named extra SNO cluster and this task would delete (with
+# cancel: true) a cluster that isn't ours, possibly mid-install. Call sites
+# for extra SNO clusters pass _dedup_base_dns_domain; the main cluster (and
+# its day-2 adding-hosts records, which have an empty base_dns_domain) does
+# not, so this step is a no-op there.
+- name: "Further scope by base_dns_domain (extra-SNO cross-env collision guard)"
+  when: _dedup_base_dns_domain is defined
+  ansible.builtin.set_fact:
+    _dedup_existing_clusters: >-
+      {{ _dedup_existing_clusters
+         | selectattr('base_dns_domain', 'equalto', _dedup_base_dns_domain)
+         | list }}
+
+- name: "Debug: pre-existing cluster(s) to be removed for {{ _dedup_cluster_name }}"
+  when: _dedup_existing_clusters | length > 0
+  ansible.builtin.debug:
+    msg: >-
+      Deleting pre-existing cluster(s) named {{ _dedup_cluster_name }}:
+      {{ _dedup_existing_clusters | map(attribute='id') | list }}
+      (statuses: {{ _dedup_existing_clusters | map(attribute='status') | list }})
+
+# cancel is only sent for clusters in an active installation state. The AI
+# API rejects POST /actions/cancel with 409 for clusters that are not
+# installing (e.g. pending-for-input, insufficient, ready) - a retry orphan
+# typically ends up in one of those states, not installing. delete_cluster.py
+# now treats a cancel 409 as non-fatal (module.warn) and still attempts the
+# DELETE either way (rhpds/assisted_installer#8, 3ef107f), so this
+# conditional is no longer required for correctness, but it's still worth
+# keeping: it avoids a pointless failed cancel call and the resulting
+# warning noise in the job log for clusters that were never installing.
+#
+# Statuses sourced from the Assisted Installer API swagger spec
+# (cluster-create-params -> status enum).
+- name: "Delete pre-existing cluster(s) named {{ _dedup_cluster_name }}"
+  when: _dedup_existing_clusters | length > 0
+  rhpds.assisted_installer.delete_cluster:
+    cluster_id: "{{ item.id }}"
+    offline_token: "{{ ai_offline_token }}"
+    cancel: "{{ item.status in _dedup_installing_statuses }}"
+  vars:
+    _dedup_installing_statuses:
+      - preparing-for-installation
+      - installing
+      - installing-pending-user-action
+      - finalizing
+  loop: "{{ _dedup_existing_clusters }}"
+  loop_control:
+    label: "{{ item.id }} ({{ item.status }})"
+  register: _r_dedup_delete_result
+  ignore_errors: true
+
+- name: "Fail: unable to delete pre-existing cluster(s) named {{ _dedup_cluster_name }}"
+  when: _r_dedup_delete_result is failed
+  ansible.builtin.fail:
+    msg: >-
+      Failed to delete one or more pre-existing clusters named {{ _dedup_cluster_name }}
+      before creating a new one: {{ _r_dedup_delete_result.results
+      | selectattr('failed', 'defined') | selectattr('failed') | map(attribute='item.id') | list }}

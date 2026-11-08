@@ -1,3 +1,19 @@
+# Extra SNO clusters are registered in Assisted Installer under the bare
+# name (e.g. "dr"), not a guid-prefixed name - only base_dns_domain carries
+# the guid. All environments share the same AI account, so the dedup below
+# also scopes on base_dns_domain (see ensure_no_duplicate_cluster.yml) to
+# avoid matching another live deployment's same-named extra SNO cluster.
+# Registering under a guid-prefixed name instead (as briefly tried in
+# ab84eb3) breaks the install: OpenShift derives the cluster's hostnames as
+# {name}.{base_dns_domain}, but configure_sno_extra_sno_clusters.yml's DNS
+# records are created from the bare _sno_cluster_name, so a guid-prefixed
+# AI name has no matching DNS record.
+- name: Ensure no duplicate cluster exists before creating a new one
+  ansible.builtin.include_tasks: ensure_no_duplicate_cluster.yml
+  vars:
+    _dedup_cluster_name: "{{ _sno_cluster_name }}"
+    _dedup_base_dns_domain: "cluster-{{ guid }}.{{ cluster_dns_zone }}"
+
 - name: Create OpenShift cluster using Assisted Installer
   rhpds.assisted_installer.create_cluster:
     name: "{{ _sno_cluster_name }}"
