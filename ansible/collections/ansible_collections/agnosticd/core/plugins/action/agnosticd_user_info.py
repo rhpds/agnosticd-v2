@@ -103,8 +103,10 @@ class ActionModule(ActionBase):
                 result['failed'] = True
                 result['error'] = 'data must be a dictionary of name/value pairs'
                 return result
-            # Per-value, so keys stay greppable in the log. See msg64 above for why.
-            result['data64'] = {key: self._b64(value) for key, value in data.items()}
+            # JSON first so non-string values keep their type. default=str because this
+            # runs outside the try below, and json.dumps raises where str() cannot.
+            # See msg64 above for why it is base64.
+            result['data64'] = self._b64(json.dumps(data, default=str))
             # Apply data prefix if provided.
             if data_prefix:
                 data = {(data_prefix + key): value for key, value in data.items()}

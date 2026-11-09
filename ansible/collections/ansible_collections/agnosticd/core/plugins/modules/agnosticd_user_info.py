@@ -76,9 +76,9 @@ msg64:
   returned: when msg or body is set
 data64:
   description:
-  - Base64 encoding of each value in C(data), keyed by the original (unprefixed) name.
-  - Keys are left in the clear so they remain greppable in the log. See C(msg64).
-  type: dict
+  - Base64 encoding of C(data) serialized as JSON, before any C(data_prefix) is applied.
+  - JSON rather than per value so non-string values keep their type on decode. See C(msg64).
+  type: str
   returned: when data is set
 error:
   description: Error message on failure
