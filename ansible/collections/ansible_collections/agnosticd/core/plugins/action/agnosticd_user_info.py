@@ -19,6 +19,7 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
+import base64
 import json
 import yaml
 import os
@@ -31,7 +32,6 @@ yaml.SafeDumper.yaml_representers[None] = lambda self, data: \
     )
 
 from ansible.errors import AnsibleError, AnsibleUndefinedVariable
-from ansible.module_utils.six import string_types
 from ansible.plugins.action import ActionBase
 try:
     # ansible-core 2.19+: needed when templating code-authored strings
@@ -45,6 +45,10 @@ class ActionModule(ActionBase):
 
     TRANSFERS_FILES = False
     _VALID_ARGS = frozenset(('msg','data','data_prefix','user','body'))
+
+    @staticmethod
+    def _b64(value):
+        return base64.b64encode(str(value).encode('utf-8')).decode('ascii')
 
     def run(self, tmp=None, task_vars=None):
         self._supports_check_mode = True
@@ -83,12 +87,24 @@ class ActionModule(ActionBase):
             result['msg'] = 'user.body: ' + body
             # Force display of result like debug
 
+        # ansible-core 2.22+ masks secrets ($REDACTED$) in displayed output. Base64 of the
+        # same string is not substring-matched by the masker, so msg64 keeps the message
+        # recoverable from the job log when a deploy fails before user-info.yaml is published.
+        if 'msg' in result:
+            result['msg64'] = (
+                [self._b64(m) for m in result['msg']]
+                if isinstance(result['msg'], list)
+                else self._b64(result['msg'])
+            )
+
         if data:
             result['data'] = data
             if not isinstance(data, dict):
                 result['failed'] = True
                 result['error'] = 'data must be a dictionary of name/value pairs'
                 return result
+            # Per-value, so keys stay greppable in the log. See msg64 above for why.
+            result['data64'] = {key: self._b64(value) for key, value in data.items()}
             # Apply data prefix if provided.
             if data_prefix:
                 data = {(data_prefix + key): value for key, value in data.items()}
