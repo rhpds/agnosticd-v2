@@ -65,6 +65,21 @@ msg:
   description: 'The message or body, prepended by "user.info" or "user.body"'
   type: str
   returned: always
+msg64:
+  description:
+  - Base64 encoding of C(msg), with the same list/string shape.
+  - >-
+    ansible-core 2.22+ replaces registered secrets with C($REDACTED$) in displayed output.
+    The masker matches the secret as a substring, which base64 defeats, so C(msg64) stays
+    readable in the job log when a deploy fails before user-info.yaml is published.
+  type: raw
+  returned: when msg or body is set
+data64:
+  description:
+  - Base64 encoding of C(data) serialized as JSON, before any C(data_prefix) is applied.
+  - JSON rather than per value so non-string values keep their type on decode. See C(msg64).
+  type: str
+  returned: when data is set
 error:
   description: Error message on failure
   type: str
