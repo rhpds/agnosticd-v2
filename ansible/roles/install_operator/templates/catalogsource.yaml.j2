@@ -14,6 +14,10 @@ spec:
   displayName: {{ install_operator_catalogsource_name }}
   publisher: Red Hat AgnosticD
   priority: {{ install_operator_catalogsource_priority | int }}
+{% if install_operator_catalogsource_grpc_pod_config | length > 0 %}
+  grpcPodConfig:
+{{ install_operator_catalogsource_grpc_pod_config | to_nice_yaml(indent=2) | indent(4, true) }}
+{% endif %}
 {% if install_operator_catalogsource_pullsecrets | length > 0 %}
   secrets: {{ install_operator_catalogsource_pullsecrets | to_json }}
 {% endif %}
