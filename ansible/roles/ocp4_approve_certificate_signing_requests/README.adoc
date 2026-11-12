@@ -4,6 +4,10 @@ Find and approve CertificateSigningRequests (CSRs) in OpenShift 4 clusters.
 
 While these certificates are normally automatically approved, there are some circumstances where this fails and manual approval is needed, particularly after cluster restart.
 
+On platform `None` (Assisted Installer clusters such as the CNV pool single-node clusters), this role also creates a Machine for each node that does not already have one. `cluster-machine-approver` uses that Machine when it cannot read the current kubelet serving certificate. Without it, a node reboot or CSR-signer rotation leaves serving CSRs Pending, and `oc exec`, `oc logs`, and Automation Controller job pods fail with `error dialing backend: remote error: tls: internal error`.
+
+The Machine is only created when `Infrastructure` `status.platformStatus.type` is `None` and no Machine already points at the node. Clusters that already have Machines are left alone.
+
 == Configuration
 
 `ocp4_approve_certificate_signing_requests_initial_delay` -

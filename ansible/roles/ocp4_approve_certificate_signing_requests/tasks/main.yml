@@ -7,5 +7,8 @@
   ansible.builtin.set_fact:
     ocp4_approve_certificate_signing_requests_iteration: 0
 
+- name: Ensure platform None nodes have Machines for serving-certificate renewal
+  ansible.builtin.include_tasks: ensure-node-machines.yml
+
 - name: Approve CertificateSigningRequests
   ansible.builtin.include_tasks: approve-certificate-signing-requests.yml

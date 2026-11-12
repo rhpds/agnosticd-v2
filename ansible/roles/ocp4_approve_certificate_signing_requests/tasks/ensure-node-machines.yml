@@ -1,0 +1,86 @@
+---
+# Platform None clusters (Assisted Installer on CNV, for example) do not
+# get Machine objects. cluster-machine-approver can renew a kubelet serving
+# certificate only while the current certificate still handshakes. After a
+# node reboot or CSR-signer rotation it cannot read that certificate, and
+# with no Machine it leaves the replacement CSR Pending. The API server then
+# fails every pod attach with:
+#   error dialing backend: remote error: tls: internal error
+- name: Read the cluster infrastructure platform
+  kubernetes.core.k8s_info:
+    api_version: config.openshift.io/v1
+    kind: Infrastructure
+    name: cluster
+    kubeconfig: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+    validate_certs: false
+  register: r_ocp4_csr_infra
+  retries: 10
+  delay: 15
+  until: r_ocp4_csr_infra is succeeded
+
+- name: Record the infrastructure platform
+  ansible.builtin.set_fact:
+    ocp4_csr_platform: >-
+      {{
+        r_ocp4_csr_infra.resources[0].status.platformStatus.type
+        | default(r_ocp4_csr_infra.resources[0].spec.platformSpec.type | default(''))
+      }}
+
+- name: Link platform None nodes to Machines
+  when: ocp4_csr_platform == 'None'
+  block:
+    - name: Get nodes
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Node
+        kubeconfig: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+        validate_certs: false
+      register: r_ocp4_csr_nodes
+      retries: 10
+      delay: 15
+      until: r_ocp4_csr_nodes is succeeded
+
+    - name: Get Machines
+      kubernetes.core.k8s_info:
+        api_version: machine.openshift.io/v1beta1
+        kind: Machine
+        namespace: openshift-machine-api
+        kubeconfig: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+        validate_certs: false
+      register: r_ocp4_csr_machines
+      retries: 5
+      delay: 10
+      until: r_ocp4_csr_machines is succeeded or not (r_ocp4_csr_machines.api_found | default(true) | bool)
+      failed_when: >-
+        r_ocp4_csr_machines is failed
+        and (r_ocp4_csr_machines.api_found | default(true) | bool)
+
+    - name: Record node names that already have a Machine
+      when: r_ocp4_csr_machines.api_found | default(false) | bool
+      ansible.builtin.set_fact:
+        ocp4_csr_linked_node_names: >-
+          {{
+            r_ocp4_csr_machines.resources | default([])
+            | to_json | from_json
+            | json_query('[?status.nodeRef.name].status.nodeRef.name')
+          }}
+
+    - name: Find nodes that have no Machine nodeRef
+      when: r_ocp4_csr_machines.api_found | default(false) | bool
+      ansible.builtin.set_fact:
+        ocp4_csr_unlinked_nodes: >-
+          {{
+            r_ocp4_csr_nodes.resources | default([])
+            | rejectattr('metadata.name', 'in', ocp4_csr_linked_node_names)
+            | list
+          }}
+
+    - name: Create and link a Machine for each unlinked node
+      when:
+        - r_ocp4_csr_machines.api_found | default(false) | bool
+        - ocp4_csr_unlinked_nodes | default([]) | length > 0
+      ansible.builtin.include_tasks: ensure-one-node-machine.yml
+      loop: "{{ ocp4_csr_unlinked_nodes }}"
+      loop_control:
+        loop_var: ocp4_csr_node
+        label: "{{ ocp4_csr_node.metadata.name }}"

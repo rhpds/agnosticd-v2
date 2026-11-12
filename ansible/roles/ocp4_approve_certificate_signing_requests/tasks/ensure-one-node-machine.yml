@@ -1,0 +1,88 @@
+---
+- name: Record Machine fields for {{ ocp4_csr_node.metadata.name }}
+  vars:
+    __addresses: "{{ ocp4_csr_node.status.addresses | default([]) }}"
+    __hostnames: >-
+      {{
+        __addresses
+        | selectattr('type', 'equalto', 'Hostname')
+        | map(attribute='address')
+        | list
+      }}
+    __hostname: >-
+      {{ __hostnames[0] if (__hostnames | length > 0) else ocp4_csr_node.metadata.name }}
+    __labels: "{{ ocp4_csr_node.metadata.labels | default({}) }}"
+  ansible.builtin.set_fact:
+    ocp4_csr_machine_role: >-
+      {{
+        'master'
+        if (
+          'node-role.kubernetes.io/control-plane' in __labels
+          or 'node-role.kubernetes.io/master' in __labels
+        )
+        else 'worker'
+      }}
+    ocp4_csr_machine_addresses: >-
+      {{
+        __addresses + (
+          [{'type': 'InternalDNS', 'address': __hostname}]
+          if (
+            __addresses
+            | selectattr('type', 'equalto', 'InternalDNS')
+            | selectattr('address', 'equalto', __hostname)
+            | list
+            | length
+          ) == 0
+          else []
+        )
+      }}
+
+- name: Create Machine {{ ocp4_csr_node.metadata.name }}
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+    validate_certs: false
+    definition:
+      apiVersion: machine.openshift.io/v1beta1
+      kind: Machine
+      metadata:
+        name: "{{ ocp4_csr_node.metadata.name }}"
+        namespace: openshift-machine-api
+        labels:
+          machine.openshift.io/cluster-api-machine-role: "{{ ocp4_csr_machine_role }}"
+          machine.openshift.io/cluster-api-machine-type: "{{ ocp4_csr_machine_role }}"
+        annotations:
+          machine.openshift.io/instance-state: externally provisioned
+      spec:
+        providerSpec:
+          value:
+            apiVersion: machine.openshift.io/v1beta1
+            kind: None
+
+- name: Link Machine to its node {{ ocp4_csr_node.metadata.name }}
+  ansible.builtin.command:
+    argv:
+      - oc
+      - patch
+      - machine
+      - "{{ ocp4_csr_node.metadata.name }}"
+      - --namespace
+      - openshift-machine-api
+      - --subresource=status
+      - --type=merge
+      - --patch
+      - "{{ ocp4_csr_machine_status | to_json }}"
+  vars:
+    ocp4_csr_machine_status:
+      status:
+        phase: Running
+        addresses: "{{ ocp4_csr_machine_addresses }}"
+        nodeRef:
+          apiVersion: v1
+          kind: Node
+          name: "{{ ocp4_csr_node.metadata.name }}"
+          uid: "{{ ocp4_csr_node.metadata.uid }}"
+  environment:
+    KUBECONFIG: "{{ hostvars.localhost.output_dir }}/{{ config }}_{{ guid }}_kubeconfig"
+  register: r_ocp4_csr_machine_status
+  changed_when: "'patched' in r_ocp4_csr_machine_status.stdout"
