@@ -65,6 +65,12 @@
     ansible.builtin.include_role:
       name: openshift_cluster_admin_service_account
 
+  - name: Link platform None nodes to Machines for kubelet serving certificate renewal
+    when: host_ocp4_deploy_installation_method | default('') not in ['rosa', 'aro']
+    ansible.builtin.include_role:
+      name: ocp4_approve_certificate_signing_requests
+      tasks_from: ensure-node-machines.yml
+
 - name: Step 005.2.1 - Enable nested virtualization on AWS workers
   hosts: localhost
   gather_facts: false
