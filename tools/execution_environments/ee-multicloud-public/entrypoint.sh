@@ -211,7 +211,7 @@ if [ -z "${_EP_DEPS_INSTALLED:-}" ] && [ -f /runner/env/extravars ] && [ -f "${I
   "${REAL}" "${INSTALL_PLAYBOOK}" \
     -i /runner/inventory/hosts \
     -e @/runner/env/extravars \
-    2>&1 || true
+    2>&1
 fi
 
 exec "${REAL}" "$@"
