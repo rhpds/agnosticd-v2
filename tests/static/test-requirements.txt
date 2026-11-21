@@ -48,6 +48,6 @@ tomli-w==1.2.0
 tomlkit==0.15.0
 tox==4.56.2
 virtualenv==21.6.0
-wcmatch==10.2.1
+wcmatch==11.2
 wrapt==2.2.2
 yamllint==1.38.0
