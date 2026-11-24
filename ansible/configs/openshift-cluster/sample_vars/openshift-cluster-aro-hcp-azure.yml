@@ -1,5 +1,5 @@
 ---
-# Hosted-control-plane preview example. Copy to your vars repository and use a
+# OpenShift 5 with ARO hosted control planes. Copy to your vars repository and use a
 # NEW GUID. See docs/azure.md and the Azure collection's HCP credential role.
 config: openshift-cluster
 cloud_provider: azure
@@ -7,6 +7,9 @@ guid: hcptest
 # Use the existing ARO dispatcher, with HCP explicitly selected.
 host_ocp4_deploy_installation_method: aro
 aro_deploy_hcp: true
+# Supply ocp4_pull_secret with registry.redhat.io credentials as Docker config
+# JSON or a mapping in the separate secrets file. The role merges it into
+# kube-system/additional-pull-secret before workloads run.
 # Choose a region advertised by Azure for HCP (validated early during initialize).
 # The existing sandbox group's metadata location may differ from this region.
 azure_region: eastus2
@@ -22,23 +25,25 @@ base_domain: "{{ azure_dns_zone }}"
 # Alternatively use one complete azure_sandbox.credentials entry, including its
 # own azure_region. See the classic ARO sample for both credential forms.
 aro_identity_mode: managed_identity
-# REQUIRED exact HCP release advertised by Azure for this region. Control-plane
-# minor version is derived from this release; node pool and oc use the full value.
-aro_version: REPLACE_WITH_SUPPORTED_HCP_VERSION
-# HCP conditional defaults: two workers and no customer control-plane VMs.
+# Confirm this example patch in your region's enabled stable node pool releases:
+# az aro hcp get-versions --location eastus2 --node-pools --query "[?ChannelGroup=='stable']" -o table
+# The control plane uses 5.0. The node pool and oc use the exact patch.
+aro_version: "5.0.1"
+# Match the quickstart's two D8s v6 workers with 64 GiB Premium SSD OS disks.
 # Preflight also requires 20 available regional/worker-family vCPUs, or more
 # when configured workers plus a surge worker exceed that floor.
 aro_worker_count: 2
-aro_worker_vm_size: Standard_D4s_v5
-aro_worker_disk_size: 128
-# One node pool in logical zone 1. Provider resolves its physical zone for HCP.
+aro_worker_vm_size: Standard_D8s_v6
+aro_worker_disk_size: 64
+# Azure uses an availability set when the zone is empty. Set a logical zone
+# such as '1' to request zonal placement when the worker SKU supports it.
 aro_hcp_nodepool_name: workers
-aro_hcp_availability_zone: '1'
+aro_hcp_availability_zone: ""
 # Integration subnet must be dedicated, at least /28, inside the machine VNet
 # and disjoint from workers. Standard ARO master subnet/VM settings are unused.
-aro_vnet_cidr: 10.0.0.0/22
-aro_worker_subnet_cidr: 10.0.2.0/23
-aro_hcp_vnet_integration_subnet_cidr: 10.0.0.0/28
+aro_vnet_cidr: 10.0.0.0/16
+aro_worker_subnet_cidr: 10.0.0.0/24
+aro_hcp_vnet_integration_subnet_cidr: 10.0.1.0/24
 aro_pod_cidr: 10.128.0.0/14
 aro_service_cidr: 172.30.0.0/16
 # Shared Linux bastion. See the classic sample for RHEL 10/image/SSH overrides.

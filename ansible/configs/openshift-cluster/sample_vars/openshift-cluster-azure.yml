@@ -76,8 +76,9 @@ cluster_name: ocp
 # belong to the common config; this example uses three control-plane and three
 # worker nodes. Ensure both SKU capacity and regional/VM-family quota are
 # adequate.
-control_plane_instance_type: Standard_D8s_v5
-worker_instance_type: Standard_D4s_v5
+# These VM sizes match the Azure IPI config defaults.
+control_plane_instance_type: Standard_D8s_v3
+worker_instance_type: Standard_D4s_v3
 control_plane_instance_count: 3
 worker_instance_count: 3
 
