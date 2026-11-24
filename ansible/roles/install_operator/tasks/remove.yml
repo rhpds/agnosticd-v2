@@ -65,7 +65,7 @@
   - name: "Remove OperatorGroup - {{ install_operator_name }}"
     kubernetes.core.k8s:
       state: absent
-      template: operatorgroup.yaml.j2
+      definition: "{{ lookup('ansible.builtin.template', 'operatorgroup.yaml.j2') | from_yaml }}"
 
   - name: "Remove Namespace - {{ install_operator_name }}"
     kubernetes.core.k8s:

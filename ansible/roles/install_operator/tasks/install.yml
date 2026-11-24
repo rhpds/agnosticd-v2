@@ -30,13 +30,13 @@
     when: not install_operator_skip_operatorgroup | default(false) | bool
     kubernetes.core.k8s:
       state: present
-      template: operatorgroup.yaml.j2
+      definition: "{{ lookup('ansible.builtin.template', 'operatorgroup.yaml.j2') | from_yaml }}"
 
 - name: "Create CatalogSource for use with catalog snapshot ({{ install_operator_name }})"
   when: install_operator_catalogsource_setup | bool
   kubernetes.core.k8s:
     state: present
-    template: catalogsource.yaml.j2
+    definition: "{{ lookup('ansible.builtin.template', 'catalogsource.yaml.j2') | from_yaml }}"
 
 - name: "Set subscription channel to provided channel ({{ install_operator_name }})"
   when: install_operator_channel | default("") | length > 0
@@ -82,7 +82,7 @@
 - name: "Create operator subscription ({{ install_operator_name }})"
   kubernetes.core.k8s:
     state: present
-    template: subscription.yaml.j2
+    definition: "{{ lookup('ansible.builtin.template', 'subscription.yaml.j2') | from_yaml }}"
 
 - name: "Wait until InstallPlan is created ({{ install_operator_name }})"
   kubernetes.core.k8s_info:
