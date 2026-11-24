@@ -26,3 +26,8 @@
     when: openshift_aws_scale_cluster | default(false) | bool
     ansible.builtin.include_role:
       name: agnosticd.cloud_provider_aws.scale_ocp_workers
+
+  - name: Scale OpenShift workers on Azure
+    when: openshift_azure_scale_cluster | default(false) | bool
+    ansible.builtin.include_role:
+      name: agnosticd.cloud_provider_azure.scale_ocp_workers
