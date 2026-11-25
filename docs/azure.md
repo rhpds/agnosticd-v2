@@ -119,7 +119,7 @@ the resulting kubeconfig to that user's home.
 | Worker VM size | `aro_worker_vm_size` defaults to `Standard_D4s_v5` | `worker_instance_type` defaults to `Standard_D4s_v3` |
 | Worker count | `aro_worker_count`, at least 3 | `worker_instance_count` |
 | Cluster identity | `aro_identity_mode` | Supplied sandbox service principal |
-| Pull secret | Required `ocp4_pull_secret`, passed to Azure at creation | Required `ocp4_pull_secret`, written to `install-config.yaml` |
+| Pull secret | Optional `ocp4_pull_secret`, passed to Azure at creation when supplied | Required `ocp4_pull_secret`, written to `install-config.yaml` |
 | Cluster API/ingress DNS | Azure-managed | Based on `cluster_name` and `cluster_dns_zone` |
 
 Standard ARO defaults to `managed_identity`, three control-plane nodes, and

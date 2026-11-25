@@ -12,7 +12,9 @@
   - name: Ensure pull secret is set
     when:
     - host_ocp4_deploy_installation_method != 'rosa'
-    - host_ocp4_deploy_installation_method != 'aro' or host_ocp4_deploy_install_ocp4 | default(true) | bool
+    - >-
+      host_ocp4_deploy_installation_method != 'aro' or
+      (aro_deploy_hcp | default(false) | bool and host_ocp4_deploy_install_ocp4 | default(true) | bool)
     ansible.builtin.assert:
       that: ocp4_pull_secret | default("") | length > 0
       fail_msg: ocp4_pull_secret variable must be defined

@@ -105,9 +105,9 @@ aro_worker_subnet_cidr: 10.0.2.0/23
 aro_pod_cidr: 10.128.0.0/14
 aro_service_cidr: 172.30.0.0/16
 
-# Supply ocp4_pull_secret with registry.redhat.io credentials as Docker config
-# JSON or a mapping in the separate secrets file. Classic ARO passes it to
-# Azure at cluster creation.
+# Optional for classic ARO. To enable authenticated pulls from registry.redhat.io,
+# supply ocp4_pull_secret as Docker config JSON or a mapping in the separate
+# secrets file. Classic ARO passes it to Azure at cluster creation.
 
 # Bastion options. This is an administrative helper VM, not an ARO worker.
 # The shared provision-key role supplies its public/private SSH key pair.
