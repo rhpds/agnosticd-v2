@@ -5,14 +5,14 @@ supplies a Linux bastion and the provider-specific OpenShift infrastructure.
 Two installation methods are supported:
 
 - `host_ocp4_deploy_installation_method: openshift_install` for self-managed IPI.
-- `host_ocp4_deploy_installation_method: aro` for standard Azure Red Hat OpenShift.
+- `host_ocp4_deploy_installation_method: aro` for Azure Red Hat OpenShift.
 
 The implementation is in
 [`agnosticd.cloud_provider_azure`](https://github.com/rhpds/cloud_provider_azure).
 Its local checkout is `../agnosticd-v2-collections/rhpds/cloud_provider_azure`.
 Every collection role has its own README and a commented `defaults/main.yml`.
 The v2 `host_ocp4_deploy` role is a thin installation-method dispatcher; it does
-not contain Azure API logic. Set `aro_deploy_hcp: true` to use the hosted-control-plane preview path.
+not contain Azure API logic. Set `aro_deploy_hcp: true` to deploy ARO with hosted control planes.
 
 ## Choose and copy a sample
 
@@ -23,7 +23,8 @@ All samples document their variables inline and contain no credentials:
   `aro_*` sizing/network variables.
 - [ARO HCP sample](../ansible/configs/openshift-cluster/sample_vars/openshift-cluster-aro-hcp-azure.yml):
   use a new GUID, a supported HCP region and an advertised stable OpenShift 5 patch.
-  It defaults to two workers and temporary administrative kubeconfig access.
+  The sample configures two workers, temporary administrative kubeconfig access,
+  and Keycloak for browser sign-in.
 - [IPI sample](../ansible/configs/openshift-cluster/sample_vars/openshift-cluster-azure.yml):
   choose the shared installer version, supply a Red Hat pull secret, and use the
   IPI machine size/count variables. Keep installer state for destruction.
@@ -259,29 +260,34 @@ provisioning tests. The HCP flow follows the
 It waits for the control plane to reach `Succeeded` before submitting the
 worker pool.
 
-For local testing, build and install the matching Azure collection checkout
-into the runner's collections path. To test a published collection branch or
-commit, set `cloud_provider_version` in your test variables so dependency
-installation selects that revision.
+The sample uses the Azure provider and core workloads collections from `main`
+after the HCP changes are merged. For testing before merge, set
+`cloud_provider_version: add_aro_hcp_support` and the same `version` in the
+`requirements_content.collections` entry for `core_workloads`. Use an
+agnosticd-v2 checkout with the corresponding HCP changes.
 
 Use the annotated `openshift-cluster-aro-hcp-azure.yml` sample for a new GUID.
 `aro_deploy_hcp` defaults false; enabling it retains the ARO installation method
-and roles while selecting a separate HCP provider branch in the Azure collection.
+and roles while selecting the HCP deployment path in the Azure collection.
 Supply `ocp4_pull_secret` in protected deployment variables as Docker config JSON
 or a mapping with valid `registry.redhat.io` credentials. After obtaining an
 administrative kubeconfig, the ARO install role merges the registry entries into
 `kube-system/additional-pull-secret` before workloads run.
 See [Microsoft's HCP pull secret guide](https://learn.microsoft.com/en-us/azure/openshift/how-to-add-pull-secrets).
-The sample uses two `Standard_D8s_v6` workers in an availability set, managed
-identities, public API/ingress and an owned customer-managed encryption key.
+The sample uses West Europe with two `Standard_D4s_v6` workers in an
+availability set, managed identities, public API and ingress, and an owned
+customer-managed encryption key. Check regional and VM family quota in the
+target subscription. Each needs at least 20 free vCPUs or enough for the
+workers plus one surge worker, whichever is greater. Leave the zone unset
+to use an availability set on a new deployment or preserve a zone from a
+matching ownership archive.
 Set `aro_version` to an enabled stable OpenShift 5 patch in your region. To list
-the patches, use `az aro hcp get-versions --location eastus2 --node-pools` with
+the patches, use `az aro hcp get-versions --location westeurope --node-pools` with
 Azure CLI 2.93.0 or later. The collection uses the selected minor for the
 control plane and the full patch for the workers and OpenShift client.
 Keep the original version and other settings for lifecycle and destroy jobs on
 existing preview deployments.
-Use a supported HCP region such as eastus2; the sandbox group may be elsewhere. The
-existing eastus classic example is not an HCP-region default.
+The sandbox group's metadata location can differ from the cluster's region.
 
 HCP exports a temporary admin kubeconfig rather than a kubeadmin password.
 It expires after 24 hours. After restoring the original variables/archive,
@@ -291,8 +297,11 @@ on that bastion to refresh controller, login-user and optional student copies.
 Expiry is in `<config>_<guid>_hcp_credentials.json`. Browser sign-in requires
 external OIDC. The `agnosticd.core_workloads.ocp4_workload_authentication` workload
 with `ocp4_workload_authentication_provider: keycloak` configures Keycloak as
-the HCP console provider. That integration has passed offline checks and
-browser sign-in still needs live validation.
+the HCP console provider. The sample uses the `stable-v26.6` Red Hat operator
+channel and generates passwords for the administrator and three workshop
+users. Use the OpenShift console URL and account credentials published in
+`agnosticd_user_info`. To provision with API access only, remove the
+authentication workload from the sample's `workloads` list.
 
 Destroy waits for node pools, cluster and managed-group cleanup before deleting
 owned network/identity/encryption prerequisites. The vault is soft-deleted for

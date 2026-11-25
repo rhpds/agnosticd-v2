@@ -1,68 +1,115 @@
 ---
-# OpenShift 5 with ARO hosted control planes. Copy to your vars repository and use a
-# NEW GUID. See docs/azure.md and the Azure collection's HCP credential role.
+# Azure Red Hat OpenShift with hosted control planes and Keycloak console login.
+# Copy to your vars repository, use a new deployment GUID, and supply the
+# allocated sandbox settings through protected vars. See docs/azure.md.
 config: openshift-cluster
 cloud_provider: azure
 guid: hcptest
-# Use the existing ARO dispatcher, with HCP explicitly selected.
+
+# Main is the default for the Azure collection. To test before the HCP changes
+# are merged, set cloud_provider_version and the core_workloads version below
+# to add_aro_hcp_support.
+# cloud_provider_version: add_aro_hcp_support
+requirements_content:
+  collections:
+  - name: https://github.com/rhpds/core_workloads.git
+    type: git
+    version: main
+
+# Use the ARO dispatcher for OpenShift 5 HCP. The sandbox principal runs the
+# deployment and Azure managed identities are used by the cluster.
 host_ocp4_deploy_installation_method: aro
 aro_deploy_hcp: true
+aro_identity_mode: managed_identity
+
 # Supply ocp4_pull_secret with registry.redhat.io credentials as Docker config
-# JSON or a mapping in the separate secrets file. The role merges it into
+# JSON or a mapping with auths in a protected vars file. HCP requires it. The
+# install role merges the registry entries into
 # kube-system/additional-pull-secret before workloads run.
-# Choose a region advertised by Azure for HCP (validated early during initialize).
-# The existing sandbox group's metadata location may differ from this region.
-azure_region: eastus2
-# This child zone must already exist/delegate in the supplied sandbox group.
+
+# West Europe was used for this example. Check HCP availability and compute
+# quota in your sandbox subscription. The sandbox resource group's metadata
+# location can differ from the deployment region.
+azure_region: westeurope
+# The child zone must already exist and be delegated in the supplied sandbox group.
+# Override azure_dns_zone with the allocated zone if its prefix differs from guid.
 azure_dns_zone: "{{ guid }}.azure.redhatworkshops.io"
 base_domain: "{{ azure_dns_zone }}"
-# Supply complete flat credentials in a separate protected secrets file:
+
+# Supply complete flat credentials in a separate protected vars file:
 # azure_subscription: <subscription UUID>
 # azure_service_principal_id: <client UUID>
 # azure_service_principal_password: <secret>
-# azure_tenant: <tenant UUID/domain>
+# azure_tenant: <tenant UUID or domain>
 # azure_resource_group: <existing sandbox group containing azure_dns_zone>
+#
 # Alternatively use one complete azure_sandbox.credentials entry, including its
-# own azure_region. See the classic ARO sample for both credential forms.
-aro_identity_mode: managed_identity
-# Confirm this example patch in your region's enabled stable node pool releases:
-# az aro hcp get-versions --location eastus2 --node-pools --query "[?ChannelGroup=='stable']" -o table
-# The control plane uses 5.0. The node pool and oc use the exact patch.
+# own azure_region, which takes precedence. See the classic ARO sample for both forms.
+
+# Confirm or replace this patch using the region's enabled stable OpenShift 5
+# node pool releases. Run the read-only command in the target subscription:
+# az aro hcp get-versions --location westeurope --node-pools --query "[?ChannelGroup=='stable']" -o table
+# Azure receives the minor version for the control plane and the full patch
+# for the worker pool. AgnosticD downloads the client for the configured patch.
 aro_version: "5.0.1"
-# Match the quickstart's two D8s v6 workers with 64 GiB Premium SSD OS disks.
-# Preflight also requires 20 available regional/worker-family vCPUs, or more
-# when configured workers plus a surge worker exceed that floor.
+# Azure resource name and bastion directory name are independent inputs.
+# Keep both names stable across lifecycle jobs.
+aro_cluster_name: "aro-{{ guid }}"
+cluster_name: "{{ aro_cluster_name }}"
+
+# This example uses two D4s v6 workers with 128 GiB Premium SSD OS disks.
+# Check both regional and worker VM family quota. Each needs at least 20 free
+# vCPUs or enough for the workers plus one surge worker, whichever is greater.
 aro_worker_count: 2
-aro_worker_vm_size: Standard_D8s_v6
-aro_worker_disk_size: 64
-# Azure uses an availability set when the zone is empty. Set a logical zone
-# such as '1' to request zonal placement when the worker SKU supports it.
+aro_worker_vm_size: Standard_D4s_v6
+aro_worker_disk_size: 128
 aro_hcp_nodepool_name: workers
-aro_hcp_availability_zone: ""
-# Integration subnet must be dedicated, at least /28, inside the machine VNet
-# and disjoint from workers. Standard ARO master subnet/VM settings are unused.
-aro_vnet_cidr: 10.0.0.0/16
-aro_worker_subnet_cidr: 10.0.0.0/24
-aro_hcp_vnet_integration_subnet_cidr: 10.0.1.0/24
+# Null uses an availability set on a new deployment and preserves the recorded
+# zone when reopening an archived deployment. For zonal placement, use a
+# logical zone such as '1' only if the SKU supports it in your subscription.
+aro_hcp_availability_zone: null
+
+# These are the provider's default HCP networks. The dedicated integration
+# subnet needs at least /28 and must be inside the machine VNet, separate
+# from workers. The pod and service ranges must be disjoint from the machine
+# VNet and from each other.
+aro_vnet_cidr: 10.0.0.0/22
+aro_worker_subnet_cidr: 10.0.2.0/23
+aro_hcp_vnet_integration_subnet_cidr: 10.0.0.0/28
 aro_pod_cidr: 10.128.0.0/14
 aro_service_cidr: 172.30.0.0/16
-# Shared Linux bastion. See the classic sample for RHEL 10/image/SSH overrides.
+
+# RHEL 10 bastion. See the classic ARO sample for image and SSH options.
 azure_bastion_user: azure
 azure_bastion_vm_size: Standard_D2s_v5
-install_satellite_repositories: false
-install_rhn_repositories: false
-# Temporary admin kubeconfig is copied to the shared bastion student account.
-# It expires after 24h: refresh via host_ocp4_aro_hcp_credentials. OIDC console
-# users are outside this initial implementation; no kubeadmin password exists.
-bastion_setup_student_user: true
-bastion_student_user_name: lab-user
-# Preserve the output archive. Lifecycle/destroy jobs need its original HCP mode.
-# Provision can replace settings only after all archived deployment groups are absent.
-# Destroy deletes the parent cluster and its pools before identities, network and vault.
-# The vault is soft-deleted for seven days, never purged automatically; an
-# archived same-deployment retry can recover it after ownership validation.
 azure_bastion_image:
   publisher: RedHat
   offer: RHEL
   sku: 10-lvm-gen2
   version: latest
+install_satellite_repositories: false
+install_rhn_repositories: false
+# Enabling the student account also copies the cluster-admin kubeconfig to it.
+# This example gives workshop users individual Keycloak accounts.
+bastion_setup_student_user: false
+
+# Keycloak runs on the cluster. The workload registers its realm with Azure as
+# the external OIDC provider for the OpenShift console. Sign in to OpenShift
+# using the accounts published in agnosticd_user_info. The Keycloak operator's
+# own administrator is for the Keycloak admin console.
+workloads:
+- agnosticd.core_workloads.ocp4_workload_authentication
+ocp4_workload_authentication_provider: keycloak
+ocp4_workload_authentication_keycloak_default_realm: keycloak
+# Use the channel from the tested deployment in the Red Hat operator catalog.
+ocp4_workload_authentication_keycloak_channel: stable-v26.6
+ocp4_workload_authentication_admin_username: admin
+# The workload generates passwords. Store any override in protected vars.
+ocp4_workload_authentication_num_users: 3
+
+# HCP has no kubeadmin password. The temporary admin kubeconfig is exported
+# to the controller and bastion. It expires after 24 hours. Refresh it via the
+# Azure collection's host_ocp4_aro_hcp_credentials role.
+# Preserve the output archive and original Azure/ARO values for lifecycle
+# and destroy jobs. A verified same-deployment retry can recover its owned
+# Key Vault while it is soft-deleted. Destroy never purges the vault.
