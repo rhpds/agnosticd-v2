@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 from ansible.errors import AnsibleFilterError
 from ansible.utils.display import Display
-from ansible.module_utils.six import string_types, integer_types
 
 display = Display()
 
@@ -38,11 +37,11 @@ def ec2_tags_to_dict(tags):
                     %(function_name)
                 )
 
-            if not isinstance(tag[keynocase], string_types) or tag[keynocase] == "":
+            if not isinstance(tag[keynocase], str) or tag[keynocase] == "":
                 raise AnsibleFilterError(
                     '%s: Invalid input, key must be a non-empty string.' %(function_name)
                 )
-            if not isinstance(tag[valuenocase], string_types) or tag[valuenocase] == "":
+            if not isinstance(tag[valuenocase], str) or tag[valuenocase] == "":
                 raise AnsibleFilterError(
                     '%s: Invalid input, value must be a non-empty string.'
                     %(function_name)
@@ -69,15 +68,15 @@ def dict_to_equinix_metal_tags(tags):
 
     try:
         for key in tags:
-            if isinstance(tags[key], integer_types):
+            if isinstance(tags[key], int):
                 tags[key]=str(tags[key])
 
-            if not isinstance(key, string_types):
+            if not isinstance(key, str):
                 raise AnsibleFilterError(
                     '%s: Invalid input, expect keys to be string, got key of type %s'
                     %(function_name, type(key))
                 )
-            if not isinstance(tags[key], string_types):
+            if not isinstance(tags[key], str):
                 raise AnsibleFilterError(
                     '%s: Invalid input, expect dict of string, got value of type %s'
                     %(function_name, type(tags[key]))
@@ -128,12 +127,12 @@ def ec2_tags_to_equinix_metal_tags(tags):
                     %(function_name)
                 )
 
-            if not isinstance(tag[keynocase], string_types) or tag[keynocase] == "":
+            if not isinstance(tag[keynocase], str) or tag[keynocase] == "":
                 raise AnsibleFilterError(
                     '%s: Invalid input, key must be a non-empty string.'
                     %(function_name)
                 )
-            if not isinstance(tag[valuenocase], string_types) or tag[valuenocase] == "":
+            if not isinstance(tag[valuenocase], str) or tag[valuenocase] == "":
                 raise AnsibleFilterError(
                     '%s: Invalid input, value must be a non-empty string.'
                     %(function_name)
@@ -158,7 +157,7 @@ def equinix_metal_tags_to_dict(tags):
     converted = dict()
     try:
         for tag in tags:
-            if not isinstance(tag, string_types):
+            if not isinstance(tag, str):
                 raise AnsibleFilterError(
                     '''Invalid type used with %s filter,
                     expect a string, got %s''' %(function_name, type(tag)))
@@ -184,9 +183,9 @@ def dict_sanitize_boto3_filter(filters_dict):
     for k, v in filters_dict.items():
         if isinstance(v, bool):
             filters_sanitized[k] = [str(v).lower()]
-        elif isinstance(v, integer_types):
+        elif isinstance(v, int):
             filters_sanitized[k] = [str(v)]
-        elif isinstance(v, string_types):
+        elif isinstance(v, str):
             filters_sanitized[k]= [v]
         else:
             filters_sanitized[k] = v

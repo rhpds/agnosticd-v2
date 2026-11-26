@@ -80,7 +80,7 @@ aro_identity_mode: managed_identity
 # role or download openshift-install; creation is performed through Azure CLI.
 aro_version: REPLACE_WITH_SUPPORTED_VERSION
 
-# ARO VM sizes. These are the collection defaults, shown explicitly for clarity.
+# Standard ARO VM sizes, using the Azure collection's ARO defaults.
 # They are independent of the bastion and IPI control_plane_instance_type /
 # worker_instance_type. Standard ARO always has three control-plane nodes.
 aro_master_vm_size: Standard_D8s_v5
@@ -105,9 +105,9 @@ aro_worker_subnet_cidr: 10.0.2.0/23
 aro_pod_cidr: 10.128.0.0/14
 aro_service_cidr: 172.30.0.0/16
 
-# Optional Red Hat pull secret: not required by this ARO path. If desired,
-# supply
-# ocp4_pull_secret as JSON text or a mapping in the separate secrets file.
+# Optional for classic ARO. To enable authenticated pulls from registry.redhat.io,
+# supply ocp4_pull_secret as Docker config JSON or a mapping in the separate
+# secrets file. Classic ARO passes it to Azure at cluster creation.
 
 # Bastion options. This is an administrative helper VM, not an ARO worker.
 # The shared provision-key role supplies its public/private SSH key pair.

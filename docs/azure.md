@@ -5,14 +5,14 @@ supplies a Linux bastion and the provider-specific OpenShift infrastructure.
 Two installation methods are supported:
 
 - `host_ocp4_deploy_installation_method: openshift_install` for self-managed IPI.
-- `host_ocp4_deploy_installation_method: aro` for standard Azure Red Hat OpenShift.
+- `host_ocp4_deploy_installation_method: aro` for Azure Red Hat OpenShift.
 
 The implementation is in
 [`agnosticd.cloud_provider_azure`](https://github.com/rhpds/cloud_provider_azure).
 Its local checkout is `../agnosticd-v2-collections/rhpds/cloud_provider_azure`.
 Every collection role has its own README and a commented `defaults/main.yml`.
 The v2 `host_ocp4_deploy` role is a thin installation-method dispatcher; it does
-not contain Azure API logic. Set `aro_deploy_hcp: true` to use the hosted-control-plane preview path.
+not contain Azure API logic. Set `aro_deploy_hcp: true` to deploy ARO with hosted control planes.
 
 ## Choose and copy a sample
 
@@ -21,9 +21,10 @@ All samples document their variables inline and contain no credentials:
 - [ARO sample](../ansible/configs/openshift-cluster/sample_vars/openshift-cluster-aro-azure.yml):
   replace the version marker with an exact regional ARO release and use the
   `aro_*` sizing/network variables.
-- [ARO HCP preview sample](../ansible/configs/openshift-cluster/sample_vars/openshift-cluster-aro-hcp-azure.yml):
-  use a new GUID, a supported HCP region and an exact advertised HCP release.
-  It defaults to two workers and temporary administrative kubeconfig access.
+- [ARO HCP sample](../ansible/configs/openshift-cluster/sample_vars/openshift-cluster-aro-hcp-azure.yml):
+  use a new GUID, a supported HCP region and an advertised stable OpenShift 5 patch.
+  The sample configures two workers, temporary administrative kubeconfig access,
+  and Keycloak for browser sign-in.
 - [IPI sample](../ansible/configs/openshift-cluster/sample_vars/openshift-cluster-azure.yml):
   choose the shared installer version, supply a Red Hat pull secret, and use the
   IPI machine size/count variables. Keep installer state for destruction.
@@ -115,16 +116,16 @@ the resulting kubeconfig to that user's home.
 | Purpose | Standard ARO | Self-managed IPI |
 | --- | --- | --- |
 | Version | `aro_version`: exact regional release | `host_ocp4_installer_version`: shared installer channel or exact release |
-| Control-plane VM size | `aro_master_vm_size` | `control_plane_instance_type` |
-| Worker VM size | `aro_worker_vm_size` | `worker_instance_type` |
+| Control-plane VM size | `aro_master_vm_size` defaults to `Standard_D8s_v5` | `control_plane_instance_type` defaults to `Standard_D8s_v3` |
+| Worker VM size | `aro_worker_vm_size` defaults to `Standard_D4s_v5` | `worker_instance_type` defaults to `Standard_D4s_v3` |
 | Worker count | `aro_worker_count`, at least 3 | `worker_instance_count` |
 | Cluster identity | `aro_identity_mode` | Supplied sandbox service principal |
-| Pull secret | Optional `ocp4_pull_secret` | Required `ocp4_pull_secret` JSON text |
+| Pull secret | Optional `ocp4_pull_secret`, passed to Azure at creation when supplied | Required `ocp4_pull_secret`, written to `install-config.yaml` |
 | Cluster API/ingress DNS | Azure-managed | Based on `cluster_name` and `cluster_dns_zone` |
 
-ARO defaults to `managed_identity`, three `Standard_D8s_v5` control-plane nodes
-and three `Standard_D4s_v5` workers with 128 GiB worker disks. Its preflight
-checks region/version, provider registrations, VM SKU restrictions and both
+Standard ARO defaults to `managed_identity`, three control-plane nodes, and
+three workers with 128 GiB worker disks. Its preflight checks region/version,
+provider registrations, VM SKU restrictions and both
 regional and family vCPU quota, including one extra control-plane-sized bootstrap
 machine. The default layout needs 44 available vCPUs for that check, beyond
 existing usage. Provider registration can be performed by the install operation
@@ -248,35 +249,59 @@ rerun, access, workloads, lifecycle and cleanup in the intended subscription
 before relying on a new deployment configuration.
 
 Sandbox allocation/release, parent delegation, Windows bastions, private ARO
-endpoints, external OIDC configuration and migration of existing v1 deployments remain
-outside this implementation.
+endpoints, and migration of existing v1 deployments remain outside this
+implementation.
 
-## HCP preview deployments
+## HCP deployments
 
-Self-managed Azure IPI and standard ARO have completed live provisioning tests.
-HCP remains experimental: the latest live test created a ready control plane,
-but the worker pool failed with Azure `DeadlineExceeded` and
-`hypershift node pool not cached yet`. No worker VMs appeared. The underlying
-cause remains under engineering investigation; offline test success does not
-establish that HCP provisioning works. Leave `aro_deploy_hcp: false` for the
-validated standard ARO path. A larger Ansible timeout cannot recover an Azure
-operation that has already reached terminal state `Failed`.
+Self-managed Azure IPI, standard ARO, and OpenShift 5 HCP have completed live
+provisioning tests. The HCP flow follows the
+[Red Hat HCP quickstart](https://cloud.redhat.com/experts/aro/quickstart-hcp/).
+It waits for the control plane to reach `Succeeded` before submitting the
+worker pool.
+
+The sample uses the Azure provider and core workloads collections from `main`
+after the HCP changes are merged. For testing before merge, set
+`cloud_provider_version: add_aro_hcp_support` and the same `version` in the
+`requirements_content.collections` entry for `core_workloads`. Use an
+agnosticd-v2 checkout with the corresponding HCP changes.
 
 Use the annotated `openshift-cluster-aro-hcp-azure.yml` sample for a new GUID.
 `aro_deploy_hcp` defaults false; enabling it retains the ARO installation method
-and roles while selecting a separate HCP provider branch in the Azure collection.
-It defaults to two D4s_v5 workers and one node pool in logical zone 1, managed
-identities, public API/ingress and an owned customer-managed encryption key.
-Use a supported HCP region such as eastus2; the sandbox group may be elsewhere. The
-existing eastus classic example is not an HCP-region default.
+and roles while selecting the HCP deployment path in the Azure collection.
+Supply `ocp4_pull_secret` in protected deployment variables as Docker config JSON
+or a mapping with valid `registry.redhat.io` credentials. After obtaining an
+administrative kubeconfig, the ARO install role merges the registry entries into
+`kube-system/additional-pull-secret` before workloads run.
+See [Microsoft's HCP pull secret guide](https://learn.microsoft.com/en-us/azure/openshift/how-to-add-pull-secrets).
+The sample uses West Europe with two `Standard_D4s_v6` workers in an
+availability set, managed identities, public API and ingress, and an owned
+customer-managed encryption key. Check regional and VM family quota in the
+target subscription. Each needs at least 20 free vCPUs or enough for the
+workers plus one surge worker, whichever is greater. Leave the zone unset
+to use an availability set on a new deployment or preserve a zone from a
+matching ownership archive.
+Set `aro_version` to an enabled stable OpenShift 5 patch in your region. To list
+the patches, use `az aro hcp get-versions --location westeurope --node-pools` with
+Azure CLI 2.93.0 or later. The collection uses the selected minor for the
+control plane and the full patch for the workers and OpenShift client.
+Keep the original version and other settings for lifecycle and destroy jobs on
+existing preview deployments.
+The sandbox group's metadata location can differ from the cluster's region.
 
 HCP exports a temporary admin kubeconfig rather than a kubeadmin password.
 It expires after 24 hours. After restoring the original variables/archive,
 initializing the Azure provider on localhost and discovering/configuring bastion
 SSH access, run `agnosticd.cloud_provider_azure.host_ocp4_aro_hcp_credentials`
 on that bastion to refresh controller, login-user and optional student copies.
-Expiry is in `<config>_<guid>_hcp_credentials.json`. Regular user/console login
-requires external OIDC, which is deferred. No HCP password is published.
+Expiry is in `<config>_<guid>_hcp_credentials.json`. Browser sign-in requires
+external OIDC. The `agnosticd.core_workloads.ocp4_workload_authentication` workload
+with `ocp4_workload_authentication_provider: keycloak` configures Keycloak as
+the HCP console provider. The sample uses the `stable-v26.6` Red Hat operator
+channel and generates passwords for the administrator and three workshop
+users. Use the OpenShift console URL and account credentials published in
+`agnosticd_user_info`. To provision with API access only, remove the
+authentication workload from the sample's `workloads` list.
 
 Destroy waits for node pools, cluster and managed-group cleanup before deleting
 owned network/identity/encryption prerequisites. The vault is soft-deleted for
