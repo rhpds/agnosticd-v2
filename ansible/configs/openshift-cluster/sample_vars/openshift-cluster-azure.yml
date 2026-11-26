@@ -71,14 +71,11 @@ host_ocp4_installer_version: "4.22"
 # API/ingress names and uses it for its bastion working directory.
 cluster_name: ocp
 
-# IPI VM SKUs (separate from aro_master_vm_size / aro_worker_vm_size). Node
-# counts
-# belong to the common config; this example uses three control-plane and three
-# worker nodes. Ensure both SKU capacity and regional/VM-family quota are
-# adequate.
-# These VM sizes match the Azure IPI config defaults.
-control_plane_instance_type: Standard_D8s_v3
-worker_instance_type: Standard_D4s_v3
+# This East US example uses three Dsv5 control-plane nodes and three Dsv5
+# workers. Check SKU availability and both regional and Dsv5 family vCPU
+# quotas for your subscription in the target region.
+control_plane_instance_type: Standard_D8s_v5
+worker_instance_type: Standard_D4s_v5
 control_plane_instance_count: 3
 worker_instance_count: 3
 

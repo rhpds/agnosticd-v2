@@ -93,12 +93,13 @@ install_rhn_repositories: false
 # This example gives workshop users individual Keycloak accounts.
 bastion_setup_student_user: false
 
-# Keycloak runs on the cluster. The workload registers its realm with Azure as
+# Keycloak runs on the cluster. The workload registers its realm with ARO as
 # the external OIDC provider for the OpenShift console. Sign in to OpenShift
 # using the accounts published in agnosticd_user_info. The Keycloak operator's
 # own administrator is for the Keycloak admin console.
 workloads:
 - agnosticd.core_workloads.ocp4_workload_authentication
+
 ocp4_workload_authentication_provider: keycloak
 ocp4_workload_authentication_keycloak_default_realm: keycloak
 # Use the channel from the tested deployment in the Red Hat operator catalog.
