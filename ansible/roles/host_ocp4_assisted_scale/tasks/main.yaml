@@ -380,4 +380,7 @@
     register: r_ingress_pods
     retries: 30
     delay: 10
-    until: r_ingress_pods.resources | length == r_worker_labeled_nodes.resources | length
+    until: >-
+      r_ingress_pods is not failed
+      and ((r_ingress_pods.resources | default([])) | length)
+      == ((r_worker_labeled_nodes.resources | default([])) | length)

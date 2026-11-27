@@ -73,7 +73,10 @@
       - "!node-role.kubernetes.io/control-plane"
       - "!node-role.kubernetes.io/master"
     register: r_current_workers
-    until: r_current_workers.resources | length == (current_instance_workers | int + worker_instance_count | int)
+    until: >-
+      r_current_workers is not failed
+      and ((r_current_workers.resources | default([])) | length)
+      == ((current_instance_workers | int) + (worker_instance_count | int))
     retries: 30
     delay: 10
 
